@@ -1,0 +1,109 @@
+export type PagedResult<T> = {
+  items: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+};
+
+export type EmployeeListItem = {
+  id: string;
+  employeeCode: string;
+  fullName: string;
+  documentNumber: string;
+  area: string;
+  position: string;
+  branch: string;
+  contractType: string;
+  hireDate: string;
+  baseSalary: number;
+  isActive: boolean;
+};
+
+export type EmployeeDetail = {
+  id: string;
+  employeeCode: string;
+  firstName: string;
+  lastName: string;
+  documentType: string;
+  documentNumber: string;
+  birthDate: string;
+  hireDate: string;
+  baseSalary: number;
+  personalEmail: string;
+  workEmail: string;
+  phoneNumber: string;
+  profilePhotoUrl: string | null;
+  notes: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  contractEndDate: string | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountCci: string | null;
+  bankAccountType: string | null;
+  bankCurrency: string | null;
+  branchId: string;
+  branch: string;
+  areaId: string;
+  area: string;
+  positionId: string;
+  position: string;
+  contractTypeId: string;
+  contractType: string;
+  managerId: string | null;
+  manager: string | null;
+  isActive: boolean;
+};
+
+export type EmployeeCatalogOption = {
+  id: string;
+  name: string;
+};
+
+export type EmployeeCatalogs = {
+  branches: EmployeeCatalogOption[];
+  areas: EmployeeCatalogOption[];
+  positions: EmployeeCatalogOption[];
+  contractTypes: EmployeeCatalogOption[];
+  managers: EmployeeCatalogOption[];
+};
+
+export type EmployeeQuery = {
+  search: string;
+  areaId: string;
+  branchId: string;
+  isActive: boolean;
+  pageNumber: number;
+  pageSize: number;
+  sortBy: string;
+  sortDirection: "asc" | "desc";
+};
+
+export type EmployeePayload = {
+  employeeCode: string;
+  firstName: string;
+  lastName: string;
+  documentType: string;
+  documentNumber: string;
+  birthDate: string;
+  hireDate: string;
+  baseSalary: number;
+  personalEmail: string;
+  workEmail: string;
+  phoneNumber: string;
+  profilePhotoUrl: string;
+  notes: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  contractEndDate: string;
+  bankName: string;
+  bankAccountNumber: string;
+  bankAccountCci: string;
+  bankAccountType: string;
+  bankCurrency: string;
+  branchId: string;
+  areaId: string;
+  positionId: string;
+  contractTypeId: string;
+  managerId: string;
+};

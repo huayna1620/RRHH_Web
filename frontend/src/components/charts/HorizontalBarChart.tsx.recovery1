@@ -1,0 +1,65 @@
+type BarItem = {
+  label: string;
+  value: number;
+  secondaryValue: number;
+  color: string;
+};
+
+type HorizontalBarChartProps = {
+  items: BarItem[];
+  maxValue: number;
+  formatValue: (value: number) => string;
+  showSecondary: boolean;
+  secondaryLabel: string;
+};
+
+const DEFAULT_COLORS = [
+  "bg-brand-400",
+  "bg-indigo-400",
+  "bg-amber-400",
+  "bg-rose-400",
+  "bg-emerald-400",
+  "bg-purple-400",
+  "bg-cyan-400",
+  "bg-orange-400"
+];
+
+export function HorizontalBarChart({
+  items,
+  maxValue,
+  formatValue,
+  showSecondary = false,
+  secondaryLabel = "Activos"
+}: HorizontalBarChartProps): JSX.Element {
+  const max = maxValue  Math.max(...items.map((item) => item.value), 1);
+  const fmt = formatValue  ((v: number) => String(v));
+
+  return (
+    <div className="space-y-2.5">
+      {items.map((item, index) => {
+        const pct = Math.round((item.value / max) * 100);
+        const color = item.color  DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+
+        return (
+          <div key={item.label} className="space-y-1">
+            <div className="flex items-center justify-between text-[12px]">
+              <span className="font-medium text-slate-700 truncate max-w-[60%]">{item.label}</span>
+              <div className="flex items-center gap-2 text-slate-500">
+                {showSecondary && item.secondaryValue !== undefined  (
+                  <span className="text-[11px]">{secondaryLabel}: <span className="font-semibold text-slate-700">{fmt(item.secondaryValue)}</span></span>
+                ) : null}
+                <span className="font-bold text-slate-800 tabular-nums">{fmt(item.value)}</span>
+              </div>
+            </div>
+            <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${color}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

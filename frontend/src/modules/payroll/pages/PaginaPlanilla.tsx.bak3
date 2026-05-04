@@ -1,0 +1,737 @@
+﻿import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Building2, Calculator, CheckCircle2, Download, FileArchive, Pencil, RotateCcw, WalletCards } from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { PageHeader } from "@/components/ui/page-header";
+import { Modal } from "@/components/ui/modal";
+import { AdjustPayrollModal } from "@/modules/payroll/components/AdjustPayrollModal";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import {
+  approvePayroll,
+  downloadBankFile,
+  downloadBulkPayslips,
+  downloadPayslip,
+  generatePayroll,
+  getBankFormats,
+  getPayroll,
+  getPayrollCatalogs,
+  markPayrollPaid,
+  unapprovePayroll,
+  updatePayrollAdjustments
+} from "@/modules/payroll/services/payrollApi";
+import type { PayrollItem, PayrollStatus } from "@/modules/payroll/types/payroll.types";
+ AdjustModal = {
+  id: string;
+  employeeName: string;
+  bonuses: number;
+  deductions: number;
+  notes: string | null;
+} | null;
+ pageSize = 10;
+ MONTHS = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+];
+ STATUS_LABELS: Record<PayrollStatus, string> = {
+  draft: "Borrador",
+  approved: "Aprobada",
+  paid: "Pagada"
+};
+ STATUS_CLASS: Record<PayrollStatus, string> = {
+  draft: "bg-slate-100 text-slate-600",
+  approved: "bg-blue-50 text-blue-700",
+  paid: "bg-emerald-50 text-emerald-700"
+};
+ StatusBadge({ status }: { status: PayrollStatus }): JSX.Element {
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_CLASS[status]}`}>
+      {STATUS_LABELS[status]}
+    </span>
+  );
+}
+ formatCurrency(value: number): string {
+  return `S/ ${value.toFixed(2)}`;
+}
+ toIsoDate(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+ function PaginaPlanilla(): JSX.Element {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  const [pageNumber, setPageNumber] = useState(1);
+  const [draftSearch, setDraftSearch] = useState("");
+  const [search, setSearch] = useState("");
+  const [year, setYear] = useState<number>(currentYear);
+  const [month, setMonth] = useState<number>(currentMonth);
+  const [employeeFilter, setEmployeeFilter] = useState("");
+  const [areaFilter, setAreaFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<PayrollStatus | "">("");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
+  const [generateEmployeeId, setGenerateEmployeeId] = useState("");
+  const [forceRecalculate, setForceRecalculate] = useState(false);
+  const [adjustModal, setAdjustModal] = useState<AdjustModal>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadingBulk, setDownloadingBulk] = useState(false);
+  const [downloadingBank, setDownloadingBank] = useState(false);
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [bankFormat, setBankFormat] = useState("GENERIC");
+  const [confirmAction, setConfirmAction] = useState<"approve" | "unapprove" | "pay" | null>(null);
+
+  const canCreate = user.permissions.includes("payroll.create") ? false;
+  const canEdit = user.permissions.includes("payroll.edit") ? false;
+  const canApprove = user.permissions.includes("payroll.approve") ? false;
+
+  const catalogsQuery = useQuery({
+    queryKey: ["payroll-catalogs"],
+    queryFn: getPayrollCatalogs
+  });
+
+  const useDateRange = Boolean(startDateFilter || endDateFilter);
+
+  const payrollQuery = useQuery({
+    queryKey: ["payroll", pageNumber, search, year, month, employeeFilter, areaFilter, startDateFilter, endDateFilter],
+    queryFn: () =>
+      getPayroll({
+        search: search || undefined,
+        employeeId: employeeFilter || undefined,
+        areaId: areaFilter || undefined,
+        year: useDateRange ? undefined : year,
+        month: useDateRange ? undefined : month,
+        startDate: startDateFilter || undefined,
+        endDate: endDateFilter || undefined,
+        pageNumber,
+        pageSize
+      })
+  });
+
+  const bankFormatsQuery = useQuery({
+    queryKey: ["bank-formats"],
+    queryFn: getBankFormats,
+    enabled: showBankModal
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: generatePayroll,
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["payroll"] });
+      setFeedback({
+        type: "success",
+        message: `Planilla generada. Nuevos: ${result.generatedCount}, recalculados: ${result.updatedCount}.`
+      });
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo generar la planilla." });
+    }
+  });
+
+  const adjustMutation = useMutation({
+    mutationFn: ({ id, bonuses, deductions, notes }: { id: string; bonuses: number; deductions: number; notes: string }) =>
+      updatePayrollAdjustments(id, { bonuses, deductions, notes }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["payroll"] });
+      setFeedback({ type: "success", message: "Ajustes actualizados." });
+      setAdjustModal(null);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudieron actualizar los ajustes." });
+    }
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: () => approvePayroll(year, month),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["payroll"] });
+      setFeedback({ type: "success", message: `${result.approvedCount} registro(s) aprobados.` });
+      setConfirmAction(null);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo aprobar la planilla." });
+      setConfirmAction(null);
+    }
+  });
+
+  const unapproveMutation = useMutation({
+    mutationFn: () => unapprovePayroll(year, month),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["payroll"] });
+      setFeedback({ type: "success", message: `${result.unapprovedCount} registro(s) revertidos a borrador.` });
+      setConfirmAction(null);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo revertir la aprobaciÃ³n." });
+      setConfirmAction(null);
+    }
+  });
+
+  const markPaidMutation = useMutation({
+    mutationFn: () => markPayrollPaid(year, month),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["payroll"] });
+      setFeedback({ type: "success", message: `${result.paidCount} registro(s) marcados como pagados.` });
+      setConfirmAction(null);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo marcar como pagada." });
+      setConfirmAction(null);
+    }
+  });
+
+  async function handleDownloadPayslip(item: PayrollItem): Promise<void> {
+    setDownloadingId(item.id);
+    try {
+      const blob = await downloadPayslip(item.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `boleta_${item.employeeCode}_${item.year}_${String(item.month).padStart(2, "0")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setFeedback({ type: "error", message: "No se pudo descargar la boleta." });
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
+  async function handleBulkDownload(): Promise<void> {
+    setDownloadingBulk(true);
+    try {
+      const blob = await downloadBulkPayslips(year, month);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `boletas_${year}_${String(month).padStart(2, "0")}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setFeedback({ type: "error", message: "No se pudieron descargar las boletas." });
+    } finally {
+      setDownloadingBulk(false);
+    }
+  }
+
+  async function handleBankFileDownload(): Promise<void> {
+    setDownloadingBank(true);
+    try {
+      const blob = await downloadBankFile(year, month, bankFormat);
+      const ext = bankFormat === "BCP" || bankFormat === "BBVA" || bankFormat === "INTERBANK" ? "txt" : "csv";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `planilla_${year}_${String(month).padStart(2, "0")}_${bankFormat.toLowerCase()}.${ext}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setShowBankModal(false);
+      setFeedback({ type: "success", message: "Archivo bancario generado exitosamente." });
+    } catch {
+      setFeedback({ type: "error", message: "No se pudo generar el archivo bancario." });
+    } finally {
+      setDownloadingBank(false);
+    }
+  }
+
+  const totalPages = useMemo(() => {
+    const totalCount = payrollQuery.data.totalCount  0;
+    return Math.max(1, Math.ceil(totalCount / pageSize));
+  }, [payrollQuery.data.totalCount]);
+
+  const allItems = payrollQuery.data.items ?? [];
+  const items = statusFilter ? allItems.filter((i) => i.status === statusFilter) : allItems;
+  const hasDraft = allItems.some((i) => i.status === "draft");
+  const hasApproved = allItems.some((i) => i.status === "approved");
+
+  const filteredTotals = useMemo(() => ({
+    baseSalary: items.reduce((sum, i) => sum + i.baseSalary, 0),
+    bonuses: items.reduce((sum, i) => sum + i.bonuses, 0),
+    deductions: items.reduce((sum, i) => sum + i.deductions, 0),
+    grossIncome: items.reduce((sum, i) => sum + i.grossIncome, 0),
+    netPay: items.reduce((sum, i) => sum + i.netPay, 0)
+  }), [items]);
+
+  const kpis = useMemo(() => {
+    const draftCount = allItems.filter((i) => i.status === "draft").length;
+    const approvedCount = allItems.filter((i) => i.status === "approved").length;
+    const paidCount = allItems.filter((i) => i.status === "paid").length;
+    const totalNet = allItems.reduce((sum, i) => sum + i.netPay, 0);
+    return { draftCount, approvedCount, paidCount, totalNet, total: allItems.length };
+  }, [allItems]);
+
+  function applyLastMonths(months: number): void {
+    const end = new Date(year, month, 0);
+    const start = new Date(year, month - 1, 1);
+    start.setMonth(start.getMonth() - (months - 1));
+    setStartDateFilter(toIsoDate(start));
+    setEndDateFilter(toIsoDate(end));
+    setPageNumber(1);
+  }
+
+  return (
+    <section className="animate-fade-up space-y-5">
+      <PageHeader
+        title="Planilla"
+        description="Ingresos, descuentos, bonos y resumen mensual por empleado."
+      />
+
+      {feedback ? (
+        <Alert
+          variant={feedback.type === "success" ? "success" : "error"}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
+      ) : null}
+
+      {/* KPIs */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card><CardContent className="py-4">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Total registros</p>
+          <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-800">{kpis.total}</p>
+          <p className="mt-0.5 text-[11px] text-muted">{MONTHS[month - 1]} {year}</p>
+        </CardContent></Card>
+        <Card><CardContent className="py-4">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Borradores</p>
+          <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-700">{kpis.draftCount}</p>
+          <p className="mt-0.5 text-[11px] text-muted">Pendientes de aprobar</p>
+        </CardContent></Card>
+        <Card><CardContent className="py-4">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Aprobadas</p>
+          <p className="mt-1 text-2xl font-extrabold tabular-nums text-blue-700">{kpis.approvedCount}</p>
+          <p className="mt-0.5 text-[11px] text-muted">{kpis.paidCount} ya pagadas</p>
+        </CardContent></Card>
+        <Card><CardContent className="py-4">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Neto del periodo</p>
+          <p className="mt-1 text-2xl font-extrabold tabular-nums text-emerald-700">{formatCurrency(kpis.totalNet)}</p>
+          <p className="mt-0.5 text-[11px] text-muted">Suma de neto a pagar</p>
+        </CardContent></Card>
+      </div>
+
+      {/* Generate + Workflow actions */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Generar planilla</CardTitle>
+            <span className="rounded-md bg-brand-50 px-2.5 py-1 text-[12px] font-semibold text-brand-700">
+              {MONTHS[month - 1]} {year}
+            </span>
+          </CardHeader>
+          <CardContent className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_auto]">
+            <Select value={generateEmployeeId} onChange={(e) => setGenerateEmployeeId(e.target.value)}>
+              <option value="">Todos los empleados activos</option>
+              {catalogsQuery.data.employees.map((item) => (
+                <option key={item.id} value={item.id}>{item.label}</option>
+              ))}
+            </Select>
+            <Select value={forceRecalculate ? "yes" : "no"} onChange={(e) => setForceRecalculate(e.target.value === "yes")}>
+              <option value="no">No recalcular existentes</option>
+              <option value="yes">Recalcular existentes</option>
+            </Select>
+            <Button
+              disabled={!canCreate || generateMutation.isPending}
+              onClick={() =>
+                generateMutation.mutate({
+                  year,
+                  month,
+                  employeeId: generateEmployeeId || undefined,
+                  forceRecalculate
+                })
+              }
+            >
+              <Calculator className="size-4" />
+              {generateMutation.isPending ? "Generando..." : "Generar"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {canApprove ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Flujo de aprobaciÃ³n</CardTitle>
+              <span className="text-[12px] text-muted">{MONTHS[month - 1]} {year}</span>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="secondary"
+                disabled={!hasDraft || approveMutation.isPending}
+                onClick={() => setConfirmAction("approve")}
+              >
+                <CheckCircle2 className="size-4" />
+                Aprobar borradores
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={!hasApproved || unapproveMutation.isPending}
+                onClick={() => setConfirmAction("unapprove")}
+              >
+                <RotateCcw className="size-4" />
+                Revertir aprobaciÃ³n
+              </Button>
+              <Button
+                disabled={!hasApproved || markPaidMutation.isPending}
+                onClick={() => setConfirmAction("pay")}
+              >
+                <WalletCards className="size-4" />
+                Marcar como pagadas
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+
+      {/* Table with filters */}
+      <Card>
+        <CardHeader className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <CardTitle>Resumen mensual â€” {MONTHS[month - 1]} {year}</CardTitle>
+              {payrollQuery.data.totalCount ? (
+                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+                  {payrollQuery.data.totalCount} registros
+                </span>
+              ) : null}
+            </div>
+            <div className="flex gap-2">
+              {allItems.length > 0 ? (
+                <>
+                  <Button variant="secondary" size="sm" disabled={downloadingBulk} onClick={handleBulkDownload}>
+                    <FileArchive className="size-3.5" />
+                    {downloadingBulk ? "Descargando..." : "Descargar boletas (ZIP)"}
+                  </Button>
+                  {(hasApproved || allItems.some((i) => i.status === "paid")) ? (
+                    <Button variant="secondary" size="sm" onClick={() => setShowBankModal(true)}>
+                      <Building2 className="size-3.5" />
+                      Archivo bancario
+                    </Button>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-6">
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Buscar</label>
+              <Input
+                value={draftSearch}
+                onChange={(e) => setDraftSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { setSearch(draftSearch.trim()); setPageNumber(1); } }}
+                placeholder="Buscar empleado..."
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">AÃ±o</label>
+              <Input
+                type="number"
+                value={year}
+                min={2000}
+                max={2100}
+                onChange={(e) => { setYear(Number(e.target.value)); setPageNumber(1); }}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Mes</label>
+              <Select value={String(month)} onChange={(e) => { setMonth(Number(e.target.value)); setPageNumber(1); }}>
+                {MONTHS.map((name, index) => (
+                  <option key={index + 1} value={index + 1}>{name}</option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Empleado</label>
+              <Select value={employeeFilter} onChange={(e) => { setEmployeeFilter(e.target.value); setPageNumber(1); }}>
+                <option value="">Todos los empleados</option>
+                {catalogsQuery.data.employees.map((item) => (
+                  <option key={item.id} value={item.id}>{item.label}</option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Ãrea</label>
+              <Select value={areaFilter} onChange={(e) => { setAreaFilter(e.target.value); setPageNumber(1); }}>
+                <option value="">Todas las areas</option>
+                {catalogsQuery.data.areas.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Estado</label>
+              <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as PayrollStatus | "")}>
+                <option value="">Todos los estados</option>
+                <option value="draft">Borrador</option>
+                <option value="approved">Aprobada</option>
+                <option value="paid">Pagada</option>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-[1fr_1fr_auto_auto_auto]">
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Desde</label>
+              <Input
+                type="date"
+                value={startDateFilter}
+                onChange={(e) => { setStartDateFilter(e.target.value); setPageNumber(1); }}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Hasta</label>
+              <Input
+                type="date"
+                value={endDateFilter}
+                onChange={(e) => { setEndDateFilter(e.target.value); setPageNumber(1); }}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button variant="secondary" onClick={() => applyLastMonths(3)}>
+                Ultimos 3 meses
+              </Button>
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setStartDateFilter("");
+                  setEndDateFilter("");
+                  setPageNumber(1);
+                }}
+              >
+                Limpiar rango
+              </Button>
+            </div>
+            <div className="flex items-end">
+              <Button variant="secondary" onClick={() => { setSearch(draftSearch.trim()); setPageNumber(1); }}>
+                Buscar
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0 pb-4">
+          <div className="grid gap-3 border-b bg-slate-50/70 px-4 py-3 md:grid-cols-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Registros filtrados</p>
+              <p className="text-[14px] font-extrabold tabular-nums text-slate-800">{items.length}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Sueldo base</p>
+              <p className="text-[14px] font-bold tabular-nums text-slate-700">{formatCurrency(filteredTotals.baseSalary)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Bonos</p>
+              <p className="text-[14px] font-bold tabular-nums text-emerald-600">{formatCurrency(filteredTotals.bonuses)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Descuentos</p>
+              <p className="text-[14px] font-bold tabular-nums text-rose-600">{formatCurrency(filteredTotals.deductions)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Neto</p>
+              <p className="text-[14px] font-extrabold tabular-nums text-slate-900">{formatCurrency(filteredTotals.netPay)}</p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b bg-slate-50">
+                  {["Empleado", "Estado", "Sueldo base", "Bonos", "Descuentos", "Neto", ""].map((col) => (
+                    <th
+                      key={col}
+                      className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400 last:text-right"
+                    >
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {payrollQuery.isLoading ? (
+                  <TableSkeleton cols={7} />
+                ) : items.length ? (
+                  <>
+                    {items.map((item) => (
+                      <tr key={item.id} className="border-t transition-colors hover:bg-slate-50/70">
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-slate-800">{item.employeeName}</p>
+                          <p className="text-[11px] text-muted">{item.employeeCode} Â· {item.area}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge status={item.status} />
+                        </td>
+                        <td className="px-4 py-3 tabular-nums text-slate-600">{formatCurrency(item.baseSalary)}</td>
+                        <td className="px-4 py-3 tabular-nums text-emerald-600">{formatCurrency(item.bonuses)}</td>
+                        <td className="px-4 py-3">
+                          <span className="tabular-nums text-rose-600">{formatCurrency(item.deductions)}</span>
+                          {(item.incidentDeductions > 0 || item.loanDeductions > 0) ? (
+                            <p className="text-[10px] text-muted mt-0.5">
+                              {item.incidentDeductions > 0 ? `Inc: ${formatCurrency(item.incidentDeductions)}` : ""}
+                              {item.incidentDeductions > 0 && item.loanDeductions > 0 ? " Â· " : ""}
+                              {item.loanDeductions > 0 ? `PrÃ©st: ${formatCurrency(item.loanDeductions)}` : ""}
+                            </p>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">
+                          <span className="font-bold text-slate-800">{formatCurrency(item.netPay)}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {canEdit && item.status === "draft" ? (
+                              <button
+                                type="button"
+                                className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                title="Ajustar"
+                                onClick={() =>
+                                  setAdjustModal({
+                                    id: item.id,
+                                    employeeName: item.employeeName,
+                                    bonuses: item.bonuses,
+                                    deductions: item.deductions,
+                                    notes: item.notes
+                                  })
+                                }
+                              >
+                                <Pencil className="size-3.5" />
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              disabled={downloadingId === item.id}
+                              className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40"
+                              title="Descargar boleta"
+                              onClick={() => handleDownloadPayslip(item)}
+                            >
+                              <Download className="size-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Totals row */}
+                    <tr className="border-t-2 border-slate-200 bg-slate-50/80">
+                      <td className="px-4 py-3 text-[12px] font-bold uppercase tracking-wide text-slate-500" colSpan={2}>
+                        Totales ({items.length})
+                      </td>
+                      <td className="px-4 py-3 tabular-nums font-bold text-slate-700">{formatCurrency(filteredTotals.baseSalary)}</td>
+                      <td className="px-4 py-3 tabular-nums font-bold text-emerald-600">{formatCurrency(filteredTotals.bonuses)}</td>
+                      <td className="px-4 py-3 tabular-nums font-bold text-rose-600">{formatCurrency(filteredTotals.deductions)}</td>
+                      <td className="px-4 py-3 tabular-nums font-extrabold text-slate-900">{formatCurrency(filteredTotals.netPay)}</td>
+                      <td />
+                    </tr>
+                  </>
+                ) : (
+                  <TableEmptyState cols={7} icon={WalletCards} message="No hay registros de planilla para el periodo seleccionado." />
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="px-4">
+            <Pagination
+              page={pageNumber}
+              totalPages={totalPages}
+              totalCount={payrollQuery.data.totalCount  0}
+              pageSize={pageSize}
+              onChange={setPageNumber}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <ConfirmModal
+        open={confirmAction === "approve"}
+        title="Â¿Aprobar planilla del periodo"
+        message={`Se aprobarÃ¡n todos los registros en borrador de ${MONTHS[month - 1]} ${year}. Una vez aprobados, dejarÃ¡n de ser editables (a menos que reviertas la aprobaciÃ³n).`}
+        confirmLabel="SÃ­, aprobar"
+        variant="primary"
+        loading={approveMutation.isPending}
+        onConfirm={() => approveMutation.mutate()}
+        onClose={() => setConfirmAction(null)}
+      />
+      <ConfirmModal
+        open={confirmAction === "unapprove"}
+        title="Â¿Revertir aprobaciÃ³n"
+        message={`Los registros aprobados de ${MONTHS[month - 1]} ${year} volverÃ¡n a estado borrador y podrÃ¡n editarse nuevamente. Esta acciÃ³n no afecta a registros ya pagados.`}
+        confirmLabel="SÃ­, revertir"
+        variant="danger"
+        loading={unapproveMutation.isPending}
+        onConfirm={() => unapproveMutation.mutate()}
+        onClose={() => setConfirmAction(null)}
+      />
+      <ConfirmModal
+        open={confirmAction === "pay"}
+        title="Â¿Marcar como pagadas"
+        message={`Esta acciÃ³n es IRREVERSIBLE. Los registros aprobados de ${MONTHS[month - 1]} ${year} quedarÃ¡n bloqueados para ediciÃ³n y las cuotas de prÃ©stamo del periodo se descontarÃ¡n definitivamente.`}
+        confirmLabel="SÃ­, marcar como pagadas"
+        variant="danger"
+        loading={markPaidMutation.isPending}
+        onConfirm={() => markPaidMutation.mutate()}
+        onClose={() => setConfirmAction(null)}
+      />
+
+      <AdjustPayrollModal
+        open={adjustModal !== null}
+        employeeName={adjustModal.employeeName ? ""}
+        currentBonuses={adjustModal.bonuses  0}
+        currentDeductions={adjustModal.deductions  0}
+        currentNotes={adjustModal.notes}
+        loading={adjustMutation.isPending}
+        onConfirm={(bonuses, deductions, notes) => {
+          if (!adjustModal) return;
+          adjustMutation.mutate({ id: adjustModal.id, bonuses, deductions, notes });
+        }}
+        onClose={() => setAdjustModal(null)}
+      />
+
+      {/* Bank file modal */}
+      <Modal open={showBankModal} title="Generar archivo bancario" onClose={() => setShowBankModal(false)}>
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500">
+            Genera el archivo de pago masivo para {MONTHS[month - 1]} {year}. Solo se incluyen registros aprobados o pagados. Los empleados sin datos bancarios completos se omiten.
+          </p>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Formato del banco</label>
+            <select
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              value={bankFormat}
+              onChange={(e) => setBankFormat(e.target.value)}
+            >
+              {(bankFormatsQuery.data ?? []).map((f) => (
+                <option key={f.code} value={f.code}>{f.displayName}</option>
+              ))}
+              {!bankFormatsQuery.data && <option value="GENERIC">Generico (CSV)</option>}
+            </select>
+            {bankFormatsQuery.data && (
+              <p className="text-xs text-slate-400">
+                {bankFormatsQuery.data.find((f) => f.code === bankFormat).description}
+              </p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" size="sm" onClick={() => setShowBankModal(false)}>Cancelar</Button>
+            <Button size="sm" disabled={downloadingBank} onClick={handleBankFileDownload}>
+              <Building2 className="size-3.5" />
+              {downloadingBank ? "Generando..." : "Descargar archivo"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </section>
+  );
+}
+
+

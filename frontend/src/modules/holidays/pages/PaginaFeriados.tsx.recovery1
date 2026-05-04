@@ -1,0 +1,227 @@
+﻿import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Modal } from "@/components/ui/modal";
+import { FormField } from "@/components/forms/FormField";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import { getHolidays, createHoliday, updateHoliday, deleteHoliday } from "@/modules/holidays/services/holidaysApi";
+import type { HolidayItem } from "@/modules/holidays/types/holiday.types";
+ FormModal = { mode: "create"; holiday: null } | { mode: "edit"; holiday: HolidayItem } | null;
+ function PaginaFeriados(): JSX.Element {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const canEdit = user.permissions.includes("holidays.edit") ? false;
+
+  const [formModal, setFormModal] = useState<FormModal>(null);
+  const [deleteTarget, setDeleteTarget] = useState<HolidayItem | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Form state
+  const [name, setName] = useState("");
+  const [date, setDate] = useState("");
+  const [isRecurring, setIsRecurring] = useState("true");
+
+  const { data: holidays, isLoading } = useQuery({
+    queryKey: ["holidays"],
+    queryFn: getHolidays
+  });
+
+  const createMutation = useMutation({
+    mutationFn: createHoliday,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["holidays"] });
+      setFormModal(null);
+      setFeedback({ type: "success", message: "Feriado creado correctamente." });
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo crear el feriado." })
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: { date: string; name: string; isRecurring: boolean } }) =>
+      updateHoliday(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["holidays"] });
+      setFormModal(null);
+      setFeedback({ type: "success", message: "Feriado actualizado." });
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo actualizar el feriado." })
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteHoliday,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["holidays"] });
+      setDeleteTarget(null);
+      setFeedback({ type: "success", message: "Feriado eliminado." });
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo eliminar el feriado." })
+  });
+
+  function openCreate(): void {
+    setName("");
+    setDate("");
+    setIsRecurring("true");
+    setFormModal({ mode: "create", holiday: null });
+  }
+
+  function openEdit(h: HolidayItem): void {
+    setName(h.name);
+    setDate(h.date);
+    setIsRecurring(h.isRecurring ? "true" : "false");
+    setFormModal({ mode: "edit", holiday: h });
+  }
+
+  function handleSubmit(e: React.FormEvent): void {
+    e.preventDefault();
+    if (!name.trim() || !date) return;
+
+    const payload = { date, name: name.trim(), isRecurring: isRecurring === "true" };
+
+    if (formModal.mode === "edit" && formModal.holiday) {
+      updateMutation.mutate({ id: formModal.holiday.id, payload });
+    } else {
+      createMutation.mutate(payload);
+    }
+  }
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Feriados"
+        description="Calendario de feriados oficiales y configurables del sistema."
+      />
+
+      {feedback && (
+        <Alert
+          variant={feedback.type === "success" ? "success" : "error"}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Listado de feriados</CardTitle>
+          {canEdit && (
+            <Button size="lg" className="btn-create" onClick={openCreate}>
+              <Plus className="size-4" /> Nuevo feriado
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <TableSkeleton rows={6} cols={5} />
+          ) : !holidays || holidays.length === 0 ? (
+            <TableEmptyState cols={5} message="No hay feriados registrados." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-3 py-2.5">Fecha</th>
+                    <th className="px-3 py-2.5">Nombre</th>
+                    <th className="px-3 py-2.5">Tipo</th>
+                    <th className="px-3 py-2.5">Estado</th>
+                    {canEdit && <th className="px-3 py-2.5 text-right">Acciones</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {holidays.map((h) => (
+                    <tr key={h.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                      <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs">{h.date}</td>
+                      <td className="px-3 py-2.5 font-medium">{h.name}</td>
+                      <td className="px-3 py-2.5">
+                        <Badge variant={h.isRecurring ? "info" : "neutral"}>
+                          {h.isRecurring ? "Recurrente" : "Unico"}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <Badge variant={h.isActive ? "success" : "danger"}>
+                          {h.isActive ? "Activo" : "Inactivo"}
+                        </Badge>
+                      </td>
+                      {canEdit && (
+                        <td className="px-3 py-2.5 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button
+                              className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                              title="Editar"
+                              onClick={() => openEdit(h)}
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                            <button
+                              className="rounded-md p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                              title="Eliminar"
+                              onClick={() => setDeleteTarget(h)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create/Edit Modal */}
+      <Modal
+        open={formModal !== null}
+        title={formModal.mode === "edit" ? "Editar feriado" : "Nuevo feriado"}
+        onClose={() => setFormModal(null)}
+      >
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <FormField label="Nombre del feriado" required>
+            <Input value={name} onChange={(e) => setName(e.target.value)} required />
+          </FormField>
+          <FormField label="Fecha" required>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          </FormField>
+          <FormField label="Tipo">
+            <Select value={isRecurring} onChange={(e) => setIsRecurring(e.target.value)}>
+              <option value="true">Recurrente (se repite cada ano)</option>
+              <option value="false">Unico (solo ese ano)</option>
+            </Select>
+          </FormField>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" type="button" onClick={() => setFormModal(null)}>Cancelar</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? "Guardando..." : formModal.mode === "edit" ? "Guardar cambios" : "Crear feriado"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Confirm */}
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title="Eliminar feriado"
+        message={`Seguro que deseas eliminar el feriado "${deleteTarget.name}"`}
+        variant="danger"
+        confirmLabel="Eliminar"
+        loading={deleteMutation.isPending}
+        onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.id); }}
+        onClose={() => setDeleteTarget(null)}
+      />
+    </div>
+  );
+}
+
+

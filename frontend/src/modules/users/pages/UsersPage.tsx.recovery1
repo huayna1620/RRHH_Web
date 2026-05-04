@@ -1,0 +1,270 @@
+﻿import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { KeyRound, Pencil, Plus, UserCheck, UserX } from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import { UserFormModal } from "@/modules/users/components/UserFormModal";
+import { ChangePasswordModal } from "@/modules/users/components/ChangePasswordModal";
+import { getUsers, createUser, updateUser, updateUserStatus, changePassword } from "@/modules/users/services/usersApi";
+import { getRoles } from "@/modules/roles/services/rolesApi";
+import { getEmployees } from "@/modules/employees/services/employeesApi";
+import type { UserItem } from "@/modules/users/types/user.types";
+import type { EmployeeQuery } from "@/modules/employees/types/employee.types";
+ FormModalState = { mode: "create"; user: null } | { mode: "edit"; user: UserItem } | null;
+type StatusConfirm = { id: string; fullName: string; isActive: boolean } | null;
+ defaultEmployeeQuery: EmployeeQuery = { pageNumber: 1, pageSize: 500, isActive: true };
+ function UsersPage(): JSX.Element {
+  const { user: authUser } = useAuth();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [formModal, setFormModal] = useState<FormModalState>(null);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [statusConfirm, setStatusConfirm] = useState<StatusConfirm>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const canCreate = authUser.permissions.includes("users.create");
+  const canEdit = authUser.permissions.includes("users.edit");
+
+  const { data: users, isLoading } = useQuery({ queryKey: ["users"], queryFn: getUsers });
+  const { data: roles } = useQuery({ queryKey: ["roles"], queryFn: getRoles });
+  const { data: employeesData } = useQuery({
+    queryKey: ["employees-for-link"],
+    queryFn: () => getEmployees(defaultEmployeeQuery),
+  });
+
+  const employees = (employeesData.items ?? []).map((e) => ({ id: e.id, name: `${e.employeeCode} - ${e.fullName}` }));
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => updateUserStatus(id, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setStatusConfirm(null);
+    },
+    onError: () => setError("Error al cambiar el estado."),
+  });
+
+  const filtered = (users ?? []).filter((u) => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return u.fullName.toLowerCase().includes(s) || u.userName.toLowerCase().includes(s) || u.email.toLowerCase().includes(s);
+  });
+
+  async function handleFormSubmit(data: {
+    userName: string;
+    email: string;
+    fullName: string;
+    password: string;
+    roleIds: string[];
+    employeeId: string | null;
+  }): Promise<void> {
+    if (formModal.mode === "create") {
+      await createUser({
+        userName: data.userName!,
+        email: data.email,
+        fullName: data.fullName,
+        password: data.password!,
+        roleIds: data.roleIds,
+      });
+    } else if (formModal.mode === "edit") {
+      await updateUser(formModal.user.id, {
+        fullName: data.fullName,
+        email: data.email,
+        roleIds: data.roleIds,
+        employeeId: data.employeeId,
+      });
+    }
+    queryClient.invalidateQueries({ queryKey: ["users"] });
+  }
+
+  async function handleChangePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await changePassword({ currentPassword, newPassword });
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Usuarios" description="GestiÃ³n de usuarios del sistema" />
+
+      {error && <Alert variant="error" message={error} onClose={() => setError(null)} />}
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Listado de usuarios</CardTitle>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setChangePasswordOpen(true)}>
+                <KeyRound className="mr-1.5 size-3.5" /> Mi contraseÃ±a
+              </Button>
+              {canCreate && (
+                <Button
+                  size="lg"
+                  className="btn-create"
+                  onClick={() => setFormModal({ mode: "create", user: null })}
+                >
+                  <Plus className="size-4" /> Nuevo usuario
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">
+            <Input
+              placeholder="Buscar por nombre, usuario o correo..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {isLoading ? (
+            <TableSkeleton rows={5} cols={6} />
+          ) : filtered.length === 0 ? (
+            <TableEmptyState cols={6} message="No se encontraron usuarios." />
+          ) : (
+            <>
+              <div className="space-y-3 md:hidden">
+                {filtered.map((u) => (
+                  <article key={u.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-800">{u.fullName}</p>
+                        <p className="text-xs text-slate-500">@{u.userName}</p>
+                      </div>
+                      <Badge variant={u.isActive ? "success" : "danger"}>
+                        {u.isActive ? "Activo" : "Inactivo"}
+                      </Badge>
+                    </div>
+                    <div className="mt-2 space-y-1 text-xs">
+                      <p className="truncate text-slate-600">{u.email}</p>
+                      <p className="text-slate-500">Empleado: {u.employeeName ? "-"}</p>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {u.roles.map((r) => (
+                        <Badge key={r} variant="info">{r}</Badge>
+                      ))}
+                    </div>
+                    {canEdit && (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setFormModal({ mode: "edit", user: u })}
+                        >
+                          <Pencil className="size-3.5" /> Editar
+                        </Button>
+                        <Button
+                          variant={u.isActive ? "danger" : "primary"}
+                          size="sm"
+                          onClick={() => setStatusConfirm({ id: u.id, fullName: u.fullName, isActive: !u.isActive })}
+                        >
+                          {u.isActive ? <UserX className="size-3.5" /> : <UserCheck className="size-3.5" />}
+                          {u.isActive ? "Desactivar" : "Activar"}
+                        </Button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-3 py-2.5">Usuario</th>
+                    <th className="px-3 py-2.5">Nombre</th>
+                    <th className="px-3 py-2.5">Correo</th>
+                    <th className="px-3 py-2.5">Roles</th>
+                    <th className="px-3 py-2.5">Empleado</th>
+                    <th className="px-3 py-2.5">Estado</th>
+                    {canEdit && <th className="px-3 py-2.5 text-right">Acciones</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((u) => (
+                    <tr key={u.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                      <td className="px-3 py-2.5 font-medium">{u.userName}</td>
+                      <td className="px-3 py-2.5">{u.fullName}</td>
+                      <td className="px-3 py-2.5 text-slate-500">{u.email}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex flex-wrap gap-1">
+                          {u.roles.map((r) => (
+                            <Badge key={r} variant="info">{r}</Badge>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-500">{u.employeeName ? "-"}</td>
+                      <td className="px-3 py-2.5">
+                        <Badge variant={u.isActive ? "success" : "danger"}>
+                          {u.isActive ? "Activo" : "Inactivo"}
+                        </Badge>
+                      </td>
+                      {canEdit && (
+                        <td className="px-3 py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                              title="Editar"
+                              onClick={() => setFormModal({ mode: "edit", user: u })}
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                            <button
+                              className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                              title={u.isActive ? "Desactivar" : "Activar"}
+                              onClick={() => setStatusConfirm({ id: u.id, fullName: u.fullName, isActive: !u.isActive })}
+                            >
+                              {u.isActive ? <UserX className="size-3.5" /> : <UserCheck className="size-3.5" />}
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <UserFormModal
+        open={formModal !== null}
+        user={formModal.user ? null}
+        roles={roles ?? []}
+        employees={employees}
+        onClose={() => setFormModal(null)}
+        onSubmit={handleFormSubmit}
+      />
+
+      <ChangePasswordModal
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+        onSubmit={handleChangePassword}
+      />
+
+      <ConfirmModal
+        open={statusConfirm !== null}
+        title={statusConfirm.isActive ? "Activar usuario" : "Desactivar usuario"}
+        message={`Â¿EstÃ¡s seguro de ${statusConfirm.isActive ? "activar" : "desactivar"} al usuario "${statusConfirm.fullName ? ""}"`}
+        confirmLabel={statusConfirm.isActive ? "Activar" : "Desactivar"}
+        variant={statusConfirm.isActive ? "primary" : "danger"}
+        loading={statusMutation.isPending}
+        onClose={() => setStatusConfirm(null)}
+        onConfirm={() => {
+          if (statusConfirm) {
+            statusMutation.mutate({ id: statusConfirm.id, isActive: statusConfirm.isActive });
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+

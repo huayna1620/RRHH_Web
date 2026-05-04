@@ -1,0 +1,184 @@
+﻿import { useEffect, useMemo, useState } from "react";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
+import type { PermissionItem, RoleItem } from "@/modules/roles/types/role.types";
+ Props = {
+  open: boolean;
+  role: RoleItem | null;
+  allPermissions: PermissionItem[];
+  currentPermissionIds: string[];
+  onClose: () => void;
+  onSubmit: (roleId: string, permissionIds: string[]) => Promise<void>;
+};
+ TOKEN_TRANSLATIONS: Record<string, string> = {
+  analytics: "Analitica",
+  areas: "Areas",
+  attendance: "Asistencia",
+  incidents: "Incidencias",
+  auditlog: "Auditoria",
+  configuration: "Configuracion",
+  documents: "Documentos",
+  employees: "Empleados",
+  evaluations: "Evaluaciones",
+  holidays: "Feriados",
+  integrations: "Integraciones",
+  jobpostings: "Vacantes",
+  leaves: "Permisos",
+  onboarding: "Onboarding",
+  payroll: "Planilla",
+  reports: "Reportes",
+  recruitment: "Reclutamiento",
+  roles: "Roles",
+  users: "Usuarios",
+  vacations: "Vacaciones",
+  view: "Ver",
+  create: "Crear",
+  edit: "Editar",
+  delete: "Eliminar",
+  approve: "Aprobar",
+  reject: "Rechazar",
+  justify: "Justificar",
+  cancel: "Cancelar",
+  manage: "Gestionar",
+  export: "Exportar",
+  import: "Importar",
+  upload: "Subir",
+  download: "Descargar",
+  sync: "Sincronizar",
+  assign: "Asignar",
+  update: "Actualizar"
+};
+ toTitleCase(value: string): string {
+  return value
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+ translateToken(token: string): string {
+  const normalized = token.trim().toLowerCase();
+  if (!normalized) return "";
+  if (TOKEN_TRANSLATIONS[normalized]) return TOKEN_TRANSLATIONS[normalized];
+  return toTitleCase(normalized.replace(/[_-]+/g, " "));
+}
+ translateModule(moduleCode: string): string {
+  return translateToken(moduleCode);
+}
+ translatePermissionCode(code: string): string {
+  return code
+    .split(".")
+    .map((token) => translateToken(token))
+    .filter(Boolean)
+    .join(" Â· ");
+}
+ function ModalPermisosRol({ open, role, allPermissions, currentPermissionIds, onClose, onSubmit }: Props): JSX.Element {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setSelected(new Set(currentPermissionIds));
+      setError(null);
+    }
+  }, [open, currentPermissionIds]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, PermissionItem[]>();
+    for (const perm of allPermissions) {
+      const group = map.get(perm.module) ?? [];
+      group.push(perm);
+      map.set(perm.module, group);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [allPermissions]);
+
+  function toggle(id: string): void {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleModule(modulePerms: PermissionItem[]): void {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const allSelected = modulePerms.every((p) => next.has(p.id));
+      for (const p of modulePerms) {
+        if (allSelected) next.delete(p.id);
+        else next.add(p.id);
+      }
+      return next;
+    });
+  }
+
+  async function handleSubmit(): Promise<void> {
+    if (!role) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await onSubmit(role.id, Array.from(selected));
+      onClose();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al guardar permisos.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal open={open} title={`Permisos: ${role.name ? ""}`} onClose={onClose}>
+      <div className="space-y-4">
+        {error && <Alert variant="error" message={error} />}
+
+        <div className="max-h-[50vh] space-y-4 overflow-y-auto">
+          {grouped.map(([module, perms]) => {
+            const allChecked = perms.every((p) => selected.has(p.id));
+            return (
+              <div key={module} className="rounded-lg border border-slate-200 p-3">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    onChange={() => toggleModule(perms)}
+                    className="size-4 rounded border-slate-300 text-brand-500 focus:ring-brand-400"
+                  />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{translateModule(module)}</span>
+                </label>
+                <div className="mt-2 grid grid-cols-2 gap-1 pl-6 sm:grid-cols-3">
+                  {perms.map((perm) => (
+                    <label key={perm.id} className="flex cursor-pointer items-center gap-2 py-0.5">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(perm.id)}
+                        onChange={() => toggle(perm.id)}
+                        className="size-3.5 rounded border-slate-300 text-brand-500 focus:ring-brand-400"
+                      />
+                      <span className="text-xs text-slate-600" title={perm.code}>{translatePermissionCode(perm.code)}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-between border-t pt-3">
+          <span className="text-xs text-slate-400">{selected.size} permisos seleccionados</span>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button onClick={handleSubmit} disabled={loading}>
+              {loading ? "Guardando..." : "Guardar permisos"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+

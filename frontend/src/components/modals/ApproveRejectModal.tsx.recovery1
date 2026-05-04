@@ -1,0 +1,98 @@
+import { useState, useEffect } from "react";
+import { Check, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+
+type ApproveRejectModalProps = {
+  open: boolean;
+  action: "approve" | "reject";
+  title: string;
+  requireComment: boolean;
+  loading: boolean;
+  onConfirm: (comment: string) => void;
+  onClose: () => void;
+};
+
+export function ApproveRejectModal({
+  open,
+  action,
+  title,
+  requireComment = false,
+  loading,
+  onConfirm,
+  onClose
+}: ApproveRejectModalProps): JSX.Element | null {
+  const [comment, setComment] = useState("");
+
+  useEffect(() => {
+    if (open) setComment("");
+  }, [open]);
+
+  if (!open) return null;
+
+  const isApprove = action === "approve";
+  const canSubmit = !requireComment || comment.trim().length > 0;
+
+  function handleSubmit(): void {
+    if (!canSubmit) return;
+    onConfirm(comment.trim() || undefined);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+      <div className="animate-modal-in w-full max-w-md rounded-2xl border bg-white shadow-panel-lg">
+        <div className="flex items-center justify-between border-b px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className={`flex size-8 items-center justify-center rounded-lg ${isApprove  "bg-emerald-100" : "bg-rose-100"}`}>
+              {isApprove
+                 <Check className="size-4 text-emerald-600" />
+                : <X className="size-4 text-rose-500" />
+              }
+            </div>
+            <h3 className="font-bold tracking-tight text-slate-800">{title}</h3>
+          </div>
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            onClick={onClose}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-[12px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+              {isApprove  "Comentario" : "Motivo de rechazo"}
+              {requireComment  <span className="ml-1 text-rose-500">*</span> : <span className="ml-1 text-slate-400 font-normal normal-case tracking-normal">(opcional)</span>}
+            </label>
+            <Textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder={isApprove  "Agrega un comentario de aprobación..." : "Indica el motivo del rechazo..."}
+              className="rounded-lg"
+              rows={3}
+            />
+            {requireComment && !comment.trim() && (
+              <p className="mt-1 text-[12px] text-rose-500">Este campo es obligatorio.</p>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={onClose} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button
+              variant={isApprove  "primary" : "danger"}
+              size="sm"
+              onClick={handleSubmit}
+              disabled={loading || !canSubmit}
+            >
+              {loading  "Procesando..." : isApprove  "Aprobar" : "Rechazar"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

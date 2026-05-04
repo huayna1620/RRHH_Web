@@ -1,0 +1,86 @@
+﻿import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { FormField } from "@/components/forms/FormField";
+import type { ConfigurationCatalogItem, ConfigurationCatalogPayload } from "@/modules/configuration/types/configuration.types";
+ schema = z.object({
+  code: z.string().min(2, "Codigo requerido"),
+  name: z.string().min(2, "Nombre requerido")
+});
+ FormValues = z.infer<typeof schema>;
+ ConfigurationCatalogFormModalProps = {
+  open: boolean;
+  title: string;
+  mode: "create" | "edit";
+  item: ConfigurationCatalogItem | null;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (payload: ConfigurationCatalogPayload) => Promise<void>;
+};
+ function ModalFormCatalogoConfiguracion({
+  open,
+  title,
+  mode,
+  item,
+  saving,
+  onClose,
+  onSubmit
+}: ConfigurationCatalogFormModalProps): JSX.Element {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors }
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { code: "", name: "" }
+  });
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (mode === "edit" && item) {
+      reset({ code: item.code, name: item.name });
+      return;
+    }
+
+    reset({ code: "", name: "" });
+  }, [item, mode, open, reset]);
+
+  return (
+    <Modal open={open} title={title} onClose={onClose}>
+      <form
+        className="space-y-4"
+        onSubmit={handleSubmit(async (values) => {
+          await onSubmit({
+            code: values.code.trim(),
+            name: values.name.trim()
+          });
+        })}
+      >
+        <FormField label="Codigo" error={errors.code.message}>
+          <Input {...register("code")} />
+        </FormField>
+
+        <FormField label="Nombre" error={errors.name.message}>
+          <Input {...register("name")} />
+        </FormField>
+
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Guardando..." : mode === "create" ? "Crear" : "Guardar"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+

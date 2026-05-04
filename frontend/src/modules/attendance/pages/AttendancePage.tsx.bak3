@@ -1,0 +1,358 @@
+﻿import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Clock3, LogIn, LogOut, PlusCircle, AlertCircle, UserCheck } from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { PageHeader } from "@/components/ui/page-header";
+import { JustifyAttendanceModal } from "@/modules/attendance/components/JustifyAttendanceModal";
+import { MarkAbsentModal } from "@/modules/attendance/components/MarkAbsentModal";
+import {
+  checkIn,
+  checkOut,
+  getAttendance,
+  getAttendanceCatalogs,
+  justifyAttendance,
+  markAbsent
+} from "@/modules/attendance/services/attendanceApi";
+ JustifyModal = { attendanceId: string; employeeName: string; justification: string | null } | null;
+ pageSize = 10;
+ function AttendancePage(): JSX.Element {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  const [viewMode, setViewMode] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [referenceDate, setReferenceDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [draftSearch, setDraftSearch] = useState("");
+  const [search, setSearch] = useState("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "late" | "absent">("all");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [justifyModal, setJustifyModal] = useState<JustifyModal>(null);
+  const [markAbsentOpen, setMarkAbsentOpen] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const canCreate = user.permissions.includes("attendance.create") ? false;
+  const canEdit = user.permissions.includes("attendance.edit") ? false;
+  const canJustify = user.permissions.includes("attendance.justify") ? false;
+
+  const catalogsQuery = useQuery({
+    queryKey: ["attendance-catalogs"],
+    queryFn: getAttendanceCatalogs
+  });
+
+  const attendanceQuery = useQuery({
+    queryKey: ["attendance", viewMode, referenceDate, search, selectedEmployeeId, statusFilter, pageNumber],
+    queryFn: () =>
+      getAttendance({
+        viewMode,
+        referenceDate,
+        search: search || undefined,
+        employeeId: selectedEmployeeId || undefined,
+        isLate: statusFilter === "late" ? true : undefined,
+        isAbsent: statusFilter === "absent" ? true : undefined,
+        pageNumber,
+        pageSize
+      })
+  });
+
+  const checkInMutation = useMutation({
+    mutationFn: (employeeId: string) => checkIn(employeeId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      setFeedback({ type: "success", message: "Ingreso registrado." });
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo registrar el ingreso." });
+    }
+  });
+
+  const checkOutMutation = useMutation({
+    mutationFn: (attendanceId: string) => checkOut(attendanceId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      setFeedback({ type: "success", message: "Salida registrada." });
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo registrar la salida." });
+    }
+  });
+
+  const absentMutation = useMutation({
+    mutationFn: ({ employeeId, reason }: { employeeId: string; reason: string }) =>
+      markAbsent(employeeId, reason),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      setFeedback({ type: "success", message: "Falta registrada." });
+      setMarkAbsentOpen(false);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo registrar la falta." });
+    }
+  });
+
+  const justifyMutation = useMutation({
+    mutationFn: ({ attendanceId, justification }: { attendanceId: string; justification: string }) =>
+      justifyAttendance(attendanceId, justification),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      setFeedback({ type: "success", message: "JustificaciÃ³n registrada." });
+      setJustifyModal(null);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo registrar la justificaciÃ³n." });
+    }
+  });
+
+  const totalPages = useMemo(() => {
+    const totalCount = attendanceQuery.data.totalCount  0;
+    return Math.max(1, Math.ceil(totalCount / pageSize));
+  }, [attendanceQuery.data.totalCount]);
+
+  // Summary counters
+  const summary = useMemo(() => {
+    const items = attendanceQuery.data.items ?? [];
+    return {
+      present: items.filter((r) => !r.isAbsent && r.lateMinutes === 0).length,
+      late: items.filter((r) => !r.isAbsent && r.lateMinutes > 0).length,
+      absent: items.filter((r) => r.isAbsent).length
+    };
+  }, [attendanceQuery.data.items]);
+
+  function applyFilters(): void {
+    setSearch(draftSearch.trim());
+    setPageNumber(1);
+  }
+
+  return (
+    <section className="animate-fade-up space-y-5">
+      <PageHeader
+        title="Asistencia"
+        description="Registro de ingreso/salida, tardanzas, faltas y justificaciones."
+      />
+
+      {feedback ? (
+        <Alert
+          variant={feedback.type === "success" ? "success" : "error"}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
+      ) : null}
+
+      {/* Summary KPIs */}
+      {!attendanceQuery.isLoading && attendanceQuery.data ? (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl border bg-white px-4 py-3 flex items-center gap-3 shadow-panel">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-brand-100">
+              <UserCheck className="size-4 text-brand-600" />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted">A tiempo</p>
+              <p className="text-xl font-extrabold text-slate-800">{summary.present}</p>
+            </div>
+          </div>
+          <div className="rounded-xl border bg-white px-4 py-3 flex items-center gap-3 shadow-panel">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-amber-100">
+              <Clock3 className="size-4 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Tardanzas</p>
+              <p className="text-xl font-extrabold text-slate-800">{summary.late}</p>
+            </div>
+          </div>
+          <div className="rounded-xl border bg-white px-4 py-3 flex items-center gap-3 shadow-panel">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-rose-100">
+              <AlertCircle className="size-4 text-rose-500" />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Faltas</p>
+              <p className="text-xl font-extrabold text-slate-800">{summary.absent}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="grid gap-3 py-4 md:grid-cols-4">
+          <Select value={viewMode} onChange={(e) => setViewMode(e.target.value as "daily" | "weekly" | "monthly")}>
+            <option value="daily">Vista diaria</option>
+            <option value="weekly">Vista semanal</option>
+            <option value="monthly">Vista mensual</option>
+          </Select>
+          <Input
+            type="date"
+            value={referenceDate}
+            onChange={(e) => setReferenceDate(e.target.value)}
+          />
+          <Input
+            value={draftSearch}
+            onChange={(e) => setDraftSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") applyFilters(); }}
+            placeholder="Buscar empleado..."
+          />
+          <Button variant="secondary" onClick={applyFilters}>
+            Aplicar filtros
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Quick register */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Registro rÃ¡pido</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_1fr]">
+          <Select value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)}>
+            <option value="">Selecciona un empleado</option>
+            {catalogsQuery.data.employees.map((item) => (
+              <option key={item.id} value={item.id}>{item.label}</option>
+            ))}
+          </Select>
+          <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "late" | "absent")}>
+            <option value="all">Todos</option>
+            <option value="late">Solo tardanzas</option>
+            <option value="absent">Solo faltas</option>
+          </Select>
+          <Button
+            disabled={!canCreate || !selectedEmployeeId || checkInMutation.isPending}
+            onClick={() => checkInMutation.mutate(selectedEmployeeId)}
+          >
+            <LogIn className="size-4" /> Check-in
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={!canEdit || !selectedEmployeeId || absentMutation.isPending}
+            onClick={() => setMarkAbsentOpen(true)}
+          >
+            <PlusCircle className="size-4" /> Marcar falta
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Listado de asistencia</CardTitle>
+          {attendanceQuery.data.totalCount ? (
+            <span className="text-[12px] text-muted">{attendanceQuery.data.totalCount} registros</span>
+          ) : null}
+        </CardHeader>
+        <CardContent className="p-0 pb-4">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b bg-slate-50">
+                  {["Empleado", "Fecha", "Ingreso", "Salida", "Estado", "JustificaciÃ³n", ""].map((col) => (
+                    <th
+                      key={col}
+                      className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400 last:text-right"
+                    >
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {attendanceQuery.isLoading ? (
+                  <TableSkeleton cols={7} />
+                ) : attendanceQuery.data.items.length ? (
+                  attendanceQuery.data.items.map((row) => {
+                    const isLate = !row.isAbsent && row.lateMinutes > 0;
+                    const status = row.isAbsent ? "Falta" : isLate ? `Tardanza ${row.lateMinutes}m` : "A tiempo";
+                    const statusVariant = row.isAbsent || isLate ? "danger" : "success";
+
+                    return (
+                      <tr key={row.id} className="border-t transition-colors hover:bg-slate-50/70">
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-slate-800">{row.employeeName}</p>
+                          <p className="text-[11px] text-muted">{row.employeeCode} Â· {row.area}</p>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">{row.attendanceDate}</td>
+                        <td className="px-4 py-3 tabular-nums text-slate-600">
+                          {row.checkInAtUtc ? new Date(row.checkInAtUtc).toLocaleTimeString() : <span className="text-slate-300">â€”</span>}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums text-slate-600">
+                          {row.checkOutAtUtc ? new Date(row.checkOutAtUtc).toLocaleTimeString() : <span className="text-slate-300">â€”</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={statusVariant as "success" | "danger"}>{status}</Badge>
+                        </td>
+                        <td className="max-w-[160px] truncate px-4 py-3 text-slate-500">
+                          {row.justification ? <span className="text-slate-300">â€”</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-0.5">
+                            {canEdit && !row.isAbsent && row.checkInAtUtc && !row.checkOutAtUtc ? (
+                              <button
+                                className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                title="Check-out"
+                                onClick={() => checkOutMutation.mutate(row.id)}
+                              >
+                                <LogOut className="size-3.5" />
+                              </button>
+                            ) : null}
+                            {canJustify ? (
+                              <button
+                                className="rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-brand-600 transition hover:bg-brand-50"
+                                onClick={() => setJustifyModal({ attendanceId: row.id, employeeName: row.employeeName, justification: row.justification })}
+                              >
+                                Justificar
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <TableEmptyState cols={7} icon={Clock3} message="Sin registros para el filtro actual." />
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="px-4">
+            <Pagination
+              page={pageNumber}
+              totalPages={totalPages}
+              totalCount={attendanceQuery.data.totalCount  0}
+              pageSize={pageSize}
+              onChange={setPageNumber}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <JustifyAttendanceModal
+        open={justifyModal !== null}
+        employeeName={justifyModal.employeeName ? ""}
+        currentJustification={justifyModal.justification}
+        loading={justifyMutation.isPending}
+        onConfirm={(justification) => {
+          if (!justifyModal) return;
+          justifyMutation.mutate({ attendanceId: justifyModal.attendanceId, justification });
+        }}
+        onClose={() => setJustifyModal(null)}
+      />
+
+      <MarkAbsentModal
+        open={markAbsentOpen}
+        employees={catalogsQuery.data.employees ?? []}
+        selectedEmployeeId={selectedEmployeeId}
+        loading={absentMutation.isPending}
+        onConfirm={(employeeId, reason) => absentMutation.mutate({ employeeId, reason })}
+        onClose={() => setMarkAbsentOpen(false)}
+      />
+    </section>
+  );
+}
+
+

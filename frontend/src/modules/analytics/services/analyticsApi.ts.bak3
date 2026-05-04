@@ -1,0 +1,47 @@
+﻿import { httpClient } from "@/services/api/httpClient";
+import type {
+  AnalyticsSummary,
+  HeadcountTrend,
+  LaborCostTrend,
+  AttendanceTrend,
+  AreaDistribution,
+  TurnoverRisk,
+  CostProjection,
+  YearComparison
+} from "@/modules/analytics/types/analytics.types";
+ BASE = "/api/v1/analytics";
+ async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
+  const { data } = await httpClient.get<AnalyticsSummary>(`${BASE}/summary`);
+  return data;
+}
+ async function getHeadcountTrend(months = 12): Promise<HeadcountTrend[]> {
+  const { data } = await httpClient.get<HeadcountTrend[]>(`${BASE}/headcount-trend`, { params: { months } });
+  return data;
+}
+ async function getLaborCostTrend(months = 12): Promise<LaborCostTrend[]> {
+  const { data } = await httpClient.get<LaborCostTrend[]>(`${BASE}/labor-cost-trend`, { params: { months } });
+  return data;
+}
+ async function getAttendanceTrend(months = 12): Promise<AttendanceTrend[]> {
+  const { data } = await httpClient.get<AttendanceTrend[]>(`${BASE}/attendance-trend`, { params: { months } });
+  return data;
+}
+ async function getAreaDistribution(): Promise<AreaDistribution[]> {
+  const { data } = await httpClient.get<AreaDistribution[]>(`${BASE}/area-distribution`);
+  return data;
+}
+ async function getTurnoverRisk(top = 10): Promise<TurnoverRisk[]> {
+  const { data } = await httpClient.get<TurnoverRisk[]>(`${BASE}/turnover-risk`, { params: { top } });
+  return data;
+}
+ async function getCostProjection(months = 6): Promise<CostProjection[]> {
+  const { data } = await httpClient.get<CostProjection[]>(`${BASE}/cost-projection`, { params: { months } });
+  return data;
+}
+ async function getYearComparison(year: number): Promise<YearComparison[]> {
+  const params = year  { year } : {};
+  const { data } = await httpClient.get<YearComparison[]>(`${BASE}/year-comparison`, { params });
+  return data;
+}
+
+

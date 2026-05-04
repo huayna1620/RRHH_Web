@@ -1,0 +1,440 @@
+﻿import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { FileDown } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import {
+  downloadExcel,
+  getAbsenteeismReport,
+  getAttendanceReport,
+  getEmployeesReport,
+  getLaborCostReport,
+  getLeavesReport,
+  getPayrollReport,
+  getRotationReport,
+  getVacationsReport,
+} from "@/modules/reports/services/reportsApi";
+ leaveTypeLabel: Record<string, string> = {
+  personal: "Permiso personal",
+  medical: "Licencia mÃ©dica",
+  study: "Licencia por estudios",
+  maternity_paternity: "Maternidad/Paternidad",
+  other: "Otro",
+};
+ vacationStatusLabel: Record<string, string> = {
+  pending: "Pendiente",
+  approved: "Aprobada",
+  rejected: "Rechazada",
+};
+ ExportButton({ onClick }: { onClick: () => void }): JSX.Element {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+    >
+      <FileDown size={13} />
+      Excel
+    </button>
+  );
+}
+ function ReportsPage(): JSX.Element {
+  const { user } = useAuth();
+  const enabled = Boolean(user);
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+
+  const employeesReportQuery = useQuery({
+    queryKey: ["reports-employees"],
+    queryFn: getEmployeesReport,
+    enabled
+  });
+
+  const attendanceReportQuery = useQuery({
+    queryKey: ["reports-attendance", year, month],
+    queryFn: () => getAttendanceReport(year, month),
+    enabled
+  });
+
+  const vacationsReportQuery = useQuery({
+    queryKey: ["reports-vacations", year],
+    queryFn: () => getVacationsReport(year),
+    enabled
+  });
+
+  const leavesReportQuery = useQuery({
+    queryKey: ["reports-leaves", year],
+    queryFn: () => getLeavesReport(year),
+    enabled
+  });
+
+  const payrollReportQuery = useQuery({
+    queryKey: ["reports-payroll", year, month],
+    queryFn: () => getPayrollReport(year, month),
+    enabled
+  });
+
+  const rotationReportQuery = useQuery({
+    queryKey: ["reports-rotation", year],
+    queryFn: () => getRotationReport(year),
+    enabled
+  });
+
+  const absenteeismReportQuery = useQuery({
+    queryKey: ["reports-absenteeism", year, month],
+    queryFn: () => getAbsenteeismReport(year, month),
+    enabled
+  });
+
+  const laborCostReportQuery = useQuery({
+    queryKey: ["reports-labor-cost", year, month],
+    queryFn: () => getLaborCostReport(year, month),
+    enabled
+  });
+
+  return (
+    <section className="animate-fade-up space-y-5">
+      <PageHeader
+        title="Reportes"
+        description="Resumen operativo de empleados, asistencia, vacaciones, permisos, planilla y mÃ¡s."
+        action={
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              value={year}
+              min={2000}
+              max={2100}
+              className="w-28"
+              onChange={(event) => setYear(Number(event.target.value))}
+            />
+            <Select value={String(month)} className="w-24" onChange={(event) => setMonth(Number(event.target.value))}>
+              {Array.from({ length: 12 }, (_, index) => index + 1).map((value) => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </Select>
+          </div>
+        }
+      />
+
+      {/* KPI Cards */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardContent className="space-y-1 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Empleados activos</p>
+            <p className="text-2xl font-extrabold">{employeesReportQuery.data.activeEmployees  0}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-1 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Asistencias del mes</p>
+            <p className="text-2xl font-extrabold">{attendanceReportQuery.data.totalRecords  0}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-1 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Solicitudes de vacaciones</p>
+            <p className="text-2xl font-extrabold">{vacationsReportQuery.data.totalRequests  0}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-1 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Total neto planilla</p>
+            <p className="text-2xl font-extrabold">S/ {(payrollReportQuery.data.totalNetPay  0).toFixed(2)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 1: Employees + Attendance */}
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Reporte de empleados</CardTitle>
+            <ExportButton onClick={() => downloadExcel("/api/v1/reports/employees/excel", "reporte-empleados.xlsx")} />
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted">
+              Total: <span className="font-semibold text-slate-700">{employeesReportQuery.data.totalEmployees  0}</span>
+              {" | "}Inactivos: <span className="font-semibold text-slate-700">{employeesReportQuery.data.inactiveEmployees  0}</span>
+            </p>
+            <div className="overflow-hidden rounded-2xl border">
+              <table className="w-full border-collapse text-sm">
+                <thead className="surface-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold">Ãrea</th>
+                    <th className="px-3 py-2 text-left font-semibold">Total</th>
+                    <th className="px-3 py-2 text-left font-semibold">Activos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employeesReportQuery.data.byArea.map((item) => (
+                    <tr key={item.areaId} className="border-t">
+                      <td className="px-3 py-2">{item.areaName}</td>
+                      <td className="px-3 py-2">{item.totalEmployees}</td>
+                      <td className="px-3 py-2">{item.activeEmployees}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Reporte de asistencia ({month}/{year})</CardTitle>
+            <ExportButton onClick={() => downloadExcel(`/api/v1/reports/attendance/excelyear=${year}&month=${month}`, `reporte-asistencia-${year}-${month}.xlsx`)} />
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted">
+              Presentes: <span className="font-semibold text-slate-700">{attendanceReportQuery.data.presentRecords  0}</span>
+              {" | "}Faltas: <span className="font-semibold text-slate-700">{attendanceReportQuery.data.absentRecords  0}</span>
+              {" | "}Tardanzas: <span className="font-semibold text-slate-700">{attendanceReportQuery.data.lateRecords  0}</span>
+            </p>
+            <div className="overflow-hidden rounded-2xl border">
+              <table className="w-full border-collapse text-sm">
+                <thead className="surface-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold">Fecha</th>
+                    <th className="px-3 py-2 text-left font-semibold">Registros</th>
+                    <th className="px-3 py-2 text-left font-semibold">Faltas</th>
+                    <th className="px-3 py-2 text-left font-semibold">Tardanzas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendanceReportQuery.data.daily.map((item) => (
+                    <tr key={item.date} className="border-t">
+                      <td className="px-3 py-2">{item.date}</td>
+                      <td className="px-3 py-2">{item.totalRecords}</td>
+                      <td className="px-3 py-2">{item.absentRecords}</td>
+                      <td className="px-3 py-2">{item.lateRecords}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 2: Vacations + Leaves + Payroll */}
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Vacaciones ({year})</CardTitle>
+            <ExportButton onClick={() => downloadExcel(`/api/v1/reports/vacations/excelyear=${year}`, `reporte-vacaciones-${year}.xlsx`)} />
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted">
+              Aprobadas: <span className="font-semibold text-slate-700">{vacationsReportQuery.data.approvedRequests  0}</span>
+              {" | "}Pendientes: <span className="font-semibold text-slate-700">{vacationsReportQuery.data.pendingRequests  0}</span>
+            </p>
+            <div className="overflow-hidden rounded-2xl border">
+              <table className="w-full border-collapse text-sm">
+                <thead className="surface-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold">Estado</th>
+                    <th className="px-3 py-2 text-left font-semibold">Solicitudes</th>
+                    <th className="px-3 py-2 text-left font-semibold">DÃ­as</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vacationsReportQuery.data.byStatus.map((item) => (
+                    <tr key={item.status} className="border-t">
+                      <td className="px-3 py-2">{vacationStatusLabel[item.status] ? item.status}</td>
+                      <td className="px-3 py-2">{item.requests}</td>
+                      <td className="px-3 py-2">{item.requestedDays}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Permisos/Licencias ({year})</CardTitle>
+            <ExportButton onClick={() => downloadExcel(`/api/v1/reports/leaves/excelyear=${year}`, `reporte-permisos-${year}.xlsx`)} />
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted">
+              Con goce: <span className="font-semibold text-slate-700">{leavesReportQuery.data.paidRequests  0}</span>
+              {" | "}Sin goce: <span className="font-semibold text-slate-700">{leavesReportQuery.data.unpaidRequests  0}</span>
+            </p>
+            <div className="overflow-hidden rounded-2xl border">
+              <table className="w-full border-collapse text-sm">
+                <thead className="surface-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold">Tipo</th>
+                    <th className="px-3 py-2 text-left font-semibold">Solicitudes</th>
+                    <th className="px-3 py-2 text-left font-semibold">DÃ­as</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leavesReportQuery.data.byType.map((item) => (
+                    <tr key={item.leaveType} className="border-t">
+                      <td className="px-3 py-2">{leaveTypeLabel[item.leaveType] ? item.leaveType}</td>
+                      <td className="px-3 py-2">{item.requests}</td>
+                      <td className="px-3 py-2">{item.requestedDays}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Planilla ({month}/{year})</CardTitle>
+            <ExportButton onClick={() => downloadExcel(`/api/v1/reports/payroll/excelyear=${year}&month=${month}`, `reporte-planilla-${year}-${month}.xlsx`)} />
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted">
+              Registros: <span className="font-semibold text-slate-700">{payrollReportQuery.data.recordsCount  0}</span>
+              {" | "}Promedio: <span className="font-semibold text-slate-700">S/ {(payrollReportQuery.data.averageNetPay  0).toFixed(2)}</span>
+            </p>
+            <div className="overflow-hidden rounded-2xl border">
+              <table className="w-full border-collapse text-sm">
+                <thead className="surface-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold">Empleado</th>
+                    <th className="px-3 py-2 text-left font-semibold">Neto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payrollReportQuery.data.topNetPays.map((item) => (
+                    <tr key={item.employeeId} className="border-t">
+                      <td className="px-3 py-2">{item.employeeCode} â€“ {item.employeeName}</td>
+                      <td className="px-3 py-2">S/ {item.netPay.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 3 (FASE 6): Rotation + Absenteeism */}
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>RotaciÃ³n de personal ({year})</CardTitle>
+            <ExportButton onClick={() => downloadExcel(`/api/v1/reports/rotation/excelyear=${year}`, `reporte-rotacion-${year}.xlsx`)} />
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted">
+              Ingresos: <span className="font-semibold text-slate-700">{rotationReportQuery.data.hiredCount  0}</span>
+              {" | "}Salidas: <span className="font-semibold text-slate-700">{rotationReportQuery.data.inactivatedCount  0}</span>
+              {" | "}Tasa: <span className="font-semibold text-slate-700">{((rotationReportQuery.data.turnoverRate  0) * 100).toFixed(1)}%</span>
+            </p>
+            <div className="overflow-hidden rounded-2xl border">
+              <table className="w-full border-collapse text-sm">
+                <thead className="surface-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold">Ãrea</th>
+                    <th className="px-3 py-2 text-left font-semibold">Ingresos</th>
+                    <th className="px-3 py-2 text-left font-semibold">Salidas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rotationReportQuery.data.byArea.map((item) => (
+                    <tr key={item.areaId} className="border-t">
+                      <td className="px-3 py-2">{item.areaName}</td>
+                      <td className="px-3 py-2">{item.hiredCount}</td>
+                      <td className="px-3 py-2">{item.inactivatedCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Ausentismo ({month}/{year})</CardTitle>
+            <ExportButton onClick={() => downloadExcel(`/api/v1/reports/absenteeism/excelyear=${year}&month=${month}`, `reporte-ausentismo-${year}-${month}.xlsx`)} />
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted">
+              Empleados: <span className="font-semibold text-slate-700">{absenteeismReportQuery.data.totalEmployees  0}</span>
+              {" | "}DÃ­as de falta: <span className="font-semibold text-slate-700">{absenteeismReportQuery.data.totalAbsenceDays  0}</span>
+              {" | "}Tasa: <span className="font-semibold text-slate-700">{((absenteeismReportQuery.data.absenteeismRate  0) * 100).toFixed(1)}%</span>
+            </p>
+            <div className="overflow-hidden rounded-2xl border">
+              <table className="w-full border-collapse text-sm">
+                <thead className="surface-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold">Ãrea</th>
+                    <th className="px-3 py-2 text-left font-semibold">Empleados</th>
+                    <th className="px-3 py-2 text-left font-semibold">Faltas</th>
+                    <th className="px-3 py-2 text-left font-semibold">Tasa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {absenteeismReportQuery.data.byArea.map((item) => (
+                    <tr key={item.areaId} className="border-t">
+                      <td className="px-3 py-2">{item.areaName}</td>
+                      <td className="px-3 py-2">{item.employeeCount}</td>
+                      <td className="px-3 py-2">{item.absenceDays}</td>
+                      <td className="px-3 py-2">{(item.absenteeismRate * 100).toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 4 (FASE 6): Labor Cost */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Costo laboral por Ã¡rea ({month}/{year})</CardTitle>
+          <ExportButton onClick={() => downloadExcel(`/api/v1/reports/labor-cost/excelyear=${year}&month=${month}`, `reporte-costo-laboral-${year}-${month}.xlsx`)} />
+        </CardHeader>
+        <CardContent>
+          <p className="mb-3 text-sm text-muted">
+            Registros: <span className="font-semibold text-slate-700">{laborCostReportQuery.data.recordCount  0}</span>
+            {" | "}Total neto: <span className="font-semibold text-slate-700">S/ {(laborCostReportQuery.data.totalNetPay  0).toFixed(2)}</span>
+            {" | "}Promedio: <span className="font-semibold text-slate-700">S/ {(laborCostReportQuery.data.averageNetPay  0).toFixed(2)}</span>
+          </p>
+          <div className="overflow-hidden rounded-2xl border">
+            <table className="w-full border-collapse text-sm">
+              <thead className="surface-muted">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold">Ãrea</th>
+                  <th className="px-3 py-2 text-left font-semibold">Empleados</th>
+                  <th className="px-3 py-2 text-left font-semibold">Salario base</th>
+                  <th className="px-3 py-2 text-left font-semibold">Bonos</th>
+                  <th className="px-3 py-2 text-left font-semibold">Descuentos</th>
+                  <th className="px-3 py-2 text-left font-semibold">Neto total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {laborCostReportQuery.data.byArea.map((item) => (
+                  <tr key={item.areaId} className="border-t">
+                    <td className="px-3 py-2">{item.areaName}</td>
+                    <td className="px-3 py-2">{item.employeeCount}</td>
+                    <td className="px-3 py-2">S/ {item.totalBaseSalary.toFixed(2)}</td>
+                    <td className="px-3 py-2">S/ {item.totalBonuses.toFixed(2)}</td>
+                    <td className="px-3 py-2">S/ {item.totalDeductions.toFixed(2)}</td>
+                    <td className="px-3 py-2 font-semibold">S/ {item.totalNetPay.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+

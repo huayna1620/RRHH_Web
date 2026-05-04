@@ -1,0 +1,906 @@
+﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  BadgeCheck,
+  Briefcase,
+  CalendarDays,
+  Clock3,
+  Eye,
+  Filter,
+  LogIn,
+  LogOut,
+  PlusCircle,
+  RotateCcw,
+  Search,
+  Sun,
+  Timer,
+  User,
+  UserCheck,
+  UserX,
+  Waves,
+  X
+} from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { Modal } from "@/components/ui/modal";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { JustifyAttendanceModal } from "@/modules/attendance/components/JustifyAttendanceModal";
+import { MarkAbsentModal } from "@/modules/attendance/components/MarkAbsentModal";
+import {
+  checkIn,
+  checkOut,
+  getAttendance,
+  getAttendanceCatalogs,
+  getAttendanceSummary,
+  justifyAttendance,
+  markAbsent
+} from "@/modules/attendance/services/attendanceApi";
+import type { AttendanceEmployeeOption, AttendanceItem } from "@/modules/attendance/types/attendance.types";
+ JustifyModal = { attendanceId: string; employeeName: string; justification: string | null } | null;
+type DetailModalState = { open: boolean; record: AttendanceItem | null };
+const pageSize = 10;
+ function PaginaAsistencia(): JSX.Element {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  const [viewMode, setViewMode] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [referenceDate, setReferenceDate] = useState<string>(() => getBusinessDateIso(new Date(), "America/Lima"));
+  const [startDateFrom, setStartDateFrom] = useState("");
+  const [startDateTo, setStartDateTo] = useState("");
+  const [draftSearch, setDraftSearch] = useState("");
+  const [search, setSearch] = useState("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [gridEmployeeId, setGridEmployeeId] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [debouncedEmployeeSearch, setDebouncedEmployeeSearch] = useState("");
+  const [areaFilter, setAreaFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "late" | "absent" | "pendingCheckout">("all");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [justifyModal, setJustifyModal] = useState<JustifyModal>(null);
+  const [markAbsentOpen, setMarkAbsentOpen] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [now, setNow] = useState(new Date());
+  const [detailModal, setDetailModal] = useState<DetailModalState>({ open: false, record: null });
+  const [historyEmployeeContext, setHistoryEmployeeContext] = useState<string | null>(null);
+  const historyCardRef = useRef<HTMLDivElement | null>(null);
+  const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null);
+  const [historyRefreshTick, setHistoryRefreshTick] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedEmployeeSearch(employeeSearch), 220);
+    return () => window.clearTimeout(id);
+  }, [employeeSearch]);
+
+  const canCreate = user.permissions.includes("attendance.create") ? false;
+  const canEdit = user.permissions.includes("attendance.edit") ? false;
+  const canJustify = user.permissions.includes("attendance.justify") ? false;
+
+  const catalogsQuery = useQuery({ queryKey: ["attendance-catalogs"], queryFn: getAttendanceCatalogs });
+  const businessTimeZone = catalogsQuery.data.schedule.timeZoneId ? "America/Lima";
+
+  const attendanceQuery = useQuery({
+    queryKey: ["attendance", viewMode, referenceDate, startDateFrom, startDateTo, search, gridEmployeeId, statusFilter, pageNumber, areaFilter, historyRefreshTick],
+    queryFn: () =>
+      getAttendance({
+        viewMode,
+        referenceDate,
+        startDateFrom: startDateFrom || undefined,
+        startDateTo: startDateTo || undefined,
+        search: search || undefined,
+        employeeId: gridEmployeeId || undefined,
+        areaId: areaFilter || undefined,
+        isLate: statusFilter === "late" ? true : undefined,
+        isAbsent: statusFilter === "absent" ? true : undefined,
+        pageNumber,
+        pageSize
+      })
+  });
+
+  const summaryQuery = useQuery({
+    queryKey: ["attendance-summary", viewMode, referenceDate, startDateFrom, startDateTo, search, areaFilter],
+    queryFn: () =>
+      getAttendanceSummary({
+        viewMode,
+        referenceDate,
+        startDateFrom: startDateFrom || undefined,
+        startDateTo: startDateTo || undefined,
+        search: search || undefined,
+        areaId: areaFilter || undefined,
+        pageNumber: 1,
+        pageSize: 1
+      })
+  });
+
+  const employeeContextQuery = useQuery({
+    queryKey: ["attendance-employee-context", selectedEmployeeId, referenceDate],
+    enabled: !!selectedEmployeeId,
+    queryFn: () =>
+      getAttendance({
+        viewMode: "daily",
+        referenceDate,
+        employeeId: selectedEmployeeId || undefined,
+        pageNumber: 1,
+        pageSize: 20
+      })
+  });
+
+  const invalidateAttendance = async (): Promise<void> => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["attendance"] }),
+      queryClient.invalidateQueries({ queryKey: ["attendance-summary"] }),
+      queryClient.invalidateQueries({ queryKey: ["attendance-employee-context"] })
+    ]);
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ["attendance"], type: "active" }),
+      queryClient.refetchQueries({ queryKey: ["attendance-summary"], type: "active" }),
+      queryClient.refetchQueries({ queryKey: ["attendance-employee-context"], type: "active" })
+    ]);
+  };
+
+  function patchAttendanceCaches(updated: AttendanceItem): void {
+    queryClient.setQueriesData({ queryKey: ["attendance"] }, (oldData: unknown) => {
+      const page = oldData as { items: AttendanceItem[] } | undefined;
+      if (!page.items) return oldData;
+      const exists = page.items.some((it) => it.id === updated.id);
+      const nextItems = exists
+         page.items.map((it) => (it.id === updated.id  { ...it, ...updated } : it))
+        : [updated, ...page.items];
+      return { ...(page as object), items: nextItems };
+    });
+
+    queryClient.setQueriesData({ queryKey: ["attendance-employee-context"] }, (oldData: unknown) => {
+      const page = oldData as { items: AttendanceItem[] } | undefined;
+      if (!page.items) return oldData;
+      const exists = page.items.some((it) => it.id === updated.id);
+      const nextItems = exists
+         page.items.map((it) => (it.id === updated.id  { ...it, ...updated } : it))
+        : [updated, ...page.items];
+      return { ...(page as object), items: nextItems };
+    });
+  }
+
+  const checkInMutation = useMutation({
+    mutationFn: (employeeId: string) => checkIn(employeeId),
+    onSuccess: async (saved) => {
+      patchAttendanceCaches(saved);
+      setHistoryRefreshTick((x) => x + 1);
+      await invalidateAttendance();
+      setFeedback({ type: "success", message: "Ingreso registrado." });
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo registrar el ingreso." })
+  });
+
+  const checkOutMutation = useMutation({
+    mutationFn: (attendanceId: string) => checkOut(attendanceId),
+    onSuccess: async (saved) => {
+      patchAttendanceCaches(saved);
+      setHistoryRefreshTick((x) => x + 1);
+      await invalidateAttendance();
+      setFeedback({ type: "success", message: "Salida registrada." });
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo registrar la salida." })
+  });
+
+  const absentMutation = useMutation({
+    mutationFn: ({ employeeId, reason }: { employeeId: string; reason: string }) => markAbsent(employeeId, reason),
+    onSuccess: async (saved) => {
+      patchAttendanceCaches(saved);
+      setHistoryRefreshTick((x) => x + 1);
+      await invalidateAttendance();
+      setFeedback({ type: "success", message: "Falta registrada." });
+      setMarkAbsentOpen(false);
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo registrar la falta." })
+  });
+
+  const justifyMutation = useMutation({
+    mutationFn: ({ attendanceId, justification }: { attendanceId: string; justification: string }) => justifyAttendance(attendanceId, justification),
+    onSuccess: async (saved) => {
+      patchAttendanceCaches(saved);
+      setHistoryRefreshTick((x) => x + 1);
+      await invalidateAttendance();
+      setFeedback({ type: "success", message: "Justificación registrada." });
+      setJustifyModal(null);
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo registrar la justificación." })
+  });
+
+  const rows = (attendanceQuery.data.items ?? []) as AttendanceItem[];
+
+  const selectedEmployee = useMemo(
+    () => catalogsQuery.data.employees.find((e) => e.id === selectedEmployeeId),
+    [catalogsQuery.data.employees, selectedEmployeeId]
+  );
+
+  const autocompleteItems = useMemo(() => {
+    const term = debouncedEmployeeSearch.trim().toLowerCase();
+    const employees = catalogsQuery.data.employees ?? [];
+    const uniqueEmployees = Array.from(new Map(employees.map((emp) => [emp.id, emp])).values());
+    if (!term) return uniqueEmployees.slice(0, 8);
+
+    const exactMatches = uniqueEmployees.filter((e) => e.employeeCode.toLowerCase() === term || (e.documentNumber ? "").toLowerCase() === term);
+    if (exactMatches.length > 0) return exactMatches.slice(0, 8);
+
+    const startsWith = uniqueEmployees.filter((e) => {
+      const values = [e.fullName, e.employeeCode, e.documentNumber ? "", e.area].map((v) => v.toLowerCase());
+      return values.some((v) => v.startsWith(term));
+    });
+    const partial = uniqueEmployees.filter((e) => {
+      const haystack = `${e.fullName} ${e.employeeCode} ${e.documentNumber ? ""} ${e.area}`.toLowerCase();
+      return haystack.includes(term);
+    });
+
+    const ordered = Array.from(new Map([...startsWith, ...partial].map((emp) => [emp.id, emp])).values());
+    return ordered.slice(0, 8);
+  }, [catalogsQuery.data.employees, debouncedEmployeeSearch]);
+
+  const selectedEmployeeRecord = useMemo(() => {
+    if (!selectedEmployeeId) return null;
+    const contextRows = (employeeContextQuery.data.items ?? []) as AttendanceItem[];
+    const byDate = contextRows.find((r) => r.employeeId === selectedEmployeeId && r.attendanceDate === referenceDate);
+    if (byDate) return byDate;
+    return contextRows.find((r) => r.employeeId === selectedEmployeeId) ? null;
+  }, [employeeContextQuery.data.items, selectedEmployeeId, referenceDate]);
+
+  const quickState = useMemo(() => {
+    if (!selectedEmployee) return { label: "Sin selección", variant: "neutral" as const };
+    if (!selectedEmployeeRecord) return { label: "Sin registro", variant: "neutral" as const };
+    if (selectedEmployeeRecord.isAbsent) return { label: selectedEmployeeRecord.isJustified ? "Falta justificada" : "Falta", variant: "danger" as const };
+    if (!selectedEmployeeRecord.checkInAtUtc) return { label: "Pendiente de ingreso", variant: "neutral" as const };
+    if (selectedEmployeeRecord.checkInAtUtc && !selectedEmployeeRecord.checkOutAtUtc) {
+      if (selectedEmployeeRecord.lateMinutes > 0) return { label: "Tardanza · pendiente salida", variant: "danger" as const };
+      return { label: "Pendiente de salida", variant: "warning" as const };
+    }
+    if (selectedEmployeeRecord.lateMinutes > 0) return { label: "Registro completo con tardanza", variant: "danger" as const };
+    return { label: "Registro completo", variant: "success" as const };
+  }, [selectedEmployee, selectedEmployeeRecord]);
+
+  const primaryAction = useMemo(() => {
+    if (!selectedEmployee) return { label: "Selecciona empleado", icon: User, disabled: true };
+    if (!selectedEmployeeRecord || !selectedEmployeeRecord.checkInAtUtc) {
+      return { label: "Registrar ingreso", icon: LogIn, disabled: !canCreate || checkInMutation.isPending };
+    }
+    if (selectedEmployeeRecord.isAbsent) {
+      return { label: "Quitar falta (ingreso)", icon: RotateCcw, disabled: !canEdit || checkInMutation.isPending };
+    }
+    if (!selectedEmployeeRecord.checkOutAtUtc) {
+      return { label: "Registrar salida", icon: LogOut, disabled: !canEdit || checkOutMutation.isPending };
+    }
+    return { label: "Ver detalle", icon: Eye, disabled: false };
+  }, [selectedEmployee, selectedEmployeeRecord, canCreate, canEdit, checkInMutation.isPending, checkOutMutation.isPending]);
+  const PrimaryActionIcon = primaryAction.icon;
+
+  const secondaryAction = useMemo(() => {
+    if (!selectedEmployee || !selectedEmployeeRecord) {
+      return { label: "Marcar falta", disabled: !canEdit || !selectedEmployeeId || absentMutation.isPending, onClick: () => setMarkAbsentOpen(true) };
+    }
+
+    if (selectedEmployeeRecord.isAbsent) {
+      if (canJustify) {
+        return {
+          label: "Justificar",
+          disabled: false,
+          onClick: () => setJustifyModal({ attendanceId: selectedEmployeeRecord.id, employeeName: selectedEmployeeRecord.employeeName, justification: selectedEmployeeRecord.justification })
+        };
+      }
+
+      return {
+        label: "Quitar falta",
+        disabled: !canEdit || checkInMutation.isPending,
+        onClick: () => checkInMutation.mutate(selectedEmployee.id)
+      };
+    }
+
+    if (selectedEmployeeRecord.checkInAtUtc && selectedEmployeeRecord.checkOutAtUtc) {
+      return null;
+    }
+
+    return {
+      label: "Marcar falta",
+      disabled: !canEdit || absentMutation.isPending,
+      onClick: () => setMarkAbsentOpen(true)
+    };
+  }, [
+    selectedEmployee,
+    selectedEmployeeRecord,
+    canEdit,
+    canJustify,
+    selectedEmployeeId,
+    absentMutation.isPending,
+    checkInMutation.isPending
+  ]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil((attendanceQuery.data.totalCount  0) / pageSize)), [attendanceQuery.data.totalCount]);
+
+  function applyFilters(): void {
+    setSearch(draftSearch.trim());
+    if (!draftSearch.trim()) {
+      setGridEmployeeId("");
+      setHistoryEmployeeContext(null);
+    }
+    setPageNumber(1);
+    setHighlightedRowId(null);
+  }
+
+  function resetQuickRegister(): void {
+    setEmployeeSearch("");
+    setSelectedEmployeeId("");
+    setHighlightededRowIdSafe();
+  }
+
+  function setHighlightededRowIdSafe(): void {
+    setHighlightedRowId(null);
+  }
+
+  function clearFilters(): void {
+    setViewMode("daily");
+    setReferenceDate(getBusinessDateIso(new Date(), businessTimeZone));
+    setStartDateFrom("");
+    setStartDateTo("");
+    setDraftSearch("");
+    setSearch("");
+    setGridEmployeeId("");
+    setAreaFilter("");
+    setStatusFilter("all");
+    setPageNumber(1);
+    setHistoryEmployeeContext(null);
+    setHighlightedRowId(null);
+  }
+
+  function focusHistoryCard(): void {
+    historyCardRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function getLast30DaysRange(timeZone: string): { fromIso: string; toIso: string } {
+    const today = new Date();
+    const toIso = getBusinessDateIso(today, timeZone);
+    const from = new Date(today);
+    from.setDate(today.getDate() - 30);
+    const fromIso = getBusinessDateIso(from, timeZone);
+    return fromIso <= toIso  { fromIso, toIso } : { fromIso: toIso, toIso: fromIso };
+  }
+
+  function goToSelectedEmployeeHistory(): void {
+    if (!selectedEmployee) return;
+    const { fromIso, toIso } = getLast30DaysRange(businessTimeZone);
+
+    // Visible text can keep employee name, but query must filter by unique employeeId.
+    setDraftSearch(selectedEmployee.fullName);
+    setSearch("");
+    setGridEmployeeId(selectedEmployee.id);
+    setViewMode("monthly");
+    setStartDateFrom(fromIso);
+    setStartDateTo(toIso);
+    setReferenceDate(toIso);
+    setStatusFilter("all");
+    setAreaFilter("");
+    setPageNumber(1);
+    setHistoryEmployeeContext(selectedEmployee.fullName);
+    setHighlightedRowId(null);
+    setHistoryRefreshTick((x) => x + 1);
+    focusHistoryCard();
+    void attendanceQuery.refetch();
+  }
+
+  function openDetailModal(row: AttendanceItem): void {
+    setDetailModal({ open: true, record: row });
+  }
+
+  function onPrimaryQuickAction(): void {
+    if (!selectedEmployee) return;
+    if (!selectedEmployeeRecord || !selectedEmployeeRecord.checkInAtUtc) {
+      checkInMutation.mutate(selectedEmployee.id);
+      return;
+    }
+    if (selectedEmployeeRecord.isAbsent) {
+      checkInMutation.mutate(selectedEmployee.id);
+      return;
+    }
+    if (!selectedEmployeeRecord.checkOutAtUtc) {
+      checkOutMutation.mutate(selectedEmployeeRecord.id);
+      return;
+    }
+
+    if (selectedEmployeeRecord) {
+      openDetailModal(selectedEmployeeRecord);
+      return;
+    }
+    goToSelectedEmployeeHistory();
+  }
+
+  const hourNow = formatBusinessTime(now.toISOString(), businessTimeZone);
+
+  return (
+    <section className="animate-fade-up space-y-4 rounded-2xl bg-[#f5f7fa] p-3 md:p-4 lg:p-5">
+      <header className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-sm">
+            <UserCheck className="size-6" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-black tracking-tight text-slate-800">Asistencia</h1>
+            <p className="mt-1 text-sm text-slate-500">Registro de ingreso/salida, tardanzas, faltas y justificaciones.</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600">
+            <CalendarDays className="size-4 text-teal-600" /> Hoy · {referenceDate}
+          </div>
+        </div>
+      </header>
+
+      {feedback ? <Alert variant={feedback.type === "success" ? "success" : "error"} message={feedback.message} onClose={() => setFeedback(null)} /> : null}
+
+      <div className="grid items-start gap-3 xl:grid-cols-[1.45fr_1fr]">
+        <Card className="overflow-hidden rounded-2xl border border-cyan-100 bg-gradient-to-br from-[#eef8fa] via-[#f4fbfc] to-[#e9f4f7] shadow-sm">
+          <CardHeader className="relative pb-2 pt-4">
+            <div className="pr-24">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-11 w-11 items-center justify-center rounded-full bg-cyan-100 text-cyan-700">
+                  <User className="size-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-2xl font-black tracking-tight text-slate-800">Registro rápido</CardTitle>
+                  <p className="mt-0.5 text-sm text-slate-500">Acciones contextuales según el estado del empleado.</p>
+                </div>
+              </div>
+            </div>
+            <div className="absolute right-4 top-4 inline-flex h-9 items-center gap-2 rounded-full border border-cyan-200 bg-white/90 px-3 text-right shadow-sm">
+              <Clock3 className="size-3.5 text-cyan-600" />
+              <p className="text-[13px] font-bold text-cyan-700">{hourNow}</p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3.5 pb-4">
+            <div>
+              <label className="mb-1.5 block text-[12px] font-bold text-slate-600">Buscar empleado (nombre, código, DNI, área)</label>
+              <div className="relative">
+                <Input
+                  className={employeeSearch.trim() ? "pr-9" : undefined}
+                  value={employeeSearch}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setEmployeeSearch(next);
+                    if (!next.trim()) {
+                      resetQuickRegister();
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    const first = autocompleteItems[0];
+                    if (!first) return;
+                    setSelectedEmployeeId(first.id);
+                    setEmployeeSearch(first.fullName);
+                  }}
+                  placeholder="Ej: Diego, EMP-0002, 12345678, Tecnología"
+                />
+                {employeeSearch.trim() ? (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                    aria-label="Limpiar búsqueda de empleado"
+                    onClick={resetQuickRegister}
+                  >
+                    <X className="size-4" />
+                  </button>
+                ) : null}
+              </div>
+              {employeeSearch.trim() ? (
+                <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white">
+                  {autocompleteItems.map((emp) => (
+                    <button
+                      key={emp.id}
+                      type="button"
+                      className="flex w-full items-start justify-between border-b border-slate-100 px-3 py-2 text-left last:border-0 hover:bg-slate-50"
+                      onClick={() => {
+                        setSelectedEmployeeId(emp.id);
+                        setEmployeeSearch(emp.fullName);
+                      }}
+                    >
+                      <span>
+                        <p className="text-sm font-semibold text-slate-800">{emp.fullName}</p>
+                        <p className="text-xs text-slate-500">{emp.employeeCode} · {emp.area}{emp.documentNumber ? ` · DNI ${emp.documentNumber}` : ""}</p>
+                      </span>
+                      <span className="text-[11px] text-slate-400">{emp.position}</span>
+                    </button>
+                  ))}
+                  {autocompleteItems.length === 0 ? <p className="px-3 py-2 text-xs text-slate-500">Sin coincidencias.</p> : null}
+                </div>
+              ) : null}
+            </div>
+
+            {selectedEmployee ? (
+              <div className="rounded-xl border border-cyan-200 bg-white p-3 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[16px] font-bold text-slate-800">{selectedEmployee.fullName}</p>
+                    <p className="text-xs text-slate-500">{selectedEmployee.employeeCode} · {selectedEmployee.area}</p>
+                  </div>
+                  <Badge variant={quickState.variant === "success" ? "success" : quickState.variant === "danger" ? "danger" : quickState.variant === "warning" ? "warning" : "neutral"}>
+                    {quickState.label}
+                  </Badge>
+                </div>
+                <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+                  <p className="inline-flex items-center gap-1.5"><Briefcase className="size-3.5" /> Cargo: {selectedEmployee.position}</p>
+                  <p className="inline-flex items-center gap-1.5"><Sun className="size-3.5" /> Turno: {selectedEmployee.shiftName}</p>
+                  <p className="inline-flex items-center gap-1.5"><Clock3 className="size-3.5" /> Horario: {selectedEmployee.expectedSchedule}</p>
+                  <p className="inline-flex items-center gap-1.5"><BadgeCheck className="size-3.5" /> Estado: {quickState.label}</p>
+                  <p>Ingreso: {selectedEmployeeRecord.checkInAtUtc ? formatBusinessTime(selectedEmployeeRecord.checkInAtUtc, businessTimeZone) : "—"}</p>
+                  <p>Salida: {selectedEmployeeRecord.checkOutAtUtc ? formatBusinessTime(selectedEmployeeRecord.checkOutAtUtc, businessTimeZone) : "—"}</p>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              <Button className="h-11 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 text-[16px] font-semibold text-white hover:from-teal-700 hover:to-cyan-700 disabled:opacity-55" disabled={primaryAction.disabled} onClick={onPrimaryQuickAction}>
+                <PrimaryActionIcon className="mr-1 size-4" /> {primaryAction.label}
+              </Button>
+              <Button
+                variant="secondary"
+                className="h-11 rounded-xl border border-slate-300 bg-white text-[15px] font-semibold text-slate-700 hover:bg-slate-50 disabled:border-slate-200 disabled:bg-slate-100/70 disabled:text-slate-400"
+                disabled={secondaryAction.disabled ? true}
+                onClick={secondaryAction.onClick}
+              >
+                <PlusCircle className="mr-1 size-4" /> {secondaryAction.label ? "Sin acción"}
+              </Button>
+            </div>
+
+            <div className="grid gap-2">
+              <Button
+                variant="secondary"
+                className="h-10 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:border-slate-200 disabled:bg-slate-100/70 disabled:text-slate-400"
+                disabled={!selectedEmployee}
+                onClick={goToSelectedEmployeeHistory}
+              >
+                Ver historial
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="self-start rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+          <CardHeader className="pb-2 pt-4">
+            <div className="flex items-start gap-2.5">
+              <Waves className="mt-0.5 size-4 text-teal-600" />
+              <div>
+                <CardTitle className="text-xl font-extrabold tracking-tight text-slate-800">Resumen del día</CardTitle>
+                <p className="mt-0.5 text-xs text-slate-500">Métricas globales del periodo activo.</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-2.5 pt-0">
+            <KpiItem icon={UserCheck} label="A tiempo" value={summaryQuery.data.onTime  0} tone="green" />
+            <KpiItem icon={Clock3} label="Tardanzas" value={summaryQuery.data.late  0} tone="amber" />
+            <KpiItem icon={UserX} label="Faltas" value={summaryQuery.data.absent  0} tone="rose" />
+            <KpiItem icon={BadgeCheck} label="Justificaciones" value={summaryQuery.data.justified  0} tone="blue" />
+            <KpiItem icon={Timer} label="Pend. salida" value={summaryQuery.data.pendingCheckOut  0} tone="amber" compact />
+            <KpiItem icon={User} label="Sin registro" value={summaryQuery.data.noRecord  0} tone="blue" compact />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div ref={historyCardRef}>
+      <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+                <CalendarDays className="size-4" />
+              </div>
+              <CardTitle className="text-2xl font-black text-slate-800">Historial de asistencia</CardTitle>
+              <span className="rounded-full bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-700">{attendanceQuery.data.totalCount  0} registros</span>
+            </div>
+          </div>
+
+          <div className="grid items-center gap-2.5 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_2fr_1fr_1fr_auto_auto]">
+            <Select className="h-10" value={viewMode} onChange={(e) => { setViewMode(e.target.value as "daily" | "weekly" | "monthly"); setPageNumber(1); }}>
+              <option value="daily">Vista diaria</option>
+              <option value="weekly">Vista semanal</option>
+              <option value="monthly">Vista mensual</option>
+            </Select>
+            <Input className="h-10" type="date" value={referenceDate} onChange={(e) => { setReferenceDate(e.target.value); setPageNumber(1); }} />
+            <Input className="h-10" type="date" value={startDateFrom} onChange={(e) => { setStartDateFrom(e.target.value); setPageNumber(1); }} placeholder="Desde" />
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              <Input className="h-10 pl-9" value={draftSearch} onChange={(e) => setDraftSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") applyFilters(); }} placeholder="Buscar (nombre, código, DNI, área)..." />
+            </div>
+            <Select className="h-10" value={areaFilter} onChange={(e) => { setAreaFilter(e.target.value); setPageNumber(1); }}>
+              <option value="">Todas las áreas</option>
+              {(catalogsQuery.data.areas ?? []).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </Select>
+            <Select className="h-10" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as "all" | "late" | "absent" | "pendingCheckout"); setPageNumber(1); }}>
+              <option value="all">Todos</option>
+              <option value="late">Tardanzas</option>
+              <option value="absent">Faltas</option>
+              <option value="pendingCheckout">Pend. salida</option>
+            </Select>
+            <Button className="h-10 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 text-white" onClick={applyFilters}>
+              <Filter className="mr-1 size-4" /> Aplicar
+            </Button>
+            <Button className="h-10 rounded-xl" variant="secondary" onClick={clearFilters}>
+              <RotateCcw className="mr-1 size-4" /> Limpiar
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0 pb-4">
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-y bg-slate-50">
+                  {["Empleado", "Fecha", "Ingreso", "Salida", "Estado", "Acción"].map((col) => <th key={col} className="px-4 py-3 text-left text-[12px] font-bold text-slate-500">{col}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {attendanceQuery.isLoading ? (
+                  <TableSkeleton cols={6} />
+                ) : rows.length ? (
+                  rows
+                    .filter((r) => statusFilter !== "pendingCheckout" || (!r.isAbsent && !!r.checkInAtUtc && !r.checkOutAtUtc))
+                    .map((row) => {
+                      const isLate = !row.isAbsent && row.lateMinutes > 0;
+                      const status = row.isAbsent
+                         "Falta"
+                        : isLate
+                           `Tardanza · ${formatLateMinutes(row.lateMinutes)}`
+                          : row.checkInAtUtc && !row.checkOutAtUtc
+                             "Pendiente salida"
+                            : "A tiempo";
+                      const statusVariant = row.isAbsent || isLate ? "danger" : row.checkInAtUtc && !row.checkOutAtUtc ? "warning" : "success";
+
+                      return (
+                        <tr key={row.id} className={`border-b hover:bg-slate-50/70 ${highlightedRowId === row.id ? "bg-cyan-50/70" : ""}`}>
+                          <td className="px-4 py-3">
+                            <p className="text-[15px] font-bold text-slate-800">{row.employeeName}</p>
+                            <p className="text-[12px] text-slate-500">{row.employeeCode} · {row.area}</p>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">{row.attendanceDate}</td>
+                          <td className="px-4 py-3 tabular-nums text-slate-600">{row.checkInAtUtc ? formatBusinessTime(row.checkInAtUtc, businessTimeZone) : "—"}</td>
+                          <td className="px-4 py-3 tabular-nums text-slate-600">{row.checkOutAtUtc ? formatBusinessTime(row.checkOutAtUtc, businessTimeZone) : "—"}</td>
+                          <td className="px-4 py-3"><Badge variant={statusVariant as "success" | "danger" | "warning"}>{status}</Badge></td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {canJustify ? <button className="rounded-lg border border-cyan-200 px-3 py-1.5 text-[12px] font-semibold text-cyan-700 hover:bg-cyan-50" onClick={() => setJustifyModal({ attendanceId: row.id, employeeName: row.employeeName, justification: row.justification })}>Justificar</button> : <span className="text-xs text-slate-400">—</span>}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                ) : (
+                  <TableEmptyState cols={6} icon={Clock3} message="No hay registros con estos filtros. Usa Limpiar o cambia a vista de hoy." />
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {(!attendanceQuery.isLoading && rows.length === 0) ? (
+            <div className="p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5 text-sm text-slate-600">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-500 shadow-sm">
+                    <Search className="size-4" />
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold text-slate-700">
+                      {historyEmployeeContext ? "No hay historial para este empleado en el rango seleccionado." : "No encontramos registros con estos filtros."}
+                    </p>
+                    <p className="mt-1 text-slate-500">Prueba revisando hoy o limpiando filtros para ampliar el resultado.</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" variant="secondary" className="h-9" onClick={() => { setViewMode("daily"); setReferenceDate(getBusinessDateIso(new Date(), businessTimeZone)); setPageNumber(1); }}>Ver hoy</Button>
+                  <Button size="sm" variant="secondary" className="h-9" onClick={() => {
+                    const today = new Date();
+                    const from = new Date(today);
+                    from.setDate(today.getDate() - 30);
+                    setViewMode("daily");
+                    setStartDateFrom(getBusinessDateIso(from, businessTimeZone));
+                    setStartDateTo(getBusinessDateIso(today, businessTimeZone));
+                    setReferenceDate(getBusinessDateIso(today, businessTimeZone));
+                    setPageNumber(1);
+                  }}>Últimos 30 días</Button>
+                  <Button size="sm" variant="secondary" className="h-9" onClick={clearFilters}>Limpiar filtros</Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="px-4">
+            <Pagination page={pageNumber} totalPages={totalPages} totalCount={attendanceQuery.data.totalCount  0} pageSize={pageSize} onChange={setPageNumber} />
+          </div>
+        </CardContent>
+      </Card>
+      </div>
+
+      <Modal
+        open={detailModal.open}
+        title="Detalle de asistencia"
+        onClose={() => setDetailModal({ open: false, record: null })}
+      >
+        {detailModal.record ? (
+          <div className="space-y-4 text-sm text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+              <p className="text-sm font-semibold text-slate-800">{detailModal.record.employeeName}</p>
+              <p className="mt-0.5 text-xs text-slate-500">Registro del {detailModal.record.attendanceDate}</p>
+            </div>
+
+            <section className="rounded-xl border border-slate-200 bg-white p-3">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Información general</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Field label="Empleado" value={detailModal.record.employeeName} />
+                <Field label="Código" value={detailModal.record.employeeCode} />
+                <Field label="Área" value={detailModal.record.area} />
+                <Field label="Cargo" value={catalogsQuery.data.employees.find((e) => e.id === detailModal.record.employeeId).position ? "Sin dato"} />
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-slate-200 bg-white p-3">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Marcación</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Field label="Fecha" value={detailModal.record.attendanceDate} />
+                <Field label="Horario esperado" value={catalogsQuery.data.employees.find((e) => e.id === detailModal.record.employeeId).expectedSchedule ? "Sin dato"} />
+                <Field label="Ingreso" value={detailModal.record.checkInAtUtc ? formatBusinessTime(detailModal.record.checkInAtUtc, businessTimeZone) : "—"} />
+                <Field label="Salida" value={detailModal.record.checkOutAtUtc ? formatBusinessTime(detailModal.record.checkOutAtUtc, businessTimeZone) : "—"} />
+                <Field label="Tardanza" value={detailModal.record.lateMinutes > 0 ? formatLateMinutes(detailModal.record.lateMinutes) : "0 min"} />
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-slate-200 bg-white p-3">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Estado</p>
+              <Badge variant={getRecordStatus(detailModal.record).variant}>{getRecordStatus(detailModal.record).label}</Badge>
+            </section>
+
+            <section className="rounded-xl border border-slate-200 bg-white p-3">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Observaciones</p>
+              <Field label="Justificación" value={detailModal.record.justification.trim() ? detailModal.record.justification : "Sin justificación"} />
+              <Field label="Observaciones" value="Sin observaciones" />
+            </section>
+
+            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-2">
+              <Button
+                variant="secondary"
+                className="h-9"
+                onClick={() => {
+                  const employeeName = detailModal.record!.employeeName;
+                  const employeeId = detailModal.record!.employeeId;
+                  const { fromIso, toIso } = getLast30DaysRange(businessTimeZone);
+                  setDetailModal({ open: false, record: null });
+                  setSelectedEmployeeId(employeeId);
+                  setGridEmployeeId(employeeId);
+                  setEmployeeSearch(employeeName);
+                  setDraftSearch(employeeName);
+                  setSearch("");
+                  setViewMode("monthly");
+                  setStartDateFrom(fromIso);
+                  setStartDateTo(toIso);
+                  setReferenceDate(toIso);
+                  setStatusFilter("all");
+                  setAreaFilter("");
+                  setPageNumber(1);
+                  setHistoryEmployeeContext(employeeName);
+                  setHistoryRefreshTick((x) => x + 1);
+                  focusHistoryCard();
+                  void attendanceQuery.refetch();
+                }}
+              >
+                Ver historial
+              </Button>
+              <Button className="h-9" onClick={() => setDetailModal({ open: false, record: null })}>Cerrar</Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <JustifyAttendanceModal
+        open={justifyModal !== null}
+        employeeName={justifyModal.employeeName ? ""}
+        currentJustification={justifyModal.justification}
+        loading={justifyMutation.isPending}
+        onConfirm={(justification) => {
+          if (!justifyModal) return;
+          justifyMutation.mutate({ attendanceId: justifyModal.attendanceId, justification });
+        }}
+        onClose={() => setJustifyModal(null)}
+      />
+
+      <MarkAbsentModal
+        open={markAbsentOpen}
+        employees={(catalogsQuery.data.employees ?? []).map((e: AttendanceEmployeeOption) => ({ id: e.id, label: e.label }))}
+        selectedEmployeeId={selectedEmployeeId}
+        loading={absentMutation.isPending}
+        onConfirm={(employeeId, reason) => absentMutation.mutate({ employeeId, reason })}
+        onClose={() => setMarkAbsentOpen(false)}
+      />
+    </section>
+  );
+}
+ KpiTone = "green" | "amber" | "rose" | "blue";
+ parseUtcLike(value: string): Date {
+  const hasZone = /([zZ]|[+-]\d{2}:\d{2})$/.test(value);
+  const normalized = hasZone ? value : `${value}Z`;
+  return new Date(normalized);
+}
+ formatBusinessTime(value: string, timeZone: string): string {
+  const date = parseUtcLike(value);
+  return new Intl.DateTimeFormat("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone }).format(date);
+}
+ getBusinessDateIso(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+  const year = parts.find((p) => p.type === "year").value ? "1970";
+  const month = parts.find((p) => p.type === "month").value ? "01";
+  const day = parts.find((p) => p.type === "day").value ? "01";
+  return `${year}-${month}-${day}`;
+}
+ Field({ label, value }: { label: string; value: string }): JSX.Element {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-slate-800">{value}</p>
+    </div>
+  );
+}
+ formatLateMinutes(totalMinutes: number): string {
+  if (totalMinutes < 60) return `${totalMinutes} min`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (minutes === 0) return `${hours} h`;
+  return `${hours} h ${minutes} min`;
+}
+ getRecordStatus(record: AttendanceItem): { label: string; variant: "success" | "warning" | "danger" | "neutral" } {
+  if (record.isAbsent) return { label: record.isJustified ? "Justificado" : "Falta", variant: record.isJustified ? "success" : "danger" };
+  if (record.lateMinutes > 0) return { label: "Tardanza", variant: "danger" };
+  if (record.checkInAtUtc && !record.checkOutAtUtc) return { label: "Pendiente de salida", variant: "warning" };
+  return { label: "A tiempo", variant: "success" };
+}
+ KpiItem({
+  icon: Icon,
+  label,
+  value,
+  tone,
+  compact = false
+}: {
+  icon: typeof User;
+  label: string;
+  value: number;
+  tone: KpiTone;
+  compact: boolean;
+}): JSX.Element {
+  const palette: Record<KpiTone, { card: string; iconWrap: string; icon: string; value: string }> = {
+    green: { card: "border-emerald-200 bg-emerald-50/50", iconWrap: "bg-emerald-100", icon: "text-emerald-600", value: "text-emerald-700" },
+    amber: { card: "border-amber-200 bg-amber-50/50", iconWrap: "bg-amber-100", icon: "text-amber-600", value: "text-amber-700" },
+    rose: { card: "border-rose-200 bg-rose-50/50", iconWrap: "bg-rose-100", icon: "text-rose-600", value: "text-rose-700" },
+    blue: { card: "border-blue-200 bg-blue-50/50", iconWrap: "bg-blue-100", icon: "text-blue-600", value: "text-blue-700" }
+  };
+
+  return (
+    <article className={`rounded-lg border px-2.5 py-2 ${palette[tone].card}`}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[10px] font-semibold text-slate-600">{label}</p>
+          <p className="text-[9px] text-slate-400">General</p>
+        </div>
+        <div className={`flex h-7 w-7 items-center justify-center rounded-full ${palette[tone].iconWrap}`}>
+          <Icon className={`size-3.5 ${palette[tone].icon}`} />
+        </div>
+      </div>
+      <p className={`mt-1 ${compact ? "text-xl" : "text-2xl"} font-black ${palette[tone].value}`}>{String(value).padStart(2, "0")}</p>
+    </article>
+  );
+}
+
+
+
+
+
+

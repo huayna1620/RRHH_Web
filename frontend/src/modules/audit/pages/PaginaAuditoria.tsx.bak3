@@ -1,0 +1,156 @@
+﻿import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { PageHeader } from "@/components/ui/page-header";
+import { getAuditLogs } from "@/modules/audit/services/auditApi";
+import type { AuditLogQuery } from "@/modules/audit/types/audit.types";
+ pageSize = 20;
+ actionVariant: Record<string, "success" | "danger" | "warning" | "info" | "neutral"> = {
+  Create: "success",
+  Update: "info",
+  Delete: "danger",
+  Approve: "success",
+  Reject: "warning",
+};
+ formatTimestamp(ts: string): string {
+  const d = new Date(ts);
+  return d.toLocaleString("es-PE", { dateStyle: "short", timeStyle: "medium" });
+}
+ function PaginaAuditoria(): JSX.Element {
+  const [search, setSearch] = useState("");
+  const [module, setModule] = useState("");
+  const [action, setAction] = useState("");
+  const [page, setPage] = useState(1);
+
+  const query: AuditLogQuery = {
+    search: search || undefined,
+    module: module || undefined,
+    action: action || undefined,
+    pageNumber: page,
+    pageSize,
+  };
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["audit-logs", query],
+    queryFn: () => getAuditLogs(query),
+    placeholderData: (prev) => prev,
+  });
+
+  const items = data.items ?? [];
+  const totalCount = data.totalCount  0;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Log de AuditorÃ­a" description="Registro de acciones realizadas en el sistema" />
+
+      <Card>
+        <CardHeader className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>Registros</CardTitle>
+            {totalCount ? (
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+                {totalCount} registros
+              </span>
+            ) : null}
+          </div>
+
+          <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]">
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Buscar</label>
+              <Input
+                placeholder="Buscar por usuario o entidad..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">MÃ³dulo</label>
+              <select
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                value={module}
+                onChange={(e) => { setModule(e.target.value); setPage(1); }}
+              >
+                <option value="">Todos los mÃ³dulos</option>
+                {["Employees", "Vacations", "Leaves", "Attendance", "Payroll", "Recruitment", "Users", "Roles"].map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">AcciÃ³n</label>
+              <select
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                value={action}
+                onChange={(e) => { setAction(e.target.value); setPage(1); }}
+              >
+                <option value="">Todas las acciones</option>
+                {["Create", "Update", "Delete", "Approve", "Reject"].map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <TableSkeleton rows={8} cols={6} />
+          ) : items.length === 0 ? (
+            <TableEmptyState cols={6} message="No se encontraron registros de auditorÃ­a." />
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-3 py-2.5">Fecha</th>
+                      <th className="px-3 py-2.5">Usuario</th>
+                      <th className="px-3 py-2.5">AcciÃ³n</th>
+                      <th className="px-3 py-2.5">MÃ³dulo</th>
+                      <th className="px-3 py-2.5">Entidad</th>
+                      <th className="px-3 py-2.5">ID Entidad</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((log) => (
+                      <tr key={log.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                        <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
+                          {formatTimestamp(log.timestamp)}
+                        </td>
+                        <td className="px-3 py-2.5 font-medium">{log.userName}</td>
+                        <td className="px-3 py-2.5">
+                          <Badge variant={actionVariant[log.action] ? "neutral"}>{log.action}</Badge>
+                        </td>
+                        <td className="px-3 py-2.5">{log.module}</td>
+                        <td className="px-3 py-2.5 text-slate-500">{log.entityType}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs text-slate-400">{log.entityId.slice(0, 8)}...</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {totalCount > pageSize && (
+                <div className="mt-4">
+                  <Pagination
+                    page={page}
+                    totalPages={Math.ceil(totalCount / pageSize)}
+                    totalCount={totalCount}
+                    pageSize={pageSize}
+                    onChange={setPage}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+

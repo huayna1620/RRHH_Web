@@ -1,0 +1,242 @@
+import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  BriefcaseBusiness,
+  Building2,
+  CalendarDays,
+  CalendarRange,
+  CircleUserRound,
+  Clock3,
+  ClipboardCheck,
+  ClipboardList,
+  CreditCard,
+  FileCheck2,
+  FileSignature,
+  LayoutDashboard,
+  LayoutGrid,
+  Megaphone,
+  PlaneTakeoff,
+  Plug,
+  Settings2,
+  Shield,
+  Star,
+  Tags,
+  UserCog,
+  UserPlus,
+  Users,
+  WalletCards,
+  X
+} from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { cn } from "@/lib/utils/cn";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import type { LucideIcon } from "lucide-react";
+
+type NavItem = { to: string; icon: LucideIcon; label: string; permission: string };
+type NavGroup = { label: string; items: NavItem[] };
+type BarraLateralProps = {
+  mobileOpen: boolean;
+  onClose: () => void;
+};
+
+const navGroups: NavGroup[] = [
+  {
+    label: "Principal",
+    items: [
+      { to: "/app/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+      { to: "/app/my-portal", icon: LayoutGrid, label: "Mi Portal" },
+      { to: "/app/calendar", icon: CalendarRange, label: "Calendario" },
+      { to: "/app/profile", icon: CircleUserRound, label: "Mi Perfil" }
+    ]
+  },
+  {
+    label: "Gestión",
+    items: [
+      { to: "/app/employees", icon: Users, label: "Empleados", permission: "employees.view" },
+      { to: "/app/org-structure", icon: BriefcaseBusiness, label: "Áreas y Cargos", permission: "areas.view" },
+      { to: "/app/attendance", icon: Clock3, label: "Asistencia", permission: "attendance.view" },
+      { to: "/app/incidents", icon: AlertTriangle, label: "Incidencias", permission: "attendance.incidents.view" },
+      { to: "/app/vacations", icon: PlaneTakeoff, label: "Vacaciones", permission: "vacations.view" },
+      { to: "/app/leaves", icon: FileCheck2, label: "Permisos y Licencias", permission: "leaves.view" },
+      { to: "/app/holidays", icon: CalendarDays, label: "Feriados", permission: "holidays.view" },
+      { to: "/app/onboarding", icon: ClipboardCheck, label: "Onboarding", permission: "onboarding.view" },
+      { to: "/app/evaluations", icon: Star, label: "Evaluaciones", permission: "evaluations.view" },
+      { to: "/app/documents", icon: FileSignature, label: "Documentos", permission: "documents.view" }
+    ]
+  },
+  {
+    label: "Finanzas",
+    items: [
+      { to: "/app/payroll", icon: WalletCards, label: "Planilla", permission: "payroll.view" },
+      { to: "/app/payroll-concepts", icon: Tags, label: "Conceptos", permission: "payroll.concepts.view" },
+      { to: "/app/payroll-loans", icon: CreditCard, label: "Préstamos", permission: "payroll.loans.view" },
+      { to: "/app/recruitment", icon: UserPlus, label: "Reclutamiento", permission: "recruitment.view" },
+      { to: "/app/job-postings", icon: Megaphone, label: "Vacantes", permission: "jobpostings.view" }
+    ]
+  },
+  {
+    label: "Sistema",
+    items: [
+      { to: "/app/users", icon: UserCog, label: "Usuarios", permission: "users.view" },
+      { to: "/app/roles", icon: Shield, label: "Roles", permission: "roles.view" },
+      { to: "/app/audit-log", icon: ClipboardList, label: "Auditoría", permission: "auditlog.view" },
+      { to: "/app/reports", icon: BarChart3, label: "Reportes", permission: "reports.view" },
+      { to: "/app/analytics", icon: Activity, label: "Analytics", permission: "analytics.view" },
+      { to: "/app/integrations", icon: Plug, label: "Integraciones", permission: "integrations.manage" },
+      { to: "/app/configuration", icon: Settings2, label: "Configuración", permission: "configuration.view" }
+    ]
+  }
+];
+
+export function BarraLateral({ mobileOpen = false, onClose }: BarraLateralProps): JSX.Element {
+  const { user } = useAuth();
+  const permissions = user.permissions  [];
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.permission || permissions.includes(item.permission))
+    }))
+    .filter((group) => group.items.length > 0);
+
+  // Nota: NO incluir `flex` aquí porque pisaría el `hidden` del aside de desktop.
+  // La utilidad `flex` se aplica explícitamente donde corresponda (drawer móvil siempre flex).
+  const sidebarDesktopClass =
+    "relative w-64 max-w-[85vw] shrink-0 flex-col";
+  const sidebarMobileClass =
+    "relative h-full w-64 max-w-[85vw] shrink-0 flex-col";
+
+  const sidebarBody = (onNavigate: () => void) => (
+    <>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-40 opacity-40"
+        style={{
+          background:
+            "radial-gradient(circle at 50% 0%, rgba(48,200,194,0.18), transparent 60%)"
+        }}
+      />
+
+      <div className="relative flex items-center gap-3 border-b border-white/[0.07] px-5 py-[18px]">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-lg shadow-brand-500/30 ring-1 ring-white/10">
+          <Building2 className="size-[18px] text-white" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold leading-none tracking-tight text-white">HRMS</p>
+          <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-300/80">Enterprise Suite</p>
+        </div>
+        {onNavigate  (
+          <button
+            type="button"
+            onClick={onNavigate}
+            aria-label="Cerrar menú"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-white/60 transition hover:bg-white/10 hover:text-white"
+          >
+            <X className="size-[18px]" />
+          </button>
+        ) : null}
+      </div>
+
+      <nav className="scrollbar-subtle relative flex-1 space-y-5 overflow-y-auto px-3 py-5">
+        {visibleGroups.map((group) => (
+          <div key={group.label}>
+            <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-white/30">
+              {group.label}
+            </p>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={onNavigate}
+                    className={({ isActive }) =>
+                      cn(
+                        "group relative flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-[13px] font-medium transition-all duration-150",
+                        isActive
+                           "bg-gradient-to-r from-brand-500/[0.22] via-brand-500/[0.12] to-transparent text-white shadow-[inset_0_0_0_1px_rgba(48,200,194,0.18)]"
+                          : "text-white/55 hover:bg-white/[0.04] hover:text-white"
+                      )
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        {isActive && (
+                          <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-brand-400 shadow-[0_0_8px_rgba(48,200,194,0.7)]" />
+                        )}
+                        <Icon
+                          className={cn(
+                            "size-4 shrink-0 transition-colors",
+                            isActive  "text-brand-300" : "text-white/45 group-hover:text-white"
+                          )}
+                        />
+                        <span className="flex-1 truncate">{item.label}</span>
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      <div className="relative border-t border-white/[0.07] px-5 py-3">
+        <div className="flex items-center justify-between text-[10px]">
+          <span className="font-semibold text-white/40">v1.0.0</span>
+          <span className="flex items-center gap-1 text-emerald-400/80">
+            <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(74,222,128,0.7)]" />
+            Sistema activo
+          </span>
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      <div className="hidden w-64 shrink-0 lg:block" aria-hidden />
+      <aside
+        className={cn("hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:flex", sidebarDesktopClass)}
+        style={{
+          background:
+            "linear-gradient(180deg, #0d2426 0%, #0a1c1e 55%, #081719 100%)"
+        }}
+      >
+        {sidebarBody()}
+      </aside>
+
+      <div
+        className={cn(
+          "fixed inset-0 z-40 lg:hidden",
+          mobileOpen  "pointer-events-auto" : "pointer-events-none"
+        )}
+        aria-hidden={!mobileOpen}
+      >
+        <button
+          type="button"
+          className={cn(
+            "absolute inset-0 bg-slate-900/45 transition-opacity duration-200",
+            mobileOpen  "opacity-100" : "opacity-0"
+          )}
+          onClick={onClose}
+          aria-label="Cerrar menú"
+        />
+        <aside
+          className={cn(
+            sidebarMobileClass,
+            "absolute left-0 top-0 flex border-r border-white/10 shadow-2xl transition-transform duration-200",
+            mobileOpen  "translate-x-0" : "-translate-x-full"
+          )}
+          style={{
+            background:
+              "linear-gradient(180deg, #0d2426 0%, #0a1c1e 55%, #081719 100%)"
+          }}
+        >
+          {sidebarBody(onClose)}
+        </aside>
+      </div>
+    </>
+  );
+}

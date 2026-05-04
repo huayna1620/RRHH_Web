@@ -1,0 +1,37 @@
+﻿import { httpClient } from "@/services/api/httpClient";
+import type {
+  OnboardingTemplate,
+  CreateTemplatePayload,
+  OnboardingProcess,
+  StartProcessPayload
+} from "@/modules/onboarding/types/onboarding.types";
+ BASE = "/api/v1/onboarding";
+ async function getTemplates(): Promise<OnboardingTemplate[]> {
+  const { data } = await httpClient.get<OnboardingTemplate[]>(`${BASE}/templates`);
+  return data;
+}
+ async function createTemplate(payload: CreateTemplatePayload): Promise<OnboardingTemplate> {
+  const { data } = await httpClient.post<OnboardingTemplate>(`${BASE}/templates`, payload);
+  return data;
+}
+ async function deleteTemplate(id: string): Promise<void> {
+  await httpClient.delete(`${BASE}/templates/${id}`);
+}
+ async function getProcesses(employeeId: string): Promise<OnboardingProcess[]> {
+  const params = employeeId  { employeeId } : {};
+  const { data } = await httpClient.get<OnboardingProcess[]>(`${BASE}/processes`, { params });
+  return data;
+}
+ async function getProcess(id: string): Promise<OnboardingProcess> {
+  const { data } = await httpClient.get<OnboardingProcess>(`${BASE}/processes/${id}`);
+  return data;
+}
+ async function startProcess(payload: StartProcessPayload): Promise<OnboardingProcess> {
+  const { data } = await httpClient.post<OnboardingProcess>(`${BASE}/processes`, payload);
+  return data;
+}
+ async function completeTask(processId: string, taskId: string): Promise<void> {
+  await httpClient.post(`${BASE}/processes/${processId}/tasks/${taskId}/complete`);
+}
+
+

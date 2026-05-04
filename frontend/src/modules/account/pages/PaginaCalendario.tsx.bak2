@@ -1,0 +1,257 @@
+﻿import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { getCalendarEvents, type CalendarEvent } from "@/modules/account/services/accountApi";
+ MONTH_NAMES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+ DAY_NAMES = ["Lun", "Mar", "MiÃ©", "Jue", "Vie", "SÃ¡b", "Dom"];
+ eventColors: Record<string, string> = {
+  holiday: "bg-amber-400",
+  vacation: "bg-sky-400",
+  leave: "bg-violet-400",
+  team_vacation: "bg-sky-200",
+  team_leave: "bg-violet-200",
+};
+ legendItems: Array<{ type: string; label: string; color: string }> = [
+  { type: "holiday", label: "Feriado", color: "bg-amber-400" },
+  { type: "vacation", label: "Mis vacaciones", color: "bg-sky-400" },
+  { type: "leave", label: "Mis permisos", color: "bg-violet-400" },
+  { type: "team_vacation", label: "Vacaciones equipo", color: "bg-sky-200" },
+  { type: "team_leave", label: "Permisos equipo", color: "bg-violet-200" },
+];
+ CalendarDay = {
+  date: number;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  dateStr: string;
+};
+ buildCalendarDays(year: number, month: number): CalendarDay[] {
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+  // Monday-based: JS getDay() 0=Sun, we want 0=Mon
+  let startDow = firstDay.getDay() - 1;
+  if (startDow < 0) startDow = 6;
+
+  const days: CalendarDay[] = [];
+
+  // Previous month fill
+  const prevMonthLastDay = new Date(year, month - 1, 0).getDate();
+  for (let i = startDow - 1; i >= 0; i--) {
+    const d = prevMonthLastDay - i;
+    const m = month - 1 < 1  12 : month - 1;
+    const y = month - 1 < 1 ? year - 1 : year;
+    days.push({
+      date: d,
+      isCurrentMonth: false,
+      isToday: false,
+      dateStr: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+    });
+  }
+
+  // Current month
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    days.push({
+      date: d,
+      isCurrentMonth: true,
+      isToday: dateStr === todayStr,
+      dateStr,
+    });
+  }
+
+  // Next month fill
+  const remaining = 42 - days.length;
+  for (let d = 1; d <= remaining; d++) {
+    const m = month + 1 > 12  1 : month + 1;
+    const y = month + 1 > 12 ? year + 1 : year;
+    days.push({
+      date: d,
+      isCurrentMonth: false,
+      isToday: false,
+      dateStr: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+    });
+  }
+
+  return days;
+}
+ getEventsForDate(events: CalendarEvent[], dateStr: string): CalendarEvent[] {
+  return events.filter((e) => {
+    return dateStr >= e.startDate && dateStr <= e.endDate;
+  });
+}
+ function PaginaCalendario(): JSX.Element {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const eventsQuery = useQuery({
+    queryKey: ["calendar-events", year, month],
+    queryFn: () => getCalendarEvents(year, month),
+  });
+
+  const events = eventsQuery.data ?? [];
+  const days = useMemo(() => buildCalendarDays(year, month), [year, month]);
+  const selectedEvents = selectedDate ? getEventsForDate(events, selectedDate) : [];
+
+  function goMonth(delta: number): void {
+    let newMonth = month + delta;
+    let newYear = year;
+    if (newMonth > 12) { newMonth = 1; newYear++; }
+    if (newMonth < 1) { newMonth = 12; newYear--; }
+    setMonth(newMonth);
+    setYear(newYear);
+    setSelectedDate(null);
+  }
+
+  return (
+    <section className="animate-fade-up space-y-5">
+      <PageHeader
+        title="Calendario"
+        description="Vacaciones, permisos, feriados y disponibilidad del equipo."
+      />
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        {/* Calendar grid */}
+        <Card className="xl:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>
+              {MONTH_NAMES[month - 1]} {year}
+            </CardTitle>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => goMonth(-1)}>
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setYear(now.getFullYear());
+                  setMonth(now.getMonth() + 1);
+                }}
+              >
+                Hoy
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => goMonth(1)}>
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Day headers */}
+            <div className="mb-1 grid grid-cols-7 text-center">
+              {DAY_NAMES.map((d) => (
+                <div key={d} className="py-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Days grid */}
+            <div className="grid grid-cols-7">
+              {days.map((day, idx) => {
+                const dayEvents = getEventsForDate(events, day.dateStr);
+                const isSelected = selectedDate === day.dateStr;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedDate(day.dateStr)}
+                    className={`relative flex min-h-[68px] flex-col items-start border-t px-1.5 py-1 text-left transition-colors
+                      ${day.isCurrentMonth ? "" : "opacity-30"}
+                      ${day.isToday ? "bg-brand-50" : ""}
+                      ${isSelected ? "bg-slate-100 ring-1 ring-brand-300" : "hover:bg-slate-50"}
+                    `}
+                  >
+                    <span
+                      className={`text-xs font-medium ${
+                        day.isToday
+                           "flex size-5 items-center justify-center rounded-full bg-brand-500 text-white"
+                          : "text-slate-600"
+                      }`}
+                    >
+                      {day.date}
+                    </span>
+                    {/* Event dots */}
+                    <div className="mt-0.5 flex flex-wrap gap-0.5">
+                      {dayEvents.slice(0, 3).map((e, i) => (
+                        <span
+                          key={i}
+                          className={`block size-1.5 rounded-full ${eventColors[e.type] ? "bg-slate-300"}`}
+                          title={e.title}
+                        />
+                      ))}
+                      {dayEvents.length > 3 && (
+                        <span className="text-[9px] text-slate-400">+{dayEvents.length - 3}</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="mt-4 flex flex-wrap gap-3">
+              {legendItems.map((item) => (
+                <div key={item.type} className="flex items-center gap-1.5">
+                  <span className={`block size-2.5 rounded-full ${item.color}`} />
+                  <span className="text-[11px] text-slate-500">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Selected day detail */}
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {selectedDate
+                 `Eventos del ${formatDateEs(selectedDate)}`
+                : "Selecciona un dÃ­a"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!selectedDate ? (
+              <p className="py-6 text-center text-sm text-muted">
+                Haz clic en un dÃ­a para ver sus eventos.
+              </p>
+            ) : selectedEvents.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted">Sin eventos este dÃ­a.</p>
+            ) : (
+              <div className="space-y-2">
+                {selectedEvents.map((e, i) => (
+                  <div key={i} className="rounded-lg border p-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`block size-2.5 rounded-full ${eventColors[e.type] ? "bg-slate-300"}`} />
+                      <span className="text-[13px] font-semibold text-slate-800">{e.title}</span>
+                    </div>
+                    <div className="mt-1 space-y-0.5 text-[11px] text-slate-500">
+                      <p>{e.startDate} â†’ {e.endDate}</p>
+                      {e.status && <p>Estado: <span className="font-medium">{e.status}</span></p>}
+                      {e.employeeName && <p>{e.employeeName}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </section>
+  );
+}
+ formatDateEs(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+

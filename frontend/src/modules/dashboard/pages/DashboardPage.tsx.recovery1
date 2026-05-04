@@ -1,0 +1,505 @@
+﻿import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { Clock3, FileCheck2, TrendingUp, Users, WalletCards, AlertCircle } from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { CardSkeleton } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { AttendanceBarChart } from "@/components/charts/AttendanceBarChart";
+import { HorizontalBarChart } from "@/components/charts/HorizontalBarChart";
+import {
+  getAttendanceReport,
+  getEmployeesReport,
+  getLeavesReport,
+  getPayrollReport,
+  getVacationsReport
+} from "@/modules/reports/services/reportsApi";
+
+const MONTHS = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+];
+
+const DAY_WINDOWS = [7, 14, 30] as const;
+type DayWindow = (typeof DAY_WINDOWS)[number];
+
+function toIsoDate(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateLabel(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-");
+  if (!year || !month || !day) return isoDate;
+  return `${day}/${month}/${year}`;
+}
+
+export function DashboardPage(): JSX.Element {
+  const { user } = useAuth();
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const monthName = MONTHS[month - 1];
+
+  const [attendanceWindow, setAttendanceWindow] = useState<DayWindow>(14);
+  const [attendanceEndDate, setAttendanceEndDate] = useState<string>(toIsoDate(now));
+
+  const attendanceDateRange = useMemo(() => {
+    const safeEnd = new Date(`${attendanceEndDate}T00:00:00`);
+    const end = Number.isNaN(safeEnd.getTime())  now : safeEnd;
+    const start = new Date(end);
+    start.setDate(end.getDate() - attendanceWindow + 1);
+
+    return {
+      startIso: toIsoDate(start),
+      endIso: toIsoDate(end),
+      year: end.getFullYear(),
+      month: end.getMonth() + 1
+    };
+  }, [attendanceEndDate, attendanceWindow]);
+
+  const employeesQuery = useQuery({
+    queryKey: ["reports-employees"],
+    queryFn: getEmployeesReport
+  });
+
+  const attendanceQuery = useQuery({
+    queryKey: ["reports-attendance", year, month],
+    queryFn: () => getAttendanceReport(year, month)
+  });
+
+  const attendanceTrendQuery = useQuery({
+    queryKey: [
+      "reports-attendance-range",
+      attendanceDateRange.year,
+      attendanceDateRange.month,
+      attendanceDateRange.startIso,
+      attendanceDateRange.endIso
+    ],
+    queryFn: () =>
+      getAttendanceReport(attendanceDateRange.year, attendanceDateRange.month, {
+        startDate: attendanceDateRange.startIso,
+        endDate: attendanceDateRange.endIso
+      })
+  });
+
+  const vacationsQuery = useQuery({
+    queryKey: ["reports-vacations", year],
+    queryFn: () => getVacationsReport(year)
+  });
+
+  const leavesQuery = useQuery({
+    queryKey: ["reports-leaves", year],
+    queryFn: () => getLeavesReport(year)
+  });
+
+  const payrollQuery = useQuery({
+    queryKey: ["reports-payroll", year, month],
+    queryFn: () => getPayrollReport(year, month)
+  });
+
+  const isLoading =
+    employeesQuery.isLoading ||
+    attendanceQuery.isLoading ||
+    vacationsQuery.isLoading ||
+    leavesQuery.isLoading ||
+    payrollQuery.isLoading;
+
+  const attendanceRate = (() => {
+    const total = attendanceQuery.data.totalRecords  0;
+    const present = attendanceQuery.data.presentRecords  0;
+    if (!total) return "-";
+    return `${Math.round((present / total) * 100)}%`;
+  })();
+
+  const pendingRequests =
+    (vacationsQuery.data.pendingRequests  0) +
+    (leavesQuery.data.pendingRequests  0);
+
+  const chartData = (attendanceTrendQuery.data.daily  []).map((d) => ({
+    date: d.date,
+    present: d.presentRecords,
+    late: d.lateRecords,
+    absent: d.absentRecords
+  }));
+
+  const areaData = (employeesQuery.data.byArea  []).map((a) => ({
+    label: a.areaName,
+    value: a.totalEmployees,
+    secondaryValue: a.activeEmployees
+  }));
+
+  const attendanceRangeLabel = `${formatDateLabel(attendanceDateRange.startIso)} - ${formatDateLabel(attendanceDateRange.endIso)}`;
+
+  return (
+    <section className="animate-fade-up space-y-6">
+      <PageHeader
+        title={`Bienvenido${user.fullName  `, ${user.fullName.split(" ")[0]}` : ""} 👋`}
+        description="Vision consolidada de la operacion de talento."
+        action={
+          <p className="text-[12px] font-semibold uppercase tracking-widest text-brand-500">
+            {monthName} {year}
+          </p>
+        }
+      />
+
+      <div className="md:hidden">
+        <div className="-mx-2 flex snap-x snap-mandatory gap-3 overflow-x-auto px-2 pb-1">
+          {isLoading  (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="min-w-[240px] snap-start">
+                <CardSkeleton />
+              </div>
+            ))
+          ) : (
+            <>
+              <div className="min-w-[240px] snap-start">
+                <DashboardKpi
+                  label="Empleados activos"
+                  value={String(employeesQuery.data.activeEmployees  0)}
+                  detail={`de ${employeesQuery.data.totalEmployees  0} totales`}
+                  icon={Users}
+                  accent="from-brand-400/15 to-brand-500/5"
+                  iconBg="bg-brand-100"
+                  iconColor="text-brand-600"
+                />
+              </div>
+              <div className="min-w-[240px] snap-start">
+                <DashboardKpi
+                  label="Asistencia del mes"
+                  value={attendanceRate}
+                  detail={`${attendanceQuery.data.lateRecords  0} tardanzas · ${attendanceQuery.data.absentRecords  0} faltas`}
+                  icon={Clock3}
+                  accent="from-indigo-400/15 to-indigo-500/5"
+                  iconBg="bg-indigo-100"
+                  iconColor="text-indigo-600"
+                />
+              </div>
+              <div className="min-w-[240px] snap-start">
+                <Card className="relative overflow-hidden">
+                  <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-400/15 to-amber-500/5" />
+                  <CardContent className="relative p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-2">
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Pendientes por aprobar</p>
+                        <p className="text-3xl font-extrabold leading-none tracking-tight text-slate-900">{pendingRequests}</p>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant="warning">{vacationsQuery.data.pendingRequests  0} vacaciones</Badge>
+                          <Badge variant="warning">{leavesQuery.data.pendingRequests  0} permisos</Badge>
+                        </div>
+                      </div>
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 shadow-sm ring-1 ring-amber-200/50">
+                        <FileCheck2 className="size-5 text-amber-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="min-w-[240px] snap-start">
+                <DashboardKpi
+                  label="Neto planilla"
+                  value={`S/ ${(payrollQuery.data.totalNetPay  0).toLocaleString("es-PE", { minimumFractionDigits: 0 })}`}
+                  detail={`${payrollQuery.data.recordsCount  0} registros · prom. S/ ${(payrollQuery.data.averageNetPay  0).toFixed(0)}`}
+                  icon={WalletCards}
+                  accent="from-emerald-400/15 to-emerald-500/5"
+                  iconBg="bg-emerald-100"
+                  iconColor="text-emerald-600"
+                  compact
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-4">
+        {isLoading  (
+          Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)
+        ) : (
+          <>
+            <DashboardKpi
+              label="Empleados activos"
+              value={String(employeesQuery.data.activeEmployees  0)}
+              detail={`de ${employeesQuery.data.totalEmployees  0} totales`}
+              icon={Users}
+              accent="from-brand-400/15 to-brand-500/5"
+              iconBg="bg-brand-100"
+              iconColor="text-brand-600"
+            />
+            <DashboardKpi
+              label="Asistencia del mes"
+              value={attendanceRate}
+              detail={`${attendanceQuery.data.lateRecords  0} tardanzas · ${attendanceQuery.data.absentRecords  0} faltas`}
+              icon={Clock3}
+              accent="from-indigo-400/15 to-indigo-500/5"
+              iconBg="bg-indigo-100"
+              iconColor="text-indigo-600"
+            />
+            <Card className="relative overflow-hidden">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-400/15 to-amber-500/5"
+              />
+              <CardContent className="relative p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Pendientes por aprobar</p>
+                    <p className="text-3xl font-extrabold leading-none tracking-tight text-slate-900">{pendingRequests}</p>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="warning">
+                        {vacationsQuery.data.pendingRequests  0} vacaciones
+                      </Badge>
+                      <Badge variant="warning">
+                        {leavesQuery.data.pendingRequests  0} permisos
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 shadow-sm ring-1 ring-amber-200/50">
+                    <FileCheck2 className="size-5 text-amber-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <DashboardKpi
+              label="Neto planilla"
+              value={`S/ ${(payrollQuery.data.totalNetPay  0).toLocaleString("es-PE", { minimumFractionDigits: 0 })}`}
+              detail={`${payrollQuery.data.recordsCount  0} registros · prom. S/ ${(payrollQuery.data.averageNetPay  0).toFixed(0)}`}
+              icon={WalletCards}
+              accent="from-emerald-400/15 to-emerald-500/5"
+              iconBg="bg-emerald-100"
+              iconColor="text-emerald-600"
+              compact
+            />
+          </>
+        )}
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>Asistencia diaria filtrada</CardTitle>
+                <span className="text-[12px] text-muted">{attendanceRangeLabel}</span>
+              </div>
+              <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2">
+                <div className="w-full sm:w-44">
+                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Ventana</label>
+                  <Select value={String(attendanceWindow)} onChange={(e) => setAttendanceWindow(Number(e.target.value) as DayWindow)}>
+                    {DAY_WINDOWS.map((days) => (
+                      <option key={days} value={days}>Últimos {days} días</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="w-full sm:w-44">
+                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Fecha fin</label>
+                  <Input
+                    type="date"
+                    value={attendanceEndDate}
+                    onChange={(e) => setAttendanceEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {attendanceTrendQuery.isLoading  (
+              <div className="h-32 animate-pulse rounded-lg bg-slate-100" />
+            ) : chartData.length > 0  (
+              <AttendanceBarChart data={chartData} />
+            ) : (
+              <div className="flex h-32 items-center justify-center gap-2 text-[13px] text-slate-400">
+                <AlertCircle className="size-4" /> Sin datos de asistencia para el rango seleccionado.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Empleados por area</CardTitle>
+            <span className="text-[12px] text-muted">Total vs. activos</span>
+          </CardHeader>
+          <CardContent>
+            {employeesQuery.isLoading  (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-6 animate-pulse rounded-lg bg-slate-100" />
+                ))}
+              </div>
+            ) : areaData.length > 0  (
+              <HorizontalBarChart
+                items={areaData}
+                showSecondary
+                secondaryLabel="Activos"
+              />
+            ) : (
+              <div className="flex h-20 items-center justify-center gap-2 text-[13px] text-slate-400">
+                <AlertCircle className="size-4" /> Sin datos de areas.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Top netos planilla</CardTitle>
+            <span className="text-[12px] text-muted">{monthName} {year}</span>
+          </CardHeader>
+          <CardContent>
+            {payrollQuery.isLoading  (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-5 animate-pulse rounded bg-slate-100" />
+                ))}
+              </div>
+            ) : payrollQuery.data.topNetPays.length  (
+              <div className="space-y-2">
+                {payrollQuery.data.topNetPays.slice(0, 5).map((item, i) => (
+                  <div key={item.employeeId} className="flex items-center justify-between text-[12px]">
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
+                        {i + 1}
+                      </span>
+                      <span className="max-w-[140px] truncate font-medium text-slate-700">{item.employeeName}</span>
+                    </div>
+                    <span className="tabular-nums font-bold text-slate-800">S/ {item.netPay.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[13px] text-slate-400">Sin datos de planilla.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Vacaciones {year}</CardTitle>
+            <Badge variant={pendingRequests > 0  "warning" : "neutral"}>
+              {vacationsQuery.data.pendingRequests  0} pendientes
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[
+                { label: "Total solicitudes", value: vacationsQuery.data.totalRequests  0, color: "text-slate-800" },
+                { label: "Aprobadas", value: vacationsQuery.data.approvedRequests  0, color: "text-emerald-600" },
+                { label: "Dias aprobados", value: vacationsQuery.data.approvedDays  0, color: "text-brand-600" },
+                { label: "Rechazadas", value: vacationsQuery.data.rejectedRequests  0, color: "text-rose-500" }
+              ].map((row) => (
+                <div key={row.label} className="flex items-center justify-between text-[13px]">
+                  <span className="text-slate-500">{row.label}</span>
+                  <span className={`font-bold tabular-nums ${row.color}`}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Permisos {year}</CardTitle>
+            <div className="flex gap-1">
+              <Badge variant="success">Con goce: {leavesQuery.data.paidRequests  0}</Badge>
+              <Badge variant="neutral">Sin goce: {leavesQuery.data.unpaidRequests  0}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {leavesQuery.isLoading  (
+              <div className="space-y-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-5 animate-pulse rounded bg-slate-100" />
+                ))}
+              </div>
+            ) : leavesQuery.data.byType.length  (
+              <HorizontalBarChart
+                items={leavesQuery.data.byType.map((t) => ({
+                  label: t.leaveType === "medical"  "Medica"
+                    : t.leaveType === "personal"  "Personal"
+                      : t.leaveType === "study"  "Estudios"
+                        : t.leaveType === "maternity_paternity"  "Maternidad/Pat."
+                          : "Otro",
+                  value: t.requests
+                }))}
+              />
+            ) : (
+              <p className="text-[13px] text-slate-400">Sin datos de permisos.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Accesos rapidos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[
+              { label: "Ver empleados", icon: Users, href: "/app/employees", color: "bg-brand-50 text-brand-700 hover:bg-brand-100" },
+              { label: "Asistencia hoy", icon: Clock3, href: "/app/attendance", color: "bg-indigo-50 text-indigo-700 hover:bg-indigo-100" },
+              { label: "Aprobar solicitudes", icon: FileCheck2, href: "/app/vacations", color: "bg-amber-50 text-amber-700 hover:bg-amber-100" },
+              { label: "Generar planilla", icon: TrendingUp, href: "/app/payroll", color: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" }
+            ].map((link) => {
+              const Icon = link.icon;
+              return (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className={`flex min-h-12 items-center gap-2.5 rounded-xl px-3 py-3 text-[13px] font-semibold transition-colors sm:px-4 ${link.color}`}
+                >
+                  <Icon className="size-4 shrink-0" />
+                  {link.label}
+                </a>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+// ── Helper components ─────────────────────────────────────────────────────
+
+type DashboardKpiProps = {
+  label: string;
+  value: string;
+  detail: string;
+  icon: React.ComponentType<{ className: string }>;
+  accent: string;
+  iconBg: string;
+  iconColor: string;
+  compact: boolean;
+};
+
+function DashboardKpi({ label, value, detail, icon: Icon, accent, iconBg, iconColor, compact }: DashboardKpiProps): JSX.Element {
+  return (
+    <Card className="relative overflow-hidden">
+      <div aria-hidden className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${accent}`} />
+      <CardContent className="relative p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">{label}</p>
+            <p className={`${compact  "text-2xl" : "text-3xl"} font-extrabold leading-none tracking-tight text-slate-900`}>
+              {value}
+            </p>
+            <p className="text-[12px] text-slate-500">{detail}</p>
+          </div>
+          <div className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${iconBg} shadow-sm ring-1 ring-black/5`}>
+            <Icon className={`size-5 ${iconColor}`} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+

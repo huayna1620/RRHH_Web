@@ -1,0 +1,1086 @@
+src/modules/account/pages/PaginaPerfil.tsx(89,109): error TS1005: ':' expected.
+src/modules/account/pages/ProfilePage.tsx(89,109): error TS1005: ':' expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(47,22): error TS1005: ',' expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(47,31): error TS1005: ';' expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(47,33): error TS1434: Unexpected keyword or identifier.
+src/modules/analytics/pages/AnalyticsPage.tsx(176,83): error TS1005: ',' expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(199,71): error TS1005: ',' expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(224,83): error TS1005: ',' expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(255,28): error TS1005: '}' expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(255,29): error TS1003: Identifier expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(256,47): error TS1003: Identifier expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(259,23): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/analytics/pages/AnalyticsPage.tsx(259,25): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/analytics/pages/AnalyticsPage.tsx(259,26): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/analytics/pages/AnalyticsPage.tsx(264,19): error TS1005: ')' expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(265,18): error TS1005: '}' expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(265,19): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/analytics/pages/AnalyticsPage.tsx(266,17): error TS17002: Expected corresponding JSX closing tag for 'CardContent'.
+src/modules/analytics/pages/AnalyticsPage.tsx(267,14): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/analytics/pages/AnalyticsPage.tsx(268,13): error TS17002: Expected corresponding JSX closing tag for 'Card'.
+src/modules/analytics/pages/AnalyticsPage.tsx(269,11): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/modules/analytics/pages/AnalyticsPage.tsx(272,7): error TS1005: ')' expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(368,5): error TS1128: Declaration or statement expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(369,3): error TS1109: Expression expected.
+src/modules/analytics/pages/AnalyticsPage.tsx(396,84): error TS1005: ':' expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(47,22): error TS1005: ',' expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(47,31): error TS1005: ';' expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(47,33): error TS1434: Unexpected keyword or identifier.
+src/modules/analytics/pages/PaginaAnalitica.tsx(176,83): error TS1005: ',' expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(199,71): error TS1005: ',' expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(224,83): error TS1005: ',' expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(255,28): error TS1005: '}' expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(255,29): error TS1003: Identifier expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(256,47): error TS1003: Identifier expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(259,23): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/analytics/pages/PaginaAnalitica.tsx(259,25): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/analytics/pages/PaginaAnalitica.tsx(259,26): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/analytics/pages/PaginaAnalitica.tsx(264,19): error TS1005: ')' expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(265,18): error TS1005: '}' expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(265,19): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/analytics/pages/PaginaAnalitica.tsx(266,17): error TS17002: Expected corresponding JSX closing tag for 'CardContent'.
+src/modules/analytics/pages/PaginaAnalitica.tsx(267,14): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/analytics/pages/PaginaAnalitica.tsx(268,13): error TS17002: Expected corresponding JSX closing tag for 'Card'.
+src/modules/analytics/pages/PaginaAnalitica.tsx(269,11): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/modules/analytics/pages/PaginaAnalitica.tsx(272,7): error TS1005: ')' expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(368,5): error TS1128: Declaration or statement expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(369,3): error TS1109: Expression expected.
+src/modules/analytics/pages/PaginaAnalitica.tsx(396,84): error TS1005: ':' expected.
+src/modules/analytics/services/analyticsApi.ts(42,24): error TS1005: ',' expected.
+src/modules/attendance/components/JustifyAttendanceModal.tsx(6,16): error TS1005: ',' expected.
+src/modules/attendance/components/JustifyAttendanceModal.tsx(7,23): error TS1005: ',' expected.
+src/modules/attendance/components/JustifyAttendanceModal.tsx(8,38): error TS1005: ',' expected.
+src/modules/attendance/components/JustifyAttendanceModal.tsx(9,19): error TS1005: ',' expected.
+src/modules/attendance/components/JustifyAttendanceModal.tsx(10,45): error TS1109: Expression expected.
+src/modules/attendance/components/JustifyAttendanceModal.tsx(11,22): error TS1109: Expression expected.
+src/modules/attendance/components/JustifyAttendanceModal.tsx(24,57): error TS1005: ':' expected.
+src/modules/attendance/components/MarkAbsentModal.tsx(7,13): error TS1005: ',' expected.
+src/modules/attendance/components/MarkAbsentModal.tsx(8,16): error TS1005: ',' expected.
+src/modules/attendance/components/MarkAbsentModal.tsx(11,16): error TS1005: ',' expected.
+src/modules/attendance/components/MarkAbsentModal.tsx(12,23): error TS1011: An element access expression should take an argument.
+src/modules/attendance/components/MarkAbsentModal.tsx(12,24): error TS1005: ',' expected.
+src/modules/attendance/components/MarkAbsentModal.tsx(13,29): error TS1005: ',' expected.
+src/modules/attendance/components/MarkAbsentModal.tsx(14,19): error TS1005: ',' expected.
+src/modules/attendance/components/MarkAbsentModal.tsx(15,58): error TS1109: Expression expected.
+src/modules/attendance/components/MarkAbsentModal.tsx(16,22): error TS1109: Expression expected.
+src/modules/attendance/components/MarkAbsentModal.tsx(26,71): error TS1005: ':' expected.
+src/modules/attendance/components/MarkAbsentModal.tsx(31,44): error TS1005: ':' expected.
+src/modules/attendance/components/ModalJustificarAsistencia.tsx(6,16): error TS1005: ',' expected.
+src/modules/attendance/components/ModalJustificarAsistencia.tsx(7,23): error TS1005: ',' expected.
+src/modules/attendance/components/ModalJustificarAsistencia.tsx(8,38): error TS1005: ',' expected.
+src/modules/attendance/components/ModalJustificarAsistencia.tsx(9,19): error TS1005: ',' expected.
+src/modules/attendance/components/ModalJustificarAsistencia.tsx(10,45): error TS1109: Expression expected.
+src/modules/attendance/components/ModalJustificarAsistencia.tsx(11,22): error TS1109: Expression expected.
+src/modules/attendance/components/ModalJustificarAsistencia.tsx(24,57): error TS1005: ':' expected.
+src/modules/attendance/components/ModalMarcarAusencia.tsx(7,13): error TS1005: ',' expected.
+src/modules/attendance/components/ModalMarcarAusencia.tsx(8,16): error TS1005: ',' expected.
+src/modules/attendance/components/ModalMarcarAusencia.tsx(11,16): error TS1005: ',' expected.
+src/modules/attendance/components/ModalMarcarAusencia.tsx(12,23): error TS1011: An element access expression should take an argument.
+src/modules/attendance/components/ModalMarcarAusencia.tsx(12,24): error TS1005: ',' expected.
+src/modules/attendance/components/ModalMarcarAusencia.tsx(13,29): error TS1005: ',' expected.
+src/modules/attendance/components/ModalMarcarAusencia.tsx(14,19): error TS1005: ',' expected.
+src/modules/attendance/components/ModalMarcarAusencia.tsx(15,58): error TS1109: Expression expected.
+src/modules/attendance/components/ModalMarcarAusencia.tsx(16,22): error TS1109: Expression expected.
+src/modules/attendance/components/ModalMarcarAusencia.tsx(26,71): error TS1005: ':' expected.
+src/modules/attendance/components/ModalMarcarAusencia.tsx(31,44): error TS1005: ':' expected.
+src/modules/attendance/pages/AttendancePage.tsx(25,39): error TS1005: ',' expected.
+src/modules/attendance/pages/AttendancePage.tsx(25,61): error TS1005: ',' expected.
+src/modules/attendance/pages/AttendancePage.tsx(42,75): error TS1005: ':' expected.
+src/modules/attendance/pages/AttendancePage.tsx(43,71): error TS1005: ':' expected.
+src/modules/attendance/pages/AttendancePage.tsx(44,77): error TS1005: ':' expected.
+src/modules/attendance/pages/AttendancePage.tsx(115,57): error TS1005: ',' expected.
+src/modules/attendance/pages/AttendancePage.tsx(289,91): error TS1005: ':' expected.
+src/modules/attendance/pages/AttendancePage.tsx(326,60): error TS1005: '}' expected.
+src/modules/attendance/pages/AttendancePage.tsx(326,61): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/attendance/pages/AttendancePage.tsx(329,14): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/attendance/pages/AttendancePage.tsx(336,53): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(46,39): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(46,61): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(86,75): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(87,71): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(88,77): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(91,83): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(158,56): error TS1005: ')' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(158,78): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(158,83): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(159,9): error TS1128: Declaration or statement expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(161,6): error TS1128: Declaration or statement expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(168,56): error TS1005: ')' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(168,78): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(168,83): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(169,9): error TS1128: Declaration or statement expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(171,6): error TS1128: Declaration or statement expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(172,3): error TS1128: Declaration or statement expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(233,119): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(237,72): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(241,80): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(254,79): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(325,92): error TS1005: ')' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(325,125): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(325,130): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(325,142): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(372,30): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(372,49): error TS1128: Declaration or statement expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(372,74): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(552,58): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(555,93): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(583,89): error TS1005: '}' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(583,90): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(583,106): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(584,85): error TS1005: '}' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(584,86): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(584,102): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(585,83): error TS1005: '}' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(585,84): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(585,99): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(586,100): error TS1005: '}' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(586,101): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(586,116): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(587,98): error TS1005: '}' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(587,99): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(587,123): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(588,90): error TS1005: '}' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(588,91): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(588,114): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(602,143): error TS1005: '}' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(602,144): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(655,25): error TS1128: Declaration or statement expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(657,27): error TS1005: '}' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(679,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(682,18): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(720,112): error TS1005: '}' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(720,113): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(720,161): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/attendance/pages/PaginaAsistencia.tsx(744,147): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(752,166): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(807,53): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(827,1): error TS1128: Declaration or statement expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(829,20): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(829,29): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(829,31): error TS1434: Unexpected keyword or identifier.
+src/modules/attendance/pages/PaginaAsistencia.tsx(834,26): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(834,44): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(834,53): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(834,55): error TS1434: Unexpected keyword or identifier.
+src/modules/attendance/pages/PaginaAsistencia.tsx(838,25): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(838,41): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(838,50): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(838,52): error TS1434: Unexpected keyword or identifier.
+src/modules/attendance/pages/PaginaAsistencia.tsx(840,67): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(841,67): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(842,63): error TS1005: ':' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(845,24): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(845,41): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(845,59): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(845,73): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(853,32): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(853,41): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(853,43): error TS1434: Unexpected keyword or identifier.
+src/modules/attendance/pages/PaginaAsistencia.tsx(860,24): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(860,41): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(872,2): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(873,20): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(874,16): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(875,16): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(876,16): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(877,19): error TS1005: ',' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(878,3): error TS1005: ';' expected.
+src/modules/attendance/pages/PaginaAsistencia.tsx(878,17): error TS1005: ';' expected.
+src/modules/audit/pages/AuditLogPage.tsx(20,20): error TS1005: ',' expected.
+src/modules/audit/pages/AuditLogPage.tsx(20,29): error TS1005: ';' expected.
+src/modules/audit/pages/AuditLogPage.tsx(20,31): error TS1434: Unexpected keyword or identifier.
+src/modules/audit/pages/AuditLogPage.tsx(45,39): error TS1005: ',' expected.
+src/modules/audit/pages/AuditLogPage.tsx(111,80): error TS1005: ':' expected.
+src/modules/audit/pages/PaginaAuditoria.tsx(20,20): error TS1005: ',' expected.
+src/modules/audit/pages/PaginaAuditoria.tsx(20,29): error TS1005: ';' expected.
+src/modules/audit/pages/PaginaAuditoria.tsx(20,31): error TS1434: Unexpected keyword or identifier.
+src/modules/audit/pages/PaginaAuditoria.tsx(45,39): error TS1005: ',' expected.
+src/modules/audit/pages/PaginaAuditoria.tsx(126,80): error TS1005: ':' expected.
+src/modules/configuration/components/ConfigurationCatalogFormModal.tsx(16,16): error TS1005: ',' expected.
+src/modules/configuration/components/ConfigurationCatalogFormModal.tsx(17,16): error TS1005: ',' expected.
+src/modules/configuration/components/ConfigurationCatalogFormModal.tsx(18,26): error TS1005: ',' expected.
+src/modules/configuration/components/ConfigurationCatalogFormModal.tsx(19,40): error TS1005: ',' expected.
+src/modules/configuration/components/ConfigurationCatalogFormModal.tsx(20,18): error TS1005: ',' expected.
+src/modules/configuration/components/ConfigurationCatalogFormModal.tsx(21,22): error TS1109: Expression expected.
+src/modules/configuration/components/ConfigurationCatalogFormModal.tsx(22,68): error TS1005: ',' expected.
+src/modules/configuration/components/GeneralSettingFormModal.tsx(20,16): error TS1005: ',' expected.
+src/modules/configuration/components/GeneralSettingFormModal.tsx(21,26): error TS1005: ',' expected.
+src/modules/configuration/components/GeneralSettingFormModal.tsx(22,34): error TS1005: ',' expected.
+src/modules/configuration/components/GeneralSettingFormModal.tsx(23,18): error TS1005: ',' expected.
+src/modules/configuration/components/GeneralSettingFormModal.tsx(24,22): error TS1109: Expression expected.
+src/modules/configuration/components/GeneralSettingFormModal.tsx(25,75): error TS1005: ',' expected.
+src/modules/configuration/components/GeneralSettingFormModal.tsx(57,43): error TS1005: ':' expected.
+src/modules/configuration/components/ModalFormCatalogoConfiguracion.tsx(16,16): error TS1005: ',' expected.
+src/modules/configuration/components/ModalFormCatalogoConfiguracion.tsx(17,16): error TS1005: ',' expected.
+src/modules/configuration/components/ModalFormCatalogoConfiguracion.tsx(18,26): error TS1005: ',' expected.
+src/modules/configuration/components/ModalFormCatalogoConfiguracion.tsx(19,40): error TS1005: ',' expected.
+src/modules/configuration/components/ModalFormCatalogoConfiguracion.tsx(20,18): error TS1005: ',' expected.
+src/modules/configuration/components/ModalFormCatalogoConfiguracion.tsx(21,22): error TS1109: Expression expected.
+src/modules/configuration/components/ModalFormCatalogoConfiguracion.tsx(22,68): error TS1005: ',' expected.
+src/modules/configuration/components/ModalFormConfiguracionGeneral.tsx(20,16): error TS1005: ',' expected.
+src/modules/configuration/components/ModalFormConfiguracionGeneral.tsx(21,26): error TS1005: ',' expected.
+src/modules/configuration/components/ModalFormConfiguracionGeneral.tsx(22,34): error TS1005: ',' expected.
+src/modules/configuration/components/ModalFormConfiguracionGeneral.tsx(23,18): error TS1005: ',' expected.
+src/modules/configuration/components/ModalFormConfiguracionGeneral.tsx(24,22): error TS1109: Expression expected.
+src/modules/configuration/components/ModalFormConfiguracionGeneral.tsx(25,75): error TS1005: ',' expected.
+src/modules/configuration/components/ModalFormConfiguracionGeneral.tsx(57,43): error TS1005: ':' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(40,3): error TS1109: Expression expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(40,21): error TS1005: ',' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(41,19): error TS1005: ',' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(44,3): error TS1109: Expression expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(44,21): error TS1005: ',' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(45,19): error TS1005: ',' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(48,3): error TS1109: Expression expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(48,24): error TS1005: ',' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(48,36): error TS1005: ',' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(49,24): error TS1005: ',' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(49,36): error TS1005: ',' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(66,79): error TS1005: ':' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(67,78): error TS1005: ':' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(68,82): error TS1005: ':' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(159,50): error TS1005: ',' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(180,14): error TS1005: '}' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(181,16): error TS1003: Identifier expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(202,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/configuration/pages/PaginaConfiguracion.tsx(203,8): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/configuration/pages/PaginaConfiguracion.tsx(274,74): error TS1005: ':' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(414,60): error TS1005: '}' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(414,61): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/configuration/pages/PaginaConfiguracion.tsx(417,16): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/configuration/pages/PaginaConfiguracion.tsx(427,11): error TS1005: '}' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(427,80): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/configuration/pages/PaginaConfiguracion.tsx(428,50): error TS1005: ':' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(429,46): error TS1005: ':' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(440,8): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/configuration/pages/PaginaConfiguracion.tsx(444,51): error TS1005: ':' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(445,47): error TS1005: ':' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(459,13): error TS1005: '}' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(459,70): error TS1005: ':' expected.
+src/modules/configuration/pages/PaginaConfiguracion.tsx(460,9): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/configuration/pages/PaginaConfiguracion.tsx(479,8): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/configuration/services/configurationApi.ts(10,24): error TS1005: ',' expected.
+src/modules/configuration/services/configurationApi.ts(10,45): error TS1005: ';' expected.
+src/modules/configuration/services/configurationApi.ts(10,47): error TS1434: Unexpected keyword or identifier.
+src/modules/configuration/services/configurationApi.ts(18,45): error TS1005: ':' expected.
+src/modules/configuration/services/configurationApi.ts(19,58): error TS1005: ':' expected.
+src/modules/documents/pages/PaginaDocumentos.tsx(287,84): error TS1005: ':' expected.
+src/modules/documents/pages/PaginaDocumentos.tsx(298,85): error TS1005: ':' expected.
+src/modules/documents/pages/PaginaDocumentos.tsx(385,79): error TS1005: ':' expected.
+src/modules/documents/pages/PaginaDocumentos.tsx(387,106): error TS1005: ':' expected.
+src/modules/documents/pages/PaginaDocumentos.tsx(461,86): error TS1005: ':' expected.
+src/modules/documents/pages/PaginaDocumentos.tsx(496,80): error TS1005: ':' expected.
+src/modules/documents/pages/PaginaDocumentos.tsx(500,85): error TS1005: ':' expected.
+src/modules/documents/pages/PaginaDocumentos.tsx(501,79): error TS1005: ':' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(45,16): error TS1005: ',' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(46,26): error TS1005: ',' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(47,41): error TS1005: ',' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(48,34): error TS1005: ',' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(49,27): error TS1005: ',' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(50,18): error TS1005: ',' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(51,22): error TS1109: Expression expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(52,56): error TS1005: ',' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(120,55): error TS1005: ':' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(121,35): error TS1005: ':' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(122,65): error TS1005: ':' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(123,67): error TS1005: ':' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(124,55): error TS1005: ':' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(125,41): error TS1005: ':' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(126,59): error TS1005: ':' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(127,53): error TS1005: ':' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(128,55): error TS1005: ':' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(129,52): error TS1005: ':' expected.
+src/modules/employees/components/ModalFormEmpleado.tsx(135,7): error TS1005: ':' expected.
+src/modules/employees/pages/EmployeesPage.tsx(27,3): error TS1109: Expression expected.
+src/modules/employees/pages/EmployeesPage.tsx(27,21): error TS1005: ',' expected.
+src/modules/employees/pages/EmployeesPage.tsx(28,19): error TS1005: ',' expected.
+src/modules/employees/pages/EmployeesPage.tsx(31,27): error TS1005: ',' expected.
+src/modules/employees/pages/EmployeesPage.tsx(31,46): error TS1005: ';' expected.
+src/modules/employees/pages/EmployeesPage.tsx(31,60): error TS1005: ';' expected.
+src/modules/employees/pages/EmployeesPage.tsx(35,26): error TS1005: ':' expected.
+src/modules/employees/pages/EmployeesPage.tsx(56,74): error TS1005: ':' expected.
+src/modules/employees/pages/EmployeesPage.tsx(57,70): error TS1005: ':' expected.
+src/modules/employees/pages/EmployeesPage.tsx(58,74): error TS1005: ':' expected.
+src/modules/employees/pages/EmployeesPage.tsx(82,59): error TS1005: ':' expected.
+src/modules/employees/pages/EmployeesPage.tsx(134,56): error TS1005: ',' expected.
+src/modules/employees/pages/EmployeesPage.tsx(389,59): error TS1005: '}' expected.
+src/modules/employees/pages/EmployeesPage.tsx(389,60): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/employees/pages/EmployeesPage.tsx(392,14): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/employees/pages/EmployeesPage.tsx(399,41): error TS1005: ':' expected.
+src/modules/employees/pages/EmployeesPage.tsx(401,42): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(27,3): error TS1109: Expression expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(27,21): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(28,19): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(32,27): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(32,46): error TS1005: ';' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(32,60): error TS1005: ';' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(36,26): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(42,18): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(42,36): error TS1005: ';' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(42,38): error TS1434: Unexpected keyword or identifier.
+src/modules/employees/pages/PaginaEmpleados.tsx(43,32): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(46,26): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(46,45): error TS1011: An element access expression should take an argument.
+src/modules/employees/pages/PaginaEmpleados.tsx(46,54): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(46,63): error TS1005: ';' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(47,9): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(47,99): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(48,9): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(57,5): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(59,9): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(59,94): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(60,9): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(60,25): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(61,9): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(61,213): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(62,9): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(62,54): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(64,9): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(64,79): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(65,9): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(65,40): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(66,9): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(66,43): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(67,7): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(67,18): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(68,7): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(68,42): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(69,11): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(69,34): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(70,7): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(70,15): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(71,11): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(71,34): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(72,6): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(72,27): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(102,2): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(118,74): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(119,70): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(151,57): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(157,59): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(194,54): error TS1005: ',' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(481,41): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(483,46): error TS1005: ':' expected.
+src/modules/employees/pages/PaginaEmpleados.tsx(503,210): error TS1005: ':' expected.
+src/modules/employees/services/employeesApi.ts(10,21): error TS1005: ',' expected.
+src/modules/employees/services/employeesApi.ts(10,37): error TS1005: ';' expected.
+src/modules/employees/services/employeesApi.ts(10,39): error TS1434: Unexpected keyword or identifier.
+src/modules/employees/services/employeesApi.ts(20,49): error TS1005: ':' expected.
+src/modules/employees/services/employeesApi.ts(21,58): error TS1005: ':' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(43,27): error TS1005: ',' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(43,48): error TS1005: ';' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(43,62): error TS1005: ';' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(44,35): error TS1005: ',' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(44,61): error TS1003: Identifier expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(44,71): error TS1005: ':' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(44,74): error TS1005: ',' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(44,80): error TS1005: ':' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(47,28): error TS1005: ',' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(47,55): error TS1005: ';' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(47,69): error TS1005: ';' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(97,64): error TS1005: ':' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(180,36): error TS1005: ':' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(197,60): error TS1005: ':' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(349,90): error TS1005: ':' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(450,114): error TS1005: ':' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(451,119): error TS1005: ':' expected.
+src/modules/evaluations/pages/PaginaEvaluaciones.tsx(502,5): error TS1128: Declaration or statement expected.
+src/modules/holidays/pages/HolidaysPage.tsx(19,30): error TS1005: ',' expected.
+src/modules/holidays/pages/HolidaysPage.tsx(19,64): error TS1005: ',' expected.
+src/modules/holidays/pages/HolidaysPage.tsx(23,69): error TS1005: ':' expected.
+src/modules/holidays/pages/PaginaFeriados.tsx(19,30): error TS1005: ',' expected.
+src/modules/holidays/pages/PaginaFeriados.tsx(19,64): error TS1005: ',' expected.
+src/modules/holidays/pages/PaginaFeriados.tsx(23,69): error TS1005: ':' expected.
+src/modules/incidents/components/JustifyIncidentModal.tsx(8,38): error TS1005: ',' expected.
+src/modules/incidents/components/JustifyIncidentModal.tsx(9,18): error TS1005: ',' expected.
+src/modules/incidents/components/JustifyIncidentModal.tsx(10,22): error TS1109: Expression expected.
+src/modules/incidents/components/JustifyIncidentModal.tsx(11,47): error TS1109: Expression expected.
+src/modules/incidents/components/JustifyIncidentModal.tsx(23,44): error TS1005: ':' expected.
+src/modules/incidents/components/JustifyIncidentModal.tsx(34,86): error TS1005: ':' expected.
+src/modules/incidents/components/ModalJustificarIncidencia.tsx(8,38): error TS1005: ',' expected.
+src/modules/incidents/components/ModalJustificarIncidencia.tsx(9,18): error TS1005: ',' expected.
+src/modules/incidents/components/ModalJustificarIncidencia.tsx(10,22): error TS1109: Expression expected.
+src/modules/incidents/components/ModalJustificarIncidencia.tsx(11,47): error TS1109: Expression expected.
+src/modules/incidents/components/ModalJustificarIncidencia.tsx(23,44): error TS1005: ':' expected.
+src/modules/incidents/components/ModalJustificarIncidencia.tsx(34,86): error TS1005: ':' expected.
+src/modules/incidents/components/ModalRevisarIncidencia.tsx(9,38): error TS1005: ',' expected.
+src/modules/incidents/components/ModalRevisarIncidencia.tsx(10,18): error TS1005: ',' expected.
+src/modules/incidents/components/ModalRevisarIncidencia.tsx(11,22): error TS1109: Expression expected.
+src/modules/incidents/components/ModalRevisarIncidencia.tsx(12,51): error TS1109: Expression expected.
+src/modules/incidents/components/ModalRevisarIncidencia.tsx(13,50): error TS1109: Expression expected.
+src/modules/incidents/components/ReviewIncidentModal.tsx(9,38): error TS1005: ',' expected.
+src/modules/incidents/components/ReviewIncidentModal.tsx(10,18): error TS1005: ',' expected.
+src/modules/incidents/components/ReviewIncidentModal.tsx(11,22): error TS1109: Expression expected.
+src/modules/incidents/components/ReviewIncidentModal.tsx(12,51): error TS1109: Expression expected.
+src/modules/incidents/components/ReviewIncidentModal.tsx(13,50): error TS1109: Expression expected.
+src/modules/incidents/pages/IncidentsPage.tsx(44,87): error TS1005: ':' expected.
+src/modules/incidents/pages/IncidentsPage.tsx(45,87): error TS1005: ':' expected.
+src/modules/incidents/pages/IncidentsPage.tsx(112,11): error TS1005: ',' expected.
+src/modules/incidents/pages/IncidentsPage.tsx(113,8): error TS1128: Declaration or statement expected.
+src/modules/incidents/pages/IncidentsPage.tsx(114,5): error TS1128: Declaration or statement expected.
+src/modules/incidents/pages/IncidentsPage.tsx(114,6): error TS1128: Declaration or statement expected.
+src/modules/incidents/pages/IncidentsPage.tsx(116,3): error TS1128: Declaration or statement expected.
+src/modules/incidents/pages/IncidentsPage.tsx(116,4): error TS1128: Declaration or statement expected.
+src/modules/incidents/pages/IncidentsPage.tsx(141,63): error TS1005: '}' expected.
+src/modules/incidents/pages/IncidentsPage.tsx(141,64): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/IncidentsPage.tsx(150,62): error TS1005: '}' expected.
+src/modules/incidents/pages/IncidentsPage.tsx(150,63): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/IncidentsPage.tsx(162,67): error TS1005: '}' expected.
+src/modules/incidents/pages/IncidentsPage.tsx(162,68): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/IncidentsPage.tsx(171,67): error TS1005: ')' expected.
+src/modules/incidents/pages/IncidentsPage.tsx(171,90): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/IncidentsPage.tsx(245,74): error TS1005: ',' expected.
+src/modules/incidents/pages/IncidentsPage.tsx(245,91): error TS1005: ',' expected.
+src/modules/incidents/pages/IncidentsPage.tsx(245,113): error TS1005: '}' expected.
+src/modules/incidents/pages/IncidentsPage.tsx(245,141): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/IncidentsPage.tsx(246,79): error TS1005: '}' expected.
+src/modules/incidents/pages/IncidentsPage.tsx(246,133): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/IncidentsPage.tsx(248,80): error TS1003: Identifier expected.
+src/modules/incidents/pages/IncidentsPage.tsx(303,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/IncidentsPage.tsx(303,23): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/IncidentsPage.tsx(340,1): error TS1128: Declaration or statement expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(44,87): error TS1005: ':' expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(45,87): error TS1005: ':' expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(112,11): error TS1005: ',' expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(113,8): error TS1128: Declaration or statement expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(114,5): error TS1128: Declaration or statement expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(114,6): error TS1128: Declaration or statement expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(116,3): error TS1128: Declaration or statement expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(116,4): error TS1128: Declaration or statement expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(141,63): error TS1005: '}' expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(141,64): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/PaginaIncidencias.tsx(150,62): error TS1005: '}' expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(150,63): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/PaginaIncidencias.tsx(162,67): error TS1005: '}' expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(162,68): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/PaginaIncidencias.tsx(171,67): error TS1005: ')' expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(171,90): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/PaginaIncidencias.tsx(267,74): error TS1005: ',' expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(267,91): error TS1005: ',' expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(267,113): error TS1005: '}' expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(267,141): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/PaginaIncidencias.tsx(268,79): error TS1005: '}' expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(268,133): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/PaginaIncidencias.tsx(270,80): error TS1003: Identifier expected.
+src/modules/incidents/pages/PaginaIncidencias.tsx(325,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/PaginaIncidencias.tsx(325,23): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/incidents/pages/PaginaIncidencias.tsx(362,1): error TS1128: Declaration or statement expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(143,54): error TS1005: ':' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(482,47): error TS1005: '}' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(482,82): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/integrations/pages/PaginaIntegraciones.tsx(483,85): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/integrations/pages/PaginaIntegraciones.tsx(503,39): error TS1005: '}' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(503,56): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/integrations/pages/PaginaIntegraciones.tsx(503,65): error TS17002: Expected corresponding JSX closing tag for 'td'.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(504,74): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/integrations/pages/PaginaIntegraciones.tsx(508,29): error TS17002: Expected corresponding JSX closing tag for 'tr'.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(513,50): error TS1005: '}' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(513,89): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/integrations/pages/PaginaIntegraciones.tsx(516,92): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/integrations/pages/PaginaIntegraciones.tsx(548,27): error TS17002: Expected corresponding JSX closing tag for 'Fragment'.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(549,25): error TS1005: ')' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(549,43): error TS1005: ',' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(566,54): error TS1005: '}' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(566,102): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/integrations/pages/PaginaIntegraciones.tsx(567,96): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/integrations/pages/PaginaIntegraciones.tsx(581,26): error TS1005: ',' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(582,25): error TS17002: Expected corresponding JSX closing tag for 'tbody'.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(583,23): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/integrations/pages/PaginaIntegraciones.tsx(584,21): error TS17002: Expected corresponding JSX closing tag for 'table'.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(585,19): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(586,15): error TS1005: ')' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(586,17): error TS17002: Expected corresponding JSX closing tag for 'CardContent'.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(587,14): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/integrations/pages/PaginaIntegraciones.tsx(588,13): error TS17002: Expected corresponding JSX closing tag for 'Card'.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(589,9): error TS1005: ')' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(589,11): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(598,67): error TS1005: ':' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(599,55): error TS1005: ':' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(664,59): error TS1005: ':' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(665,58): error TS1005: ':' expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(1089,5): error TS1128: Declaration or statement expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(1090,3): error TS1109: Expression expected.
+src/modules/integrations/pages/PaginaIntegraciones.tsx(1091,1): error TS1128: Declaration or statement expected.
+src/modules/integrations/services/integrationsApi.ts(65,33): error TS1005: ';' expected.
+src/modules/leaves/pages/PaginaPermisos.tsx(26,32): error TS1005: ',' expected.
+src/modules/leaves/pages/PaginaPermisos.tsx(63,72): error TS1005: ':' expected.
+src/modules/leaves/pages/PaginaPermisos.tsx(64,75): error TS1005: ':' expected.
+src/modules/leaves/pages/PaginaPermisos.tsx(138,50): error TS1005: ',' expected.
+src/modules/leaves/pages/PaginaPermisos.tsx(315,101): error TS1005: ':' expected.
+src/modules/leaves/pages/PaginaPermisos.tsx(325,77): error TS1005: ':' expected.
+src/modules/leaves/pages/PaginaPermisos.tsx(336,124): error TS1005: ':' expected.
+src/modules/leaves/pages/PaginaPermisos.tsx(395,58): error TS1005: '}' expected.
+src/modules/leaves/pages/PaginaPermisos.tsx(395,59): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/leaves/pages/PaginaPermisos.tsx(398,14): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/leaves/pages/PaginaPermisos.tsx(405,51): error TS1005: ':' expected.
+src/modules/onboarding/pages/PaginaOnboarding.tsx(128,68): error TS1005: ')' expected.
+src/modules/onboarding/pages/PaginaOnboarding.tsx(128,93): error TS1005: ',' expected.
+src/modules/onboarding/pages/PaginaOnboarding.tsx(128,98): error TS1005: ';' expected.
+src/modules/onboarding/pages/PaginaOnboarding.tsx(270,106): error TS1005: ':' expected.
+src/modules/onboarding/pages/PaginaOnboarding.tsx(427,5): error TS1128: Declaration or statement expected.
+src/modules/onboarding/pages/PaginaOnboarding.tsx(429,5): error TS1128: Declaration or statement expected.
+src/modules/onboarding/services/onboardingApi.ts(21,30): error TS1005: ',' expected.
+src/modules/org-structure/components/ModalFormEstructuraOrg.tsx(16,16): error TS1005: ',' expected.
+src/modules/org-structure/components/ModalFormEstructuraOrg.tsx(17,28): error TS1005: ',' expected.
+src/modules/org-structure/components/ModalFormEstructuraOrg.tsx(18,26): error TS1005: ',' expected.
+src/modules/org-structure/components/ModalFormEstructuraOrg.tsx(19,18): error TS1005: ',' expected.
+src/modules/org-structure/components/ModalFormEstructuraOrg.tsx(20,23): error TS1005: ',' expected.
+src/modules/org-structure/components/ModalFormEstructuraOrg.tsx(21,22): error TS1109: Expression expected.
+src/modules/org-structure/components/ModalFormEstructuraOrg.tsx(22,51): error TS1005: ',' expected.
+src/modules/org-structure/components/OrgStructureFormModal.tsx(16,16): error TS1005: ',' expected.
+src/modules/org-structure/components/OrgStructureFormModal.tsx(17,28): error TS1005: ',' expected.
+src/modules/org-structure/components/OrgStructureFormModal.tsx(18,26): error TS1005: ',' expected.
+src/modules/org-structure/components/OrgStructureFormModal.tsx(19,18): error TS1005: ',' expected.
+src/modules/org-structure/components/OrgStructureFormModal.tsx(20,23): error TS1005: ',' expected.
+src/modules/org-structure/components/OrgStructureFormModal.tsx(21,22): error TS1109: Expression expected.
+src/modules/org-structure/components/OrgStructureFormModal.tsx(22,51): error TS1005: ',' expected.
+src/modules/org-structure/pages/OrgStructurePage.tsx(31,3): error TS1109: Expression expected.
+src/modules/org-structure/pages/OrgStructurePage.tsx(31,21): error TS1005: ',' expected.
+src/modules/org-structure/pages/OrgStructurePage.tsx(32,19): error TS1005: ',' expected.
+src/modules/org-structure/pages/OrgStructurePage.tsx(62,116): error TS1005: ':' expected.
+src/modules/org-structure/pages/OrgStructurePage.tsx(63,110): error TS1005: ':' expected.
+src/modules/org-structure/pages/OrgStructurePage.tsx(64,116): error TS1005: ':' expected.
+src/modules/org-structure/pages/OrgStructurePage.tsx(115,51): error TS1005: ',' expected.
+src/modules/org-structure/pages/OrgStructurePage.tsx(257,106): error TS1005: '}' expected.
+src/modules/org-structure/pages/OrgStructurePage.tsx(257,107): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/org-structure/pages/OrgStructurePage.tsx(257,155): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/org-structure/pages/OrgStructurePage.tsx(265,41): error TS1005: ':' expected.
+src/modules/org-structure/pages/OrgStructurePage.tsx(266,37): error TS1005: ':' expected.
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(31,3): error TS1109: Expression expected.
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(31,21): error TS1005: ',' expected.
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(32,19): error TS1005: ',' expected.
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(62,116): error TS1005: ':' expected.
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(63,110): error TS1005: ':' expected.
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(64,116): error TS1005: ':' expected.
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(115,51): error TS1005: ',' expected.
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(257,106): error TS1005: '}' expected.
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(257,107): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(257,155): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(265,41): error TS1005: ':' expected.
+src/modules/org-structure/pages/PaginaEstructuraOrg.tsx(266,37): error TS1005: ':' expected.
+src/modules/org-structure/services/orgStructureApi.ts(3,24): error TS1005: ',' expected.
+src/modules/org-structure/services/orgStructureApi.ts(3,35): error TS1005: ';' expected.
+src/modules/org-structure/services/orgStructureApi.ts(3,37): error TS1434: Unexpected keyword or identifier.
+src/modules/org-structure/services/orgStructureApi.ts(11,45): error TS1005: ':' expected.
+src/modules/org-structure/services/orgStructureApi.ts(12,58): error TS1005: ':' expected.
+src/modules/payroll/components/AdjustPayrollModal.tsx(8,16): error TS1005: ',' expected.
+src/modules/payroll/components/AdjustPayrollModal.tsx(9,23): error TS1005: ',' expected.
+src/modules/payroll/components/AdjustPayrollModal.tsx(10,25): error TS1005: ',' expected.
+src/modules/payroll/components/AdjustPayrollModal.tsx(11,28): error TS1005: ',' expected.
+src/modules/payroll/components/AdjustPayrollModal.tsx(12,30): error TS1005: ',' expected.
+src/modules/payroll/components/AdjustPayrollModal.tsx(13,19): error TS1005: ',' expected.
+src/modules/payroll/components/AdjustPayrollModal.tsx(14,74): error TS1109: Expression expected.
+src/modules/payroll/components/AdjustPayrollModal.tsx(15,22): error TS1109: Expression expected.
+src/modules/payroll/components/AdjustPayrollModal.tsx(36,33): error TS1005: ':' expected.
+src/modules/payroll/components/ModalAjustePlanilla.tsx(8,16): error TS1005: ',' expected.
+src/modules/payroll/components/ModalAjustePlanilla.tsx(9,23): error TS1005: ',' expected.
+src/modules/payroll/components/ModalAjustePlanilla.tsx(10,25): error TS1005: ',' expected.
+src/modules/payroll/components/ModalAjustePlanilla.tsx(11,28): error TS1005: ',' expected.
+src/modules/payroll/components/ModalAjustePlanilla.tsx(12,30): error TS1005: ',' expected.
+src/modules/payroll/components/ModalAjustePlanilla.tsx(13,19): error TS1005: ',' expected.
+src/modules/payroll/components/ModalAjustePlanilla.tsx(14,74): error TS1109: Expression expected.
+src/modules/payroll/components/ModalAjustePlanilla.tsx(15,22): error TS1109: Expression expected.
+src/modules/payroll/components/ModalAjustePlanilla.tsx(36,33): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(24,15): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(25,15): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(26,20): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(27,37): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(28,17): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(29,23): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(30,20): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(31,22): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(43,17): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(43,34): error TS1005: ';' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(43,36): error TS1434: Unexpected keyword or identifier.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(49,53): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(53,3): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(58,77): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(85,77): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(309,60): error TS1005: '}' expected.
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(309,75): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/payroll/pages/PaginaConceptosPlanilla.tsx(314,20): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/payroll/pages/PaginaPlanilla.tsx(32,13): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(33,23): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(34,18): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(35,21): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(36,23): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(53,24): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(53,52): error TS1005: ';' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(53,66): error TS1005: ';' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(60,22): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(60,31): error TS1005: ';' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(60,33): error TS1434: Unexpected keyword or identifier.
+src/modules/payroll/pages/PaginaPlanilla.tsx(63,17): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(63,24): error TS1005: ';' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(63,26): error TS1434: Unexpected keyword or identifier.
+src/modules/payroll/pages/PaginaPlanilla.tsx(97,72): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(98,68): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(99,74): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(251,54): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(647,57): error TS1005: '}' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(647,58): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/payroll/pages/PaginaPlanilla.tsx(650,14): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/payroll/pages/PaginaPlanilla.tsx(688,52): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(689,46): error TS1005: '}' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(689,47): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/payroll/pages/PaginaPlanilla.tsx(690,52): error TS1005: '}' expected.
+src/modules/payroll/pages/PaginaPlanilla.tsx(690,53): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/payroll/pages/PaginaPlanilla.tsx(698,8): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/payroll/pages/PaginaPrestamos.tsx(29,21): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(30,21): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(31,22): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(32,28): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(33,20): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(34,16): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(44,22): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(44,31): error TS1005: ';' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(44,33): error TS1434: Unexpected keyword or identifier.
+src/modules/payroll/pages/PaginaPrestamos.tsx(50,78): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(51,74): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(87,76): error TS1005: ':' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(130,73): error TS1005: ')' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(130,87): error TS1005: ',' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(210,43): error TS1005: '}' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(210,65): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/payroll/pages/PaginaPrestamos.tsx(211,68): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/payroll/pages/PaginaPrestamos.tsx(284,55): error TS1005: '}' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(284,56): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/payroll/pages/PaginaPrestamos.tsx(287,14): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/payroll/pages/PaginaPrestamos.tsx(297,11): error TS1005: '}' expected.
+src/modules/payroll/pages/PaginaPrestamos.tsx(297,15): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/payroll/pages/PaginaPrestamos.tsx(303,8): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/payroll/pages/PayrollConceptsPage.tsx(24,15): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(25,15): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(26,20): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(27,37): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(28,17): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(29,23): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(30,20): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(31,22): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(43,17): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(43,34): error TS1005: ';' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(43,36): error TS1434: Unexpected keyword or identifier.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(49,53): error TS1005: ':' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(53,3): error TS1005: ':' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(58,77): error TS1005: ':' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(85,77): error TS1005: ':' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(309,60): error TS1005: '}' expected.
+src/modules/payroll/pages/PayrollConceptsPage.tsx(309,75): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/payroll/pages/PayrollConceptsPage.tsx(314,20): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/payroll/pages/PayrollLoansPage.tsx(29,21): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(30,21): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(31,22): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(32,28): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(33,20): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(34,16): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(44,22): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(44,31): error TS1005: ';' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(44,33): error TS1434: Unexpected keyword or identifier.
+src/modules/payroll/pages/PayrollLoansPage.tsx(50,78): error TS1005: ':' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(51,74): error TS1005: ':' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(87,76): error TS1005: ':' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(130,73): error TS1005: ')' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(130,87): error TS1005: ',' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(201,43): error TS1005: '}' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(201,65): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/payroll/pages/PayrollLoansPage.tsx(202,68): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/payroll/pages/PayrollLoansPage.tsx(275,55): error TS1005: '}' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(275,56): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/payroll/pages/PayrollLoansPage.tsx(278,14): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/payroll/pages/PayrollLoansPage.tsx(288,11): error TS1005: '}' expected.
+src/modules/payroll/pages/PayrollLoansPage.tsx(288,15): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/payroll/pages/PayrollLoansPage.tsx(294,8): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/payroll/services/payrollLoansApi.ts(12,53): error TS1005: ',' expected.
+src/modules/payroll/services/payrollLoansApi.ts(13,49): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalActualizarEstado.tsx(10,16): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalActualizarEstado.tsx(11,24): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalActualizarEstado.tsx(12,35): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalActualizarEstado.tsx(13,37): error TS1011: An element access expression should take an argument.
+src/modules/recruitment/components/ModalActualizarEstado.tsx(13,38): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalActualizarEstado.tsx(14,19): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalActualizarEstado.tsx(15,111): error TS1109: Expression expected.
+src/modules/recruitment/components/ModalActualizarEstado.tsx(16,22): error TS1109: Expression expected.
+src/modules/recruitment/components/ModalActualizarEstado.tsx(54,91): error TS1005: ':' expected.
+src/modules/recruitment/components/ModalActualizarEstado.tsx(55,74): error TS1005: ':' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(48,16): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(49,26): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(50,44): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(51,47): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(52,28): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(53,18): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(54,22): error TS1109: Expression expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(55,68): error TS1005: ',' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(93,38): error TS1005: ':' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(97,50): error TS1005: ':' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(98,36): error TS1005: ':' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(100,7): error TS1005: ':' expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(112,7): error TS1128: Declaration or statement expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(132,4): error TS1128: Declaration or statement expected.
+src/modules/recruitment/components/ModalFormCandidato.tsx(217,1): error TS1128: Declaration or statement expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(48,16): error TS1005: ',' expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(49,26): error TS1005: ',' expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(50,44): error TS1005: ',' expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(51,47): error TS1005: ',' expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(52,28): error TS1005: ',' expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(53,18): error TS1005: ',' expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(54,22): error TS1109: Expression expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(55,68): error TS1005: ',' expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(93,38): error TS1005: ':' expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(97,50): error TS1005: ':' expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(98,36): error TS1005: ':' expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(100,7): error TS1005: ':' expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(112,7): error TS1128: Declaration or statement expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(132,4): error TS1128: Declaration or statement expected.
+src/modules/recruitment/components/RecruitmentCandidateFormModal.tsx(217,1): error TS1128: Declaration or statement expected.
+src/modules/recruitment/components/UpdateStatusModal.tsx(10,16): error TS1005: ',' expected.
+src/modules/recruitment/components/UpdateStatusModal.tsx(11,24): error TS1005: ',' expected.
+src/modules/recruitment/components/UpdateStatusModal.tsx(12,35): error TS1005: ',' expected.
+src/modules/recruitment/components/UpdateStatusModal.tsx(13,37): error TS1011: An element access expression should take an argument.
+src/modules/recruitment/components/UpdateStatusModal.tsx(13,38): error TS1005: ',' expected.
+src/modules/recruitment/components/UpdateStatusModal.tsx(14,19): error TS1005: ',' expected.
+src/modules/recruitment/components/UpdateStatusModal.tsx(15,111): error TS1109: Expression expected.
+src/modules/recruitment/components/UpdateStatusModal.tsx(16,22): error TS1109: Expression expected.
+src/modules/recruitment/components/UpdateStatusModal.tsx(54,91): error TS1005: ':' expected.
+src/modules/recruitment/components/UpdateStatusModal.tsx(55,74): error TS1005: ':' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(36,16): error TS1005: ',' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(37,22): error TS1005: ',' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(38,19): error TS1005: ',' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(39,23): error TS1005: ',' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(40,21): error TS1005: ',' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(41,24): error TS1005: ',' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(42,16): error TS1005: ',' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(43,27): error TS1005: ',' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(44,21): error TS1005: ',' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(60,76): error TS1005: ':' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(61,72): error TS1005: ':' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(88,74): error TS1005: ':' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(100,79): error TS1005: ':' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(141,44): error TS1005: ':' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(142,38): error TS1005: ':' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(143,46): error TS1005: ':' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(146,32): error TS1005: ':' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(149,5): error TS1005: ':' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(196,76): error TS1005: ')' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(196,90): error TS1005: ',' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(326,110): error TS1005: '}' expected.
+src/modules/recruitment/pages/JobPostingsPage.tsx(326,111): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/recruitment/pages/JobPostingsPage.tsx(326,159): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(36,16): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(37,22): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(38,19): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(39,23): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(40,21): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(41,24): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(42,16): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(43,27): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(44,21): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(60,76): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(61,72): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(88,74): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(100,79): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(141,44): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(142,38): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(143,46): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(146,32): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(149,5): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(196,76): error TS1005: ')' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(196,90): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(336,110): error TS1005: '}' expected.
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(336,111): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/recruitment/pages/PaginaConvocatorias.tsx(336,159): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(35,3): error TS1109: Expression expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(35,21): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(36,19): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(39,13): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(40,24): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(41,35): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(60,28): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(60,54): error TS1005: ';' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(60,68): error TS1005: ';' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(114,76): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(115,72): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(116,76): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(139,63): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(191,106): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(209,57): error TS1005: ',' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(423,60): error TS1005: '}' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(423,61): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(426,14): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(433,41): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(435,43): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(450,59): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(451,62): error TS1005: ':' expected.
+src/modules/recruitment/pages/PaginaReclutamiento.tsx(470,77): error TS1005: ':' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(35,3): error TS1109: Expression expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(35,21): error TS1005: ',' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(36,19): error TS1005: ',' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(39,13): error TS1005: ',' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(40,24): error TS1005: ',' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(41,35): error TS1005: ',' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(60,28): error TS1005: ',' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(60,54): error TS1005: ';' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(60,68): error TS1005: ';' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(114,76): error TS1005: ':' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(115,72): error TS1005: ':' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(116,76): error TS1005: ':' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(139,63): error TS1005: ':' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(191,106): error TS1005: ':' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(209,57): error TS1005: ',' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(410,60): error TS1005: '}' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(410,61): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/recruitment/pages/RecruitmentPage.tsx(413,14): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/recruitment/pages/RecruitmentPage.tsx(420,41): error TS1005: ':' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(422,43): error TS1005: ':' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(437,59): error TS1005: ':' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(438,62): error TS1005: ':' expected.
+src/modules/recruitment/pages/RecruitmentPage.tsx(457,77): error TS1005: ':' expected.
+src/modules/reports/pages/PaginaReportes.tsx(32,26): error TS1005: ',' expected.
+src/modules/reports/pages/PaginaReportes.tsx(32,50): error TS1109: Expression expected.
+src/modules/reports/pages/PaginaReportes.tsx(32,52): error TS1005: ';' expected.
+src/modules/reports/pages/PaginaReportes.tsx(32,66): error TS1005: ';' expected.
+src/modules/reports/pages/PaginaReportes.tsx(128,96): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(128,97): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(134,94): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(134,95): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(140,94): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(140,95): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(146,94): error TS1005: ')' expected.
+src/modules/reports/pages/PaginaReportes.tsx(146,107): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(160,112): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(160,113): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(161,126): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(161,127): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(193,117): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(193,118): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(194,120): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(194,121): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(195,121): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(195,122): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(232,118): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(232,119): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(233,125): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(233,126): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(247,96): error TS1005: ':' expected.
+src/modules/reports/pages/PaginaReportes.tsx(265,110): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(265,111): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(266,119): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(266,120): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(280,97): error TS1005: ':' expected.
+src/modules/reports/pages/PaginaReportes.tsx(298,112): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(298,113): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(299,123): error TS1005: ')' expected.
+src/modules/reports/pages/PaginaReportes.tsx(299,136): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(332,110): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(332,111): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(333,122): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(333,123): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(334,117): error TS1005: ')' expected.
+src/modules/reports/pages/PaginaReportes.tsx(334,137): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(366,118): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(366,119): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(367,132): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(367,133): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(368,123): error TS1005: ')' expected.
+src/modules/reports/pages/PaginaReportes.tsx(368,143): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(404,111): error TS1005: '}' expected.
+src/modules/reports/pages/PaginaReportes.tsx(404,112): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(405,123): error TS1005: ')' expected.
+src/modules/reports/pages/PaginaReportes.tsx(405,136): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/PaginaReportes.tsx(406,123): error TS1005: ')' expected.
+src/modules/reports/pages/PaginaReportes.tsx(406,136): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(32,26): error TS1005: ',' expected.
+src/modules/reports/pages/ReportsPage.tsx(32,50): error TS1109: Expression expected.
+src/modules/reports/pages/ReportsPage.tsx(32,52): error TS1005: ';' expected.
+src/modules/reports/pages/ReportsPage.tsx(32,66): error TS1005: ';' expected.
+src/modules/reports/pages/ReportsPage.tsx(128,96): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(128,97): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(134,94): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(134,95): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(140,94): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(140,95): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(146,94): error TS1005: ')' expected.
+src/modules/reports/pages/ReportsPage.tsx(146,107): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(160,112): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(160,113): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(161,126): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(161,127): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(193,117): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(193,118): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(194,120): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(194,121): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(195,121): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(195,122): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(232,118): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(232,119): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(233,125): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(233,126): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(247,96): error TS1005: ':' expected.
+src/modules/reports/pages/ReportsPage.tsx(265,110): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(265,111): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(266,119): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(266,120): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(280,97): error TS1005: ':' expected.
+src/modules/reports/pages/ReportsPage.tsx(298,112): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(298,113): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(299,123): error TS1005: ')' expected.
+src/modules/reports/pages/ReportsPage.tsx(299,136): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(332,110): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(332,111): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(333,122): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(333,123): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(334,117): error TS1005: ')' expected.
+src/modules/reports/pages/ReportsPage.tsx(334,137): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(366,118): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(366,119): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(367,132): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(367,133): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(368,123): error TS1005: ')' expected.
+src/modules/reports/pages/ReportsPage.tsx(368,143): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(404,111): error TS1005: '}' expected.
+src/modules/reports/pages/ReportsPage.tsx(404,112): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(405,123): error TS1005: ')' expected.
+src/modules/reports/pages/ReportsPage.tsx(405,136): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/reports/pages/ReportsPage.tsx(406,123): error TS1005: ')' expected.
+src/modules/reports/pages/ReportsPage.tsx(406,136): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/roles/components/ModalPermisosRol.tsx(7,16): error TS1005: ',' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(8,24): error TS1005: ',' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(9,34): error TS1011: An element access expression should take an argument.
+src/modules/roles/components/ModalPermisosRol.tsx(9,35): error TS1005: ',' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(10,32): error TS1011: An element access expression should take an argument.
+src/modules/roles/components/ModalPermisosRol.tsx(10,33): error TS1005: ',' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(11,22): error TS1109: Expression expected.
+src/modules/roles/components/ModalPermisosRol.tsx(12,71): error TS1005: ',' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(52,19): error TS1005: ',' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(52,28): error TS1005: ';' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(52,30): error TS1434: Unexpected keyword or identifier.
+src/modules/roles/components/ModalPermisosRol.tsx(59,22): error TS1005: ',' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(59,31): error TS1005: ';' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(59,33): error TS1434: Unexpected keyword or identifier.
+src/modules/roles/components/ModalPermisosRol.tsx(65,28): error TS1005: ',' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(65,37): error TS1005: ';' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(65,39): error TS1434: Unexpected keyword or identifier.
+src/modules/roles/components/ModalPermisosRol.tsx(68,30): error TS1005: ',' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(68,39): error TS1005: ';' expected.
+src/modules/roles/components/ModalPermisosRol.tsx(68,41): error TS1434: Unexpected keyword or identifier.
+src/modules/roles/components/ModalPermisosRol.tsx(134,58): error TS1005: ':' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(7,16): error TS1005: ',' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(8,24): error TS1005: ',' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(9,34): error TS1011: An element access expression should take an argument.
+src/modules/roles/components/RolePermissionsModal.tsx(9,35): error TS1005: ',' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(10,32): error TS1011: An element access expression should take an argument.
+src/modules/roles/components/RolePermissionsModal.tsx(10,33): error TS1005: ',' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(11,22): error TS1109: Expression expected.
+src/modules/roles/components/RolePermissionsModal.tsx(12,71): error TS1005: ',' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(52,19): error TS1005: ',' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(52,28): error TS1005: ';' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(52,30): error TS1434: Unexpected keyword or identifier.
+src/modules/roles/components/RolePermissionsModal.tsx(59,22): error TS1005: ',' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(59,31): error TS1005: ';' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(59,33): error TS1434: Unexpected keyword or identifier.
+src/modules/roles/components/RolePermissionsModal.tsx(65,28): error TS1005: ',' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(65,37): error TS1005: ';' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(65,39): error TS1434: Unexpected keyword or identifier.
+src/modules/roles/components/RolePermissionsModal.tsx(68,30): error TS1005: ',' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(68,39): error TS1005: ';' expected.
+src/modules/roles/components/RolePermissionsModal.tsx(68,41): error TS1434: Unexpected keyword or identifier.
+src/modules/roles/components/RolePermissionsModal.tsx(134,58): error TS1005: ':' expected.
+src/modules/roles/pages/PaginaRoles.tsx(17,35): error TS1005: ',' expected.
+src/modules/roles/pages/PaginaRoles.tsx(17,59): error TS1011: An element access expression should take an argument.
+src/modules/roles/pages/PaginaRoles.tsx(184,36): error TS1005: ':' expected.
+src/modules/roles/pages/RolesPage.tsx(17,35): error TS1005: ',' expected.
+src/modules/roles/pages/RolesPage.tsx(17,59): error TS1011: An element access expression should take an argument.
+src/modules/roles/pages/RolesPage.tsx(184,36): error TS1005: ':' expected.
+src/modules/users/components/ChangePasswordModal.tsx(7,16): error TS1005: ',' expected.
+src/modules/users/components/ChangePasswordModal.tsx(8,22): error TS1109: Expression expected.
+src/modules/users/components/ChangePasswordModal.tsx(9,76): error TS1005: ',' expected.
+src/modules/users/components/ModalCambiarContrasena.tsx(7,16): error TS1005: ',' expected.
+src/modules/users/components/ModalCambiarContrasena.tsx(8,22): error TS1109: Expression expected.
+src/modules/users/components/ModalCambiarContrasena.tsx(9,76): error TS1005: ',' expected.
+src/modules/users/components/ModalFormUsuario.tsx(9,16): error TS1005: ',' expected.
+src/modules/users/components/ModalFormUsuario.tsx(10,24): error TS1005: ',' expected.
+src/modules/users/components/ModalFormUsuario.tsx(11,19): error TS1011: An element access expression should take an argument.
+src/modules/users/components/ModalFormUsuario.tsx(11,20): error TS1005: ',' expected.
+src/modules/users/components/ModalFormUsuario.tsx(12,26): error TS1005: ',' expected.
+src/modules/users/components/ModalFormUsuario.tsx(12,43): error TS1011: An element access expression should take an argument.
+src/modules/users/components/ModalFormUsuario.tsx(12,44): error TS1005: ',' expected.
+src/modules/users/components/ModalFormUsuario.tsx(13,22): error TS1109: Expression expected.
+src/modules/users/components/ModalFormUsuario.tsx(21,22): error TS1005: ',' expected.
+src/modules/users/components/ModalFormUsuario.tsx(36,37): error TS1005: ':' expected.
+src/modules/users/components/ModalFormUsuario.tsx(37,31): error TS1005: ':' expected.
+src/modules/users/components/ModalFormUsuario.tsx(38,37): error TS1005: ':' expected.
+src/modules/users/components/ModalFormUsuario.tsx(43,41): error TS1005: ':' expected.
+src/modules/users/components/ModalFormUsuario.tsx(68,21): error TS1005: ')' expected.
+src/modules/users/components/ModalFormUsuario.tsx(68,24): error TS1005: ',' expected.
+src/modules/users/components/ModalFormUsuario.tsx(69,14): error TS1005: ';' expected.
+src/modules/users/components/ModalFormUsuario.tsx(70,17): error TS1005: ';' expected.
+src/modules/users/components/ModalFormUsuario.tsx(71,16): error TS1005: ';' expected.
+src/modules/users/components/ModalFormUsuario.tsx(72,19): error TS1005: ';' expected.
+src/modules/users/components/ModalFormUsuario.tsx(73,7): error TS1109: Expression expected.
+src/modules/users/components/ModalFormUsuario.tsx(73,8): error TS1472: 'catch' or 'finally' expected.
+src/modules/users/components/ModalFormUsuario.tsx(75,7): error TS1005: 'try' expected.
+src/modules/users/components/ModalFormUsuario.tsx(135,22): error TS1005: '}' expected.
+src/modules/users/components/ModalFormUsuario.tsx(136,21): error TS1005: ',' expected.
+src/modules/users/components/ModalFormUsuario.tsx(137,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/users/components/ModalFormUsuario.tsx(137,19): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/users/components/ModalFormUsuario.tsx(139,15): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/users/components/ModalFormUsuario.tsx(141,17): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/modules/users/components/ModalFormUsuario.tsx(142,15): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/users/components/ModalFormUsuario.tsx(144,11): error TS17002: Expected corresponding JSX closing tag for 'form'.
+src/modules/users/components/ModalFormUsuario.tsx(152,9): error TS17002: Expected corresponding JSX closing tag for 'Modal'.
+src/modules/users/components/ModalFormUsuario.tsx(153,5): error TS1005: ')' expected.
+src/modules/users/components/ModalFormUsuario.tsx(154,3): error TS1109: Expression expected.
+src/modules/users/components/ModalFormUsuario.tsx(155,1): error TS1128: Declaration or statement expected.
+src/modules/users/components/UserFormModal.tsx(9,16): error TS1005: ',' expected.
+src/modules/users/components/UserFormModal.tsx(10,24): error TS1005: ',' expected.
+src/modules/users/components/UserFormModal.tsx(11,19): error TS1011: An element access expression should take an argument.
+src/modules/users/components/UserFormModal.tsx(11,20): error TS1005: ',' expected.
+src/modules/users/components/UserFormModal.tsx(12,26): error TS1005: ',' expected.
+src/modules/users/components/UserFormModal.tsx(12,43): error TS1011: An element access expression should take an argument.
+src/modules/users/components/UserFormModal.tsx(12,44): error TS1005: ',' expected.
+src/modules/users/components/UserFormModal.tsx(13,22): error TS1109: Expression expected.
+src/modules/users/components/UserFormModal.tsx(21,22): error TS1005: ',' expected.
+src/modules/users/components/UserFormModal.tsx(36,37): error TS1005: ':' expected.
+src/modules/users/components/UserFormModal.tsx(37,31): error TS1005: ':' expected.
+src/modules/users/components/UserFormModal.tsx(38,37): error TS1005: ':' expected.
+src/modules/users/components/UserFormModal.tsx(43,41): error TS1005: ':' expected.
+src/modules/users/components/UserFormModal.tsx(68,21): error TS1005: ')' expected.
+src/modules/users/components/UserFormModal.tsx(68,24): error TS1005: ',' expected.
+src/modules/users/components/UserFormModal.tsx(69,14): error TS1005: ';' expected.
+src/modules/users/components/UserFormModal.tsx(70,17): error TS1005: ';' expected.
+src/modules/users/components/UserFormModal.tsx(71,16): error TS1005: ';' expected.
+src/modules/users/components/UserFormModal.tsx(72,19): error TS1005: ';' expected.
+src/modules/users/components/UserFormModal.tsx(73,7): error TS1109: Expression expected.
+src/modules/users/components/UserFormModal.tsx(73,8): error TS1472: 'catch' or 'finally' expected.
+src/modules/users/components/UserFormModal.tsx(75,7): error TS1005: 'try' expected.
+src/modules/users/components/UserFormModal.tsx(135,22): error TS1005: '}' expected.
+src/modules/users/components/UserFormModal.tsx(136,21): error TS1005: ',' expected.
+src/modules/users/components/UserFormModal.tsx(137,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/users/components/UserFormModal.tsx(137,19): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/users/components/UserFormModal.tsx(139,15): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/users/components/UserFormModal.tsx(141,17): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/modules/users/components/UserFormModal.tsx(142,15): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/users/components/UserFormModal.tsx(144,11): error TS17002: Expected corresponding JSX closing tag for 'form'.
+src/modules/users/components/UserFormModal.tsx(152,9): error TS17002: Expected corresponding JSX closing tag for 'Modal'.
+src/modules/users/components/UserFormModal.tsx(153,5): error TS1005: ')' expected.
+src/modules/users/components/UserFormModal.tsx(154,3): error TS1109: Expression expected.
+src/modules/users/components/UserFormModal.tsx(155,1): error TS1128: Declaration or statement expected.
+src/modules/users/pages/PaginaUsuarios.tsx(21,35): error TS1005: ',' expected.
+src/modules/users/pages/PaginaUsuarios.tsx(21,66): error TS1005: ',' expected.
+src/modules/users/pages/PaginaUsuarios.tsx(146,84): error TS1005: ':' expected.
+src/modules/users/pages/PaginaUsuarios.tsx(201,87): error TS1005: ':' expected.
+src/modules/users/pages/PaginaUsuarios.tsx(239,36): error TS1005: ':' expected.
+src/modules/users/pages/PaginaUsuarios.tsx(255,132): error TS1005: ':' expected.
+src/modules/users/pages/UsersPage.tsx(21,35): error TS1005: ',' expected.
+src/modules/users/pages/UsersPage.tsx(21,66): error TS1005: ',' expected.
+src/modules/users/pages/UsersPage.tsx(146,84): error TS1005: ':' expected.
+src/modules/users/pages/UsersPage.tsx(201,87): error TS1005: ':' expected.
+src/modules/users/pages/UsersPage.tsx(239,36): error TS1005: ':' expected.
+src/modules/users/pages/UsersPage.tsx(255,132): error TS1005: ':' expected.
+src/modules/vacations/pages/PaginaVacaciones.tsx(26,32): error TS1005: ',' expected.
+src/modules/vacations/pages/PaginaVacaciones.tsx(46,75): error TS1005: ':' expected.
+src/modules/vacations/pages/PaginaVacaciones.tsx(47,78): error TS1005: ':' expected.
+src/modules/vacations/pages/PaginaVacaciones.tsx(127,52): error TS1005: ',' expected.
+src/modules/vacations/pages/PaginaVacaciones.tsx(309,124): error TS1005: ':' expected.
+src/modules/vacations/pages/PaginaVacaciones.tsx(371,60): error TS1005: '}' expected.
+src/modules/vacations/pages/PaginaVacaciones.tsx(371,61): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/modules/vacations/pages/PaginaVacaciones.tsx(374,14): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/modules/vacations/pages/PaginaVacaciones.tsx(381,51): error TS1005: ':' expected.

@@ -1,0 +1,28 @@
+namespace Hrms.Application.DTOs.Payroll;
+
+public sealed record PayrollListItemDto(
+    Guid Id,
+    Guid EmployeeId,
+    string EmployeeCode,
+    string EmployeeName,
+    string Area,
+    int Year,
+    int Month,
+    string Status,
+    decimal BaseSalary,
+    decimal Bonuses,
+    decimal AutomaticBonuses,
+    decimal ManualDeductions,
+    decimal AutomaticDeductions,
+    decimal IncidentDeductions,
+    decimal LoanDeductions,
+    decimal Deductions,
+    decimal GrossIncome,
+    decimal NetPay,
+    string? Notes,
+    DateTime GeneratedAtUtc,
+    DateTime? LastCalculatedAtUtc,
+    DateTime? ApprovedAtUtc,
+    string? ApprovedBy,
+    DateTime? PaidAtUtc,
+    string? PaidBy);

@@ -1,0 +1,52 @@
+﻿import { httpClient } from "@/services/api/httpClient";
+import type {
+  EmployeeCatalogs,
+  EmployeeDetail,
+  EmployeePayload,
+  EmployeeQuery,
+  EmployeeListItem,
+  PagedResult
+} from "@/modules/employees/types/employee.types";
+ toQueryParams(query: EmployeeQuery): URLSearchParams {
+  const params = new URLSearchParams();
+
+  if (query.search) params.set("search", query.search);
+  if (query.areaId) params.set("areaId", query.areaId);
+  if (query.branchId) params.set("branchId", query.branchId);
+  if (typeof query.isActive === "boolean") params.set("isActive", String(query.isActive));
+
+  params.set("pageNumber", String(query.pageNumber));
+  params.set("pageSize", String(query.pageSize));
+  params.set("sortBy", query.sortBy ? "fullName");
+  params.set("sortDirection", query.sortDirection ? "asc");
+
+  return params;
+}
+ async function getEmployees(query: EmployeeQuery): Promise<PagedResult<EmployeeListItem>> {
+  const { data } = await httpClient.get<PagedResult<EmployeeListItem>>(`/api/v1/employees${toQueryParams(query).toString()}`);
+  return data;
+}
+ async function getEmployeeById(id: string): Promise<EmployeeDetail> {
+  const { data } = await httpClient.get<EmployeeDetail>(`/api/v1/employees/${id}`);
+  return data;
+}
+ async function getEmployeeCatalogs(): Promise<EmployeeCatalogs> {
+  const { data } = await httpClient.get<EmployeeCatalogs>("/api/v1/employees/catalogs");
+  return data;
+}
+ async function createEmployee(payload: EmployeePayload): Promise<EmployeeDetail> {
+  const { data } = await httpClient.post<EmployeeDetail>("/api/v1/employees", payload);
+  return data;
+}
+ async function updateEmployee(id: string, payload: EmployeePayload): Promise<EmployeeDetail> {
+  const { data } = await httpClient.put<EmployeeDetail>(`/api/v1/employees/${id}`, payload);
+  return data;
+}
+ async function updateEmployeeStatus(id: string, isActive: boolean): Promise<void> {
+  await httpClient.patch(`/api/v1/employees/${id}/status`, { isActive });
+}
+ async function deleteEmployee(id: string): Promise<void> {
+  await httpClient.delete(`/api/v1/employees/${id}`);
+}
+
+

@@ -1,0 +1,157 @@
+﻿import { useEffect, useState } from "react";
+import { Modal } from "@/components/ui/modal";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
+import type { UserItem } from "@/modules/users/types/user.types";
+import type { RoleItem } from "@/modules/roles/types/role.types";
+ Props = {
+  open: boolean;
+  user: UserItem | null;
+  roles: RoleItem[];
+  employees: { id: string; name: string }[];
+  onClose: () => void;
+  onSubmit: (data: {
+    userName: string;
+    email: string;
+    fullName: string;
+    password: string;
+    roleIds: string[];
+    employeeId: string | null;
+  }) => Promise<void>;
+};
+ function UserFormModal({ open, user, roles, employees, onClose, onSubmit }: Props): JSX.Element {
+  const isEdit = user !== null;
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [userName, setUserName] = useState("");
+  const [password, setPassword] = useState("");
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [employeeId, setEmployeeId] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setFullName(user.fullName ? "");
+      setEmail(user.email ? "");
+      setUserName(user.userName ? "");
+      setPassword("");
+      setSelectedRoles(
+        user ? roles.filter((r) => user.roles.includes(r.name)).map((r) => r.id) : []
+      );
+      setEmployeeId(user.employeeId ? "");
+      setError(null);
+    }
+  }, [open, user, roles]);
+
+  function toggleRole(roleId: string): void {
+    setSelectedRoles((prev) =>
+      prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
+    );
+  }
+
+  async function handleSubmit(e: React.FormEvent): Promise<void> {
+    e.preventDefault();
+    if (!fullName.trim() || !email.trim() || selectedRoles.length === 0) {
+      setError("Nombre, correo y al menos un rol son obligatorios.");
+      return;
+    }
+    if (!isEdit && (!userName.trim() || !password.trim())) {
+      setError("Usuario y contraseÃ±a son obligatorios.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await onSubmit({
+        ...(isEdit  {} : { userName: userName.trim(), password }),
+        email: email.trim(),
+        fullName: fullName.trim(),
+        roleIds: selectedRoles,
+        employeeId: employeeId || null,
+      });
+      onClose();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al guardar.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal open={open} title={isEdit ? "Editar usuario" : "Crear usuario"} onClose={onClose}>
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        {error && <Alert variant="error" message={error} />}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Nombre completo *</label>
+            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Correo *</label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </div>
+        </div>
+
+        {!isEdit && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600">Usuario *</label>
+              <Input value={userName} onChange={(e) => setUserName(e.target.value)} required />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-600">ContraseÃ±a *</label>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </div>
+          </div>
+        )}
+
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold text-slate-600">Empleado vinculado</label>
+          <select
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/20"
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+          >
+            <option value="">Sin vincular</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>{emp.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold text-slate-600">Roles *</label>
+          <div className="flex flex-wrap gap-2">
+            {roles.map((role) => (
+              <button
+                key={role.id}
+                type="button"
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  selectedRoles.includes(role.id)
+                     "border-brand-500 bg-brand-50 text-brand-700"
+                    : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
+                }`}
+                onClick={() => toggleRole(role.id)}
+              >
+                {role.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="ghost" type="button" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? "Guardando..." : isEdit ? "Guardar cambios" : "Crear usuario"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+

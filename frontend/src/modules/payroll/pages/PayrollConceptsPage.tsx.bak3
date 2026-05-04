@@ -1,0 +1,360 @@
+﻿import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Plus, Tags, Trash2, X } from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { FormField } from "@/components/forms/FormField";
+import { Textarea } from "@/components/ui/textarea";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import {
+  createPayrollConcept,
+  deletePayrollConcept,
+  getPayrollConcepts,
+  updatePayrollConcept
+} from "@/modules/payroll/services/payrollConceptsApi";
+import type { ConceptType, CreatePayrollConceptRequest, PayrollConcept, UpdatePayrollConceptRequest } from "@/modules/payroll/types/payroll.types";
+ FormState = {
+  code: string;
+  name: string;
+  type: ConceptType;
+  amountMode: "fixed" | "percentage";
+  amount: string;
+  isAutomatic: boolean;
+  isActive: boolean;
+  description: string;
+};
+ DEFAULT_FORM: FormState = {
+  code: "",
+  name: "",
+  type: "earning",
+  amountMode: "fixed",
+  amount: "",
+  isAutomatic: false,
+  isActive: true,
+  description: ""
+};
+ conceptToForm(c: PayrollConcept): FormState {
+  return {
+    code: c.code,
+    name: c.name,
+    type: c.type,
+    amountMode: c.fixedAmount != null ? "fixed" : "percentage",
+    amount: String(c.fixedAmount ? c.percentage ? ""),
+    isAutomatic: c.isAutomatic,
+    isActive: c.isActive,
+    description: c.description ? ""
+  };
+}
+ function PayrollConceptsPage(): JSX.Element {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canEdit = user.permissions.includes("payroll.concepts.edit") ? false;
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PayrollConcept | null>(null);
+
+  const conceptsQuery = useQuery({
+    queryKey: ["payroll-concepts"],
+    queryFn: getPayrollConcepts
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: { id: string | null; data: CreatePayrollConceptRequest | UpdatePayrollConceptRequest }) => {
+      if (payload.id) {
+        return updatePayrollConcept(payload.id, payload.data as UpdatePayrollConceptRequest);
+      }
+      return createPayrollConcept(payload.data as CreatePayrollConceptRequest);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["payroll-concepts"] });
+      setFeedback({ type: "success", message: editingId ? "Concepto actualizado." : "Concepto creado." });
+      closeForm();
+    },
+    onError: (err: { response: { data: { error: string } } }) => {
+      setFormError(err.response.data.error ? "Error al guardar el concepto.");
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deletePayrollConcept,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["payroll-concepts"] });
+      setFeedback({ type: "success", message: "Concepto eliminado." });
+      setDeleteTarget(null);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo eliminar el concepto." });
+      setDeleteTarget(null);
+    }
+  });
+
+  function openCreate(): void {
+    setEditingId(null);
+    setForm(DEFAULT_FORM);
+    setFormError(null);
+    setShowForm(true);
+  }
+
+  function openEdit(concept: PayrollConcept): void {
+    setEditingId(concept.id);
+    setForm(conceptToForm(concept));
+    setFormError(null);
+    setShowForm(true);
+  }
+
+  function closeForm(): void {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(DEFAULT_FORM);
+    setFormError(null);
+  }
+
+  function handleSubmit(): void {
+    const amountVal = Number(form.amount);
+    if (!form.code.trim()) { setFormError("El cÃ³digo es requerido."); return; }
+    if (!form.name.trim()) { setFormError("El nombre es requerido."); return; }
+    if (!form.amount || !Number.isFinite(amountVal) || amountVal < 0) { setFormError("El valor debe ser un nÃºmero mayor o igual a 0."); return; }
+    if (form.amountMode === "percentage" && amountVal > 100) { setFormError("El porcentaje no puede superar 100."); return; }
+    setFormError(null);
+
+    const base = {
+      name: form.name.trim(),
+      type: form.type,
+      fixedAmount: form.amountMode === "fixed" ? amountVal : null,
+      percentage: form.amountMode === "percentage" ? amountVal : null,
+      isAutomatic: form.isAutomatic,
+      description: form.description.trim() || undefined
+    };
+
+    if (editingId) {
+      saveMutation.mutate({ id: editingId, data: { ...base, isActive: form.isActive } });
+    } else {
+      saveMutation.mutate({ id: null, data: { ...base, code: form.code.trim() } });
+    }
+  }
+
+  const concepts = conceptsQuery.data ?? [];
+
+  return (
+    <section className="animate-fade-up space-y-5">
+      <PageHeader
+        title="Conceptos de Planilla"
+        description="Haberes y descuentos configurables que se aplican automÃ¡ticamente al generar la planilla."
+      />
+
+      {feedback ? (
+        <Alert
+          variant={feedback.type === "success" ? "success" : "error"}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Conceptos configurados</CardTitle>
+          {canEdit ? (
+            <Button size="lg" className="btn-create" onClick={openCreate}>
+              <Plus className="size-4" />
+              Nuevo concepto
+            </Button>
+          ) : null}
+        </CardHeader>
+        <CardContent className="p-0 pb-4">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b bg-slate-50">
+                  {["CÃ³digo", "Nombre", "Tipo", "Valor", "Auto", "Estado", ""].map((col) => (
+                    <th key={col} className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400 last:text-right">
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {conceptsQuery.isLoading ? (
+                  <TableSkeleton cols={7} />
+                ) : concepts.length ? (
+                  concepts.map((c) => (
+                    <tr key={c.id} className="border-t transition-colors hover:bg-slate-50/70">
+                      <td className="px-4 py-3 font-mono text-[12px] text-slate-600">{c.code}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800">{c.name}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.type === "earning" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+                          {c.type === "earning" ? "Haber" : "Descuento"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums text-slate-600">
+                        {c.fixedAmount != null ? `S/ ${c.fixedAmount.toFixed(2)}` : `${c.percentage.toFixed(2)}%`}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">{c.isAutomatic ? "SÃ­" : "No"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                          {c.isActive ? "Activo" : "Inactivo"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {canEdit ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                              onClick={() => openEdit(c)}
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                              onClick={() => setDeleteTarget(c)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <TableEmptyState cols={7} icon={Tags} message="No hay conceptos configurados." />
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title="Â¿Eliminar concepto"
+        message={deleteTarget ? `Se eliminarÃ¡ el concepto "${deleteTarget.name}" (${deleteTarget.code}). Las planillas ya generadas no se verÃ¡n afectadas, pero no se aplicarÃ¡ en futuras generaciones.` : ""}
+        confirmLabel="SÃ­, eliminar"
+        variant="danger"
+        loading={deleteMutation.isPending}
+        onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.id); }}
+        onClose={() => setDeleteTarget(null)}
+      />
+
+      {/* Form modal */}
+      {showForm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+          <div className="animate-modal-in w-full max-w-lg rounded-2xl border bg-white shadow-panel-lg">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-brand-100">
+                  <Tags className="size-4 text-brand-600" />
+                </div>
+                <h3 className="font-bold tracking-tight text-slate-800">
+                  {editingId ? "Editar concepto" : "Nuevo concepto"}
+                </h3>
+              </div>
+              <button type="button" className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100" onClick={closeForm}>
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-5">
+              {formError ? (
+                <p className="rounded-lg bg-rose-50 px-3 py-2 text-[13px] text-rose-700">{formError}</p>
+              ) : null}
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="CÃ³digo">
+                  <Input
+                    value={form.code}
+                    onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+                    placeholder="BONIF_EXTRA"
+                    disabled={!!editingId}
+                  />
+                </FormField>
+                <FormField label="Tipo">
+                  <Select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as ConceptType }))}>
+                    <option value="earning">Haber</option>
+                    <option value="deduction">Descuento</option>
+                  </Select>
+                </FormField>
+              </div>
+
+              <FormField label="Nombre">
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="BonificaciÃ³n por productividad"
+                />
+              </FormField>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Tipo de valor">
+                  <Select value={form.amountMode} onChange={(e) => setForm((f) => ({ ...f, amountMode: e.target.value as "fixed" | "percentage" }))}>
+                    <option value="fixed">Monto fijo (S/)</option>
+                    <option value="percentage">Porcentaje (%)</option>
+                  </Select>
+                </FormField>
+                <FormField label={form.amountMode === "fixed" ? "Monto (S/)" : "Porcentaje (%)"}>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={form.amountMode === "percentage"  100 : undefined}
+                    step="0.01"
+                    value={form.amount}
+                    onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                    className="tabular-nums"
+                  />
+                </FormField>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="AplicaciÃ³n automÃ¡tica">
+                  <Select value={form.isAutomatic ? "yes" : "no"} onChange={(e) => setForm((f) => ({ ...f, isAutomatic: e.target.value === "yes" }))}>
+                    <option value="yes">AutomÃ¡tico</option>
+                    <option value="no">Manual</option>
+                  </Select>
+                </FormField>
+                {editingId ? (
+                  <FormField label="Estado">
+                    <Select value={form.isActive ? "active" : "inactive"} onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.value === "active" }))}>
+                      <option value="active">Activo</option>
+                      <option value="inactive">Inactivo</option>
+                    </Select>
+                  </FormField>
+                ) : null}
+              </div>
+
+              <FormField label="DescripciÃ³n (opcional)">
+                <Textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Detalles sobre este concepto..."
+                  rows={2}
+                />
+              </FormField>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" size="sm" onClick={closeForm} disabled={saveMutation.isPending}>
+                  Cancelar
+                </Button>
+                <Button size="sm" onClick={handleSubmit} disabled={saveMutation.isPending}>
+                  {saveMutation.isPending ? "Guardando..." : "Guardar"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+

@@ -1,0 +1,557 @@
+﻿import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  BarChart3,
+  Play,
+  Plus,
+  Square,
+  Star
+} from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Modal } from "@/components/ui/modal";
+import { FormField } from "@/components/forms/FormField";
+import {
+  getCycles,
+  createCycle,
+  activateCycle,
+  closeCycle,
+  getAssignments,
+  createAssignment,
+  finalizeEvaluation
+} from "@/modules/evaluations/services/evaluationsApi";
+import { getEmployees } from "@/modules/employees/services/employeesApi";
+import type { EvaluationCycle, EvaluationAssignment } from "@/modules/evaluations/types/evaluations.types";
+ Pestania = "cycles" | "assignments";
+ MAPA_ESTADOS: Record<string, { label: string; variant: "neutral" | "info" | "warning" | "success" | "danger" }> = {
+  draft: { label: "Borrador", variant: "neutral" },
+  active: { label: "Activo", variant: "info" },
+  closed: { label: "Cerrado", variant: "danger" },
+  pending: { label: "Pendiente", variant: "neutral" },
+  self_completed: { label: "Auto-eval.", variant: "warning" },
+  evaluator_completed: { label: "Evaluado", variant: "info" },
+  finalized: { label: "Finalizado", variant: "success" }
+};
+ InsigniaEstado({ status }: { status: string }): JSX.Element {
+  const s = MAPA_ESTADOS[status]  { label: status, variant: "neutral" as const };
+  return <Badge variant={s.variant}>{s.label}</Badge>;
+}
+ EstrellasPuntaje({ score }: { score: number | null }): JSX.Element {
+  if (score === null) return <span className="text-xs text-slate-400">-</span>;
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          className={`size-3.5 ${i <= score ? "fill-amber-400 text-amber-400" : "text-slate-200"}`}
+        />
+      ))}
+      <span className="ml-1 text-xs font-medium text-slate-600">{score.toFixed(1)}</span>
+    </div>
+  );
+}
+ function PaginaEvaluaciones(): JSX.Element {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const permisos = user.permissions ?? [];
+  const puedeCrear = permisos.includes("evaluations.create");
+  const puedeEditar = permisos.includes("evaluations.edit");
+
+  const [pestania, setPestania] = useState<Pestania>("cycles");
+  const [retroalimentacion, setRetroalimentacion] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Formulario de ciclo
+  const [mostrarModalCiclo, setMostrarModalCiclo] = useState(false);
+  const [nombreCiclo, setNombreCiclo] = useState("");
+  const [periodoCiclo, setPeriodoCiclo] = useState("semestral");
+  const [anioCiclo, setAnioCiclo] = useState(new Date().getFullYear());
+  const [inicioCiclo, setInicioCiclo] = useState("");
+  const [finCiclo, setFinCiclo] = useState("");
+
+  // Formulario de asignaciÃ³n
+  const [mostrarModalAsignacion, setMostrarModalAsignacion] = useState(false);
+  const [cicloAsignacion, setCicloAsignacion] = useState("");
+  const [empleadoAsignacion, setEmpleadoAsignacion] = useState("");
+  const [evaluadorAsignacion, setEvaluadorAsignacion] = useState("");
+
+  // Formulario de finalizaciÃ³n
+  const [objetivoFinalizar, setObjetivoFinalizar] = useState<EvaluationAssignment | null>(null);
+  const [puntajeFinal, setPuntajeFinal] = useState("3");
+  const [comentariosFinal, setComentariosFinal] = useState("");
+
+  // Ciclo expandido para asignaciones
+  const [cicloSeleccionado, setCicloSeleccionado] = useState<string | null>(null);
+
+  // Consultas
+  const ciclosQuery = useQuery({ queryKey: ["evaluation-cycles"], queryFn: getCycles });
+  const asignacionesQuery = useQuery({
+    queryKey: ["evaluation-assignments", cicloSeleccionado],
+    queryFn: () => getAssignments(cicloSeleccionado ? undefined),
+    enabled: pestania === "assignments" || cicloSeleccionado !== null
+  });
+  const empleadosQuery = useQuery({
+    queryKey: ["employees-list-evaluations"],
+    queryFn: () => getEmployees({ pageNumber: 1, pageSize: 500, isActive: true }),
+    enabled: mostrarModalAsignacion
+  });
+
+  // Mutaciones
+  const mutacionCrearCiclo = useMutation({
+    mutationFn: createCycle,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evaluation-cycles"] });
+      setMostrarModalCiclo(false);
+      setRetroalimentacion({ type: "success", message: "Ciclo de evaluacion creado." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo crear el ciclo." })
+  });
+
+  const mutacionActivar = useMutation({
+    mutationFn: activateCycle,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evaluation-cycles"] });
+      setRetroalimentacion({ type: "success", message: "Ciclo activado." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo activar el ciclo." })
+  });
+
+  const mutacionCerrar = useMutation({
+    mutationFn: closeCycle,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evaluation-cycles"] });
+      setRetroalimentacion({ type: "success", message: "Ciclo cerrado." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo cerrar el ciclo." })
+  });
+
+  const mutacionCrearAsignacion = useMutation({
+    mutationFn: createAssignment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evaluation-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["evaluation-cycles"] });
+      setMostrarModalAsignacion(false);
+      setRetroalimentacion({ type: "success", message: "Asignacion creada." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo crear la asignacion." })
+  });
+
+  const mutacionFinalizar = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: { finalScore: number; finalComments: string } }) =>
+      finalizeEvaluation(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evaluation-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["evaluation-cycles"] });
+      setObjetivoFinalizar(null);
+      setRetroalimentacion({ type: "success", message: "Evaluacion finalizada." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo finalizar la evaluacion." })
+  });
+
+  function abrirModalCiclo(): void {
+    setNombreCiclo("");
+    setPeriodoCiclo("semestral");
+    setAnioCiclo(new Date().getFullYear());
+    setInicioCiclo("");
+    setFinCiclo("");
+    setMostrarModalCiclo(true);
+  }
+
+  function manejarCrearCiclo(e: React.FormEvent): void {
+    e.preventDefault();
+    if (!nombreCiclo.trim() || !inicioCiclo || !finCiclo) return;
+    mutacionCrearCiclo.mutate({
+      name: nombreCiclo.trim(),
+      period: periodoCiclo,
+      year: anioCiclo,
+      startDate: inicioCiclo,
+      endDate: finCiclo
+    });
+  }
+
+  function abrirModalAsignacion(cicloId: string): void {
+    setCicloAsignacion(cicloId ? "");
+    setEmpleadoAsignacion("");
+    setEvaluadorAsignacion("");
+    setMostrarModalAsignacion(true);
+  }
+
+  function manejarCrearAsignacion(e: React.FormEvent): void {
+    e.preventDefault();
+    if (!cicloAsignacion || !empleadoAsignacion) return;
+    mutacionCrearAsignacion.mutate({
+      cycleId: cicloAsignacion,
+      employeeId: empleadoAsignacion,
+      evaluatorEmployeeId: evaluadorAsignacion || null
+    });
+  }
+
+  function abrirFinalizar(a: EvaluationAssignment): void {
+    setPuntajeFinal(String(a.evaluatorScore ? a.selfScore  3));
+    setComentariosFinal("");
+    setObjetivoFinalizar(a);
+  }
+
+  function manejarFinalizar(e: React.FormEvent): void {
+    e.preventDefault();
+    if (!objetivoFinalizar) return;
+    mutacionFinalizar.mutate({
+      id: objetivoFinalizar.id,
+      payload: { finalScore: Number(puntajeFinal), finalComments: comentariosFinal.trim() }
+    });
+  }
+
+  const ciclos = ciclosQuery.data ?? [];
+  const asignaciones = asignacionesQuery.data ?? [];
+  const empleados = empleadosQuery.data.items ?? [];
+  const ciclosActivos = ciclos.filter((c) => c.status !== "closed");
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Evaluaciones de desempeno" description="Ciclos de evaluacion, asignaciones y seguimiento de resultados." />
+
+      {retroalimentacion && (
+        <Alert variant={retroalimentacion.type === "success" ? "success" : "error"} message={retroalimentacion.message} onClose={() => setRetroalimentacion(null)} />
+      )}
+
+      {/* PestaÃ±as */}
+      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+        <button
+          onClick={() => { setPestania("cycles"); setCicloSeleccionado(null); }}
+          className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition ${
+            pestania === "cycles" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <BarChart3 className="size-4" /> Ciclos
+        </button>
+        <button
+          onClick={() => setPestania("assignments")}
+          className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition ${
+            pestania === "assignments" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <Star className="size-4" /> Asignaciones
+        </button>
+      </div>
+
+      {/* â”€â”€ PestaÃ±a Ciclos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {pestania === "cycles" && (
+        <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle>Ciclos de evaluacion</CardTitle>
+              {puedeCrear && (
+                <Button size="lg" className="btn-create" onClick={abrirModalCiclo}>
+                  <Plus className="size-4" /> Nuevo ciclo
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {ciclosQuery.isLoading ? (
+              <TableSkeleton rows={4} cols={7} />
+            ) : ciclos.length === 0 ? (
+              <TableEmptyState cols={7} message="No hay ciclos de evaluacion." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-3 py-2.5">Nombre</th>
+                      <th className="px-3 py-2.5">Periodo</th>
+                      <th className="px-3 py-2.5">Ano</th>
+                      <th className="px-3 py-2.5">Fechas</th>
+                      <th className="px-3 py-2.5">Progreso</th>
+                      <th className="px-3 py-2.5">Estado</th>
+                      {puedeEditar && <th className="px-3 py-2.5 text-right">Acciones</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ciclos.map((c) => (
+                      <FilaCiclo
+                        key={c.id}
+                        cycle={c}
+                        canEdit={puedeEditar}
+                        canCreate={puedeCrear}
+                        onActivate={() => mutacionActivar.mutate(c.id)}
+                        onClose={() => mutacionCerrar.mutate(c.id)}
+                        onViewAssignments={() => { setCicloSeleccionado(c.id); setPestania("assignments"); }}
+                        onAddAssignment={() => abrirModalAsignacion(c.id)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* â”€â”€ PestaÃ±a Asignaciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {pestania === "assignments" && (
+        <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>
+                  Asignaciones
+                  {cicloSeleccionado && (
+                    <button onClick={() => setCicloSeleccionado(null)} className="ml-2 text-xs font-normal text-brand-500 hover:underline">
+                      (ver todas)
+                    </button>
+                  )}
+                </CardTitle>
+              </div>
+              {puedeCrear && (
+                <Button size="lg" className="btn-create" onClick={() => abrirModalAsignacion()}>
+                  <Plus className="size-4" /> Nueva asignacion
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {asignacionesQuery.isLoading ? (
+              <TableSkeleton rows={5} cols={8} />
+            ) : asignaciones.length === 0 ? (
+              <TableEmptyState cols={8} message="No hay asignaciones." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-3 py-2.5">Empleado</th>
+                      <th className="px-3 py-2.5">Ciclo</th>
+                      <th className="px-3 py-2.5">Evaluador</th>
+                      <th className="px-3 py-2.5">Auto-eval.</th>
+                      <th className="px-3 py-2.5">Eval. Jefe</th>
+                      <th className="px-3 py-2.5">Final</th>
+                      <th className="px-3 py-2.5">Estado</th>
+                      {puedeEditar && <th className="px-3 py-2.5 text-right">Acciones</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {asignaciones.map((a) => (
+                      <tr key={a.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                        <td className="px-3 py-2.5">
+                          <div>
+                            <p className="font-medium">{a.employeeName}</p>
+                            <p className="text-xs text-slate-400">{a.employeeCode}</p>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 text-slate-600">{a.cycleName}</td>
+                        <td className="px-3 py-2.5 text-slate-500">{a.evaluatorName ? "-"}</td>
+                        <td className="px-3 py-2.5"><EstrellasPuntaje score={a.selfScore} /></td>
+                        <td className="px-3 py-2.5"><EstrellasPuntaje score={a.evaluatorScore} /></td>
+                        <td className="px-3 py-2.5"><EstrellasPuntaje score={a.finalScore} /></td>
+                        <td className="px-3 py-2.5"><InsigniaEstado status={a.status} /></td>
+                        {puedeEditar && (
+                          <td className="px-3 py-2.5 text-right">
+                            {a.status !== "finalized" && (
+                              <Button size="sm" variant="outline" onClick={() => abrirFinalizar(a)}>
+                                Finalizar
+                              </Button>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* â”€â”€ Modal Crear Ciclo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={mostrarModalCiclo} title="Nuevo ciclo de evaluacion" onClose={() => setMostrarModalCiclo(false)}>
+        <form className="space-y-4" onSubmit={manejarCrearCiclo}>
+          <FormField label="Nombre" required>
+            <Input value={nombreCiclo} onChange={(e) => setNombreCiclo(e.target.value)} placeholder="Ej: Evaluacion Semestral 2026-I" required />
+          </FormField>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Periodo">
+              <Select value={periodoCiclo} onChange={(e) => setPeriodoCiclo(e.target.value)}>
+                <option value="trimestral">Trimestral</option>
+                <option value="semestral">Semestral</option>
+                <option value="anual">Anual</option>
+              </Select>
+            </FormField>
+            <FormField label="Ano">
+              <Input type="number" value={anioCiclo} onChange={(e) => setAnioCiclo(Number(e.target.value))} min={2020} max={2050} />
+            </FormField>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Fecha inicio" required>
+              <Input type="date" value={inicioCiclo} onChange={(e) => setInicioCiclo(e.target.value)} required />
+            </FormField>
+            <FormField label="Fecha fin" required>
+              <Input type="date" value={finCiclo} onChange={(e) => setFinCiclo(e.target.value)} required />
+            </FormField>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" type="button" onClick={() => setMostrarModalCiclo(false)}>Cancelar</Button>
+            <Button type="submit" disabled={mutacionCrearCiclo.isPending}>
+              {mutacionCrearCiclo.isPending ? "Creando..." : "Crear ciclo"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* â”€â”€ Modal Crear AsignaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={mostrarModalAsignacion} title="Asignar evaluacion" onClose={() => setMostrarModalAsignacion(false)}>
+        <form className="space-y-4" onSubmit={manejarCrearAsignacion}>
+          <FormField label="Ciclo" required>
+            <Select value={cicloAsignacion} onChange={(e) => setCicloAsignacion(e.target.value)} required>
+              <option value="">Seleccionar ciclo...</option>
+              {ciclosActivos.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Empleado" required>
+            <Select value={empleadoAsignacion} onChange={(e) => setEmpleadoAsignacion(e.target.value)} required>
+              <option value="">Seleccionar empleado...</option>
+              {empleados.map((emp) => (
+                <option key={emp.id} value={emp.id}>{emp.employeeCode} - {emp.fullName}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Evaluador (jefe)">
+            <Select value={evaluadorAsignacion} onChange={(e) => setEvaluadorAsignacion(e.target.value)}>
+              <option value="">Sin evaluador asignado</option>
+              {empleados.map((emp) => (
+                <option key={emp.id} value={emp.id}>{emp.employeeCode} - {emp.fullName}</option>
+              ))}
+            </Select>
+          </FormField>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" type="button" onClick={() => setMostrarModalAsignacion(false)}>Cancelar</Button>
+            <Button type="submit" disabled={mutacionCrearAsignacion.isPending}>
+              {mutacionCrearAsignacion.isPending ? "Creando..." : "Crear asignacion"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* â”€â”€ Modal Finalizar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={objetivoFinalizar !== null} title="Finalizar evaluacion" onClose={() => setObjetivoFinalizar(null)}>
+        {objetivoFinalizar && (
+          <form className="space-y-4" onSubmit={manejarFinalizar}>
+            <div className="rounded-lg bg-slate-50 p-3 space-y-1 text-sm">
+              <p><span className="font-medium">Empleado:</span> {objetivoFinalizar.employeeName}</p>
+              <p><span className="font-medium">Auto-evaluacion:</span> {objetivoFinalizar.selfScore ? "Pendiente"}</p>
+              <p><span className="font-medium">Evaluacion jefe:</span> {objetivoFinalizar.evaluatorScore ? "Pendiente"}</p>
+            </div>
+            <FormField label="Puntaje final (1-5)" required>
+              <Select value={puntajeFinal} onChange={(e) => setPuntajeFinal(e.target.value)}>
+                {[1, 2, 3, 4, 5].map((v) => (
+                  <option key={v} value={v}>{v} - {["Deficiente", "Regular", "Bueno", "Muy bueno", "Excelente"][v - 1]}</option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Comentarios finales">
+              <textarea
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                rows={3}
+                value={comentariosFinal}
+                onChange={(e) => setComentariosFinal(e.target.value)}
+                placeholder="Observaciones finales de RRHH..."
+              />
+            </FormField>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" type="button" onClick={() => setObjetivoFinalizar(null)}>Cancelar</Button>
+              <Button type="submit" disabled={mutacionFinalizar.isPending}>
+                {mutacionFinalizar.isPending ? "Finalizando..." : "Finalizar evaluacion"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+// â”€â”€ Fila de Ciclo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function FilaCiclo({
+  cycle,
+  canEdit,
+  canCreate,
+  onActivate,
+  onClose,
+  onViewAssignments,
+  onAddAssignment
+}: {
+  cycle: EvaluationCycle;
+  canEdit: boolean;
+  canCreate: boolean;
+  onActivate: () => void;
+  onClose: () => void;
+  onViewAssignments: () => void;
+  onAddAssignment: () => void;
+}): JSX.Element {
+  const progreso = cycle.totalAssignments > 0
+     Math.round((cycle.finalizedAssignments / cycle.totalAssignments) * 100)
+    : 0;
+
+  return (
+    <tr className="border-b last:border-0 hover:bg-slate-50/50">
+      <td className="px-3 py-2.5">
+        <button onClick={onViewAssignments} className="font-medium text-brand-600 hover:underline">
+          {cycle.name}
+        </button>
+      </td>
+      <td className="px-3 py-2.5 text-slate-500 capitalize">{cycle.period}</td>
+      <td className="px-3 py-2.5 font-mono text-sm">{cycle.year}</td>
+      <td className="px-3 py-2.5 text-xs text-slate-500 whitespace-nowrap">
+        {cycle.startDate} - {cycle.endDate}
+      </td>
+      <td className="px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-20 rounded-full bg-slate-200">
+            <div
+              className="h-2 rounded-full bg-brand-500 transition-all"
+              style={{ width: `${progreso}%` }}
+            />
+          </div>
+          <span className="text-xs text-slate-500">
+            {cycle.finalizedAssignments}/{cycle.totalAssignments}
+          </span>
+        </div>
+      </td>
+      <td className="px-3 py-2.5"><InsigniaEstado status={cycle.status} /></td>
+      {canEdit && (
+        <td className="px-3 py-2.5 text-right">
+          <div className="flex justify-end gap-1">
+            {cycle.status === "draft" && (
+              <Button size="sm" variant="outline" onClick={onActivate} title="Activar ciclo">
+                <Play className="size-3.5" />
+              </Button>
+            )}
+            {cycle.status === "active" && (
+              <>
+                {canCreate && (
+                  <Button size="sm" variant="outline" onClick={onAddAssignment} title="Agregar asignacion">
+                    <Plus className="size-3.5" />
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" onClick={onClose} title="Cerrar ciclo">
+                  <Square className="size-3.5" />
+                </Button>
+              </>
+            )}
+          </div>
+        </td>
+      )}
+    </tr>
+  );
+}
+
+

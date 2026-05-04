@@ -1,0 +1,54 @@
+import { cn } from "@/lib/utils/cn";
+
+export type DataTableColumn<T> = {
+  key: keyof T;
+  header: string;
+  className: string;
+};
+
+type DataTableProps<T extends Record<string, unknown>> = {
+  columns: DataTableColumn<T>[];
+  rows: T[];
+  emptyText: string;
+};
+
+export function DataTable<T extends Record<string, unknown>>({ columns, rows, emptyText = "Sin datos" }: DataTableProps<T>): JSX.Element {
+  return (
+    <div className="overflow-hidden rounded-lg border bg-white">
+      <table className="w-full border-collapse text-[13px]">
+        <thead className="hidden md:table-header-group">
+          <tr className="border-b bg-slate-50">
+            {columns.map((column) => (
+              <th
+                key={String(column.key)}
+                className={cn("px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-500", column.className)}
+              >
+                {column.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0  (
+            <tr>
+              <td className="px-4 py-8 text-center text-muted" colSpan={columns.length}>
+                {emptyText}
+              </td>
+            </tr>
+          ) : (
+            rows.map((row, rowIndex) => (
+              <tr key={rowIndex} className="block border-t px-3 py-2 transition-colors hover:bg-slate-50/70 md:table-row md:px-0 md:py-0">
+                {columns.map((column) => (
+                  <td key={`${rowIndex}-${String(column.key)}`} className={cn("flex items-start justify-between gap-3 px-1 py-1.5 text-[13px] md:table-cell md:px-4 md:py-3", column.className)}>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 md:hidden">{column.header}</span>
+                    <span className="min-w-0 text-right md:text-left">{String(row[column.key]  "")}</span>
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}

@@ -1,0 +1,95 @@
+﻿import { useEffect, useState } from "react";
+import { CheckCircle, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/forms/FormField";
+import { Modal } from "@/components/ui/modal";
+import type { AttendanceIncident } from "@/modules/incidents/types/incident.types";
+ ReviewIncidentModalProps = {
+  incident: AttendanceIncident | null;
+  saving: boolean;
+  onClose: () => void;
+  onApprove: (id: string, comment: string) => void;
+  onReject: (id: string, comment: string) => void;
+};
+ function ReviewIncidentModal({ incident, saving, onClose, onApprove, onReject }: ReviewIncidentModalProps): JSX.Element {
+  const [comment, setComment] = useState("");
+  const [pendingAction, setPendingAction] = useState<"approve" | "reject" | null>(null);
+
+  useEffect(() => {
+    setComment("");
+    setPendingAction(null);
+  }, [incident]);
+
+  function handleApprove(): void {
+    if (!incident || saving) return;
+    setPendingAction("approve");
+    onApprove(incident.id, comment.trim() || undefined);
+  }
+
+  function handleReject(): void {
+    if (!incident || saving) return;
+    setPendingAction("reject");
+    onReject(incident.id, comment.trim() || undefined);
+  }
+
+  if (!incident) return <></>;
+
+  return (
+    <Modal open={!!incident} title="Revisar justificaciÃ³n" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="rounded-lg border bg-slate-50 px-4 py-3 text-sm">
+          <p className="font-medium text-slate-700">{incident.employeeName}</p>
+          <p className="mt-0.5 text-slate-500">{incident.incidentDate}</p>
+        </div>
+
+        {incident.justificationText && (
+          <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-500">JustificaciÃ³n del empleado</p>
+            <p className="text-slate-700">{incident.justificationText}</p>
+            {incident.justificationSubmittedAtUtc && (
+              <p className="mt-1 text-xs text-slate-400">
+                Enviada el {new Date(incident.justificationSubmittedAtUtc).toLocaleString("es-PE")}
+              </p>
+            )}
+          </div>
+        )}
+
+        <FormField label="Comentario del revisor (opcional)">
+          <Textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="AÃ±ade un comentario..."
+            rows={3}
+          />
+        </FormField>
+
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={saving}
+            onClick={handleReject}
+            className="border-rose-200 text-rose-600 hover:bg-rose-50"
+          >
+            <XCircle className="mr-1.5 size-3.5" />
+            {saving && pendingAction === "reject" ? "Rechazando..." : "Rechazar"}
+          </Button>
+          <Button
+            type="button"
+            disabled={saving || !incident.justificationText}
+            onClick={handleApprove}
+          >
+            <CheckCircle className="mr-1.5 size-3.5" />
+            {saving && pendingAction === "approve" ? "Aprobando..." : "Aprobar"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+

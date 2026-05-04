@@ -1,0 +1,181 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: 192 18% 95%;
+  --surface: 0 0% 100%;
+  --surface-muted: 192 14% 92%;
+  --foreground: 200 28% 11%;
+  --muted: 200 10% 46%;
+  --border: 200 14% 89%;
+  --brand: 178 73% 37%;
+  --danger: 0 78% 58%;
+  --success: 162 72% 32%;
+  --warning: 38 92% 50%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  @apply bg-[hsl(var(--bg))] text-[hsl(var(--foreground))] antialiased;
+  margin: 0;
+  min-height: 100vh;
+  font-family: Manrope, ui-sans-serif, system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Mejor touch en iOS */
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* iOS auto-zoom protection solo en Safari iOS */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+}
+
+/* Mejor lectura y recorte en formularios moviles */
+input,
+select,
+textarea {
+  min-width: 0;
+}
+
+input::placeholder,
+textarea::placeholder {
+  text-overflow: ellipsis;
+}
+
+/* Ajuste global fuerte para formularios en celular */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    border-radius: 10px;
+  }
+
+  textarea {
+    min-height: 110px;
+  }
+
+  button {
+    min-height: 44px;
+  }
+
+  label {
+    letter-spacing: 0.01em;
+  }
+}
+
+/* Safe-area para iPhone con notch */
+.safe-pt { padding-top: max(env(safe-area-inset-top), 0px); }
+.safe-pb { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+.safe-pl { padding-left: max(env(safe-area-inset-left), 0px); }
+.safe-pr { padding-right: max(env(safe-area-inset-right), 0px); }
+
+/* Indicador visual de scroll horizontal en tablas (sombra en el borde derecho) */
+@media (max-width: 1023px) {
+  .overflow-x-auto {
+    background:
+      linear-gradient(to right, white 30%, rgba(255, 255, 255, 0)),
+      linear-gradient(to right, rgba(255, 255, 255, 0), white 70%) 100% 0,
+      radial-gradient(farthest-side at 0% 50%, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0)),
+      radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0)) 100% 0;
+    background-repeat: no-repeat;
+    background-color: white;
+    background-size: 30px 100%, 30px 100%, 12px 100%, 12px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+}
+
+@layer components {
+  .btn-create {
+    @apply h-10 max-w-full justify-center gap-2.5 rounded-xl px-5 text-[13px] whitespace-nowrap sm:h-11 sm:px-7 sm:text-[14px];
+  }
+}
+
+.scrollbar-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+.scrollbar-subtle::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-subtle::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-subtle::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.scrollbar-subtle::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+@media (max-width: 1023px) {
+  .overflow-x-auto > table {
+    min-width: 680px;
+  }
+
+  /* Recharts: evita compresion extrema en movil/tablet */
+  .recharts-responsive-container {
+    min-width: 520px;
+  }
+
+  .recharts-cartesian-axis-tick-value {
+    font-size: 10px;
+  }
+
+  .recharts-legend-wrapper {
+    font-size: 11px !important;
+  }
+}
+
+@layer utilities {
+  .border-border {
+    border-color: hsl(var(--border));
+  }
+
+  .text-muted {
+    color: hsl(var(--muted));
+  }
+
+  .surface {
+    background-color: hsl(var(--surface));
+  }
+
+  .surface-muted {
+    background-color: hsl(var(--surface-muted));
+  }
+}
+

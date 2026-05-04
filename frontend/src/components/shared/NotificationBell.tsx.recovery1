@@ -1,0 +1,171 @@
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bell, CheckCheck } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
+import {
+  getRecentNotifications,
+  getUnreadCount,
+  markAllNotificationsAsRead,
+  markNotificationAsRead
+} from "@/modules/notifications/services/notificationsApi";
+import type { AppNotification } from "@/modules/notifications/types/notification.types";
+
+const NOTIFICATION_KEYS = {
+  unreadCount: ["notifications-unread-count"] as const,
+  recent: ["notifications-recent"] as const
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  vacations: "bg-blue-500",
+  leaves: "bg-purple-500",
+  payroll: "bg-emerald-500",
+  recruitment: "bg-amber-500"
+};
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Ahora";
+  if (mins < 60) return `Hace ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Hace ${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `Hace ${days}d`;
+}
+
+export function NotificationBell(): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+
+  function invalidateNotifications(): void {
+    void queryClient.invalidateQueries({ queryKey: [...NOTIFICATION_KEYS.unreadCount] });
+    void queryClient.invalidateQueries({ queryKey: [...NOTIFICATION_KEYS.recent] });
+  }
+
+  const countQuery = useQuery({
+    queryKey: [...NOTIFICATION_KEYS.unreadCount],
+    queryFn: getUnreadCount,
+    refetchInterval: 60000,
+    refetchIntervalInBackground: false
+  });
+
+  const listQuery = useQuery({
+    queryKey: [...NOTIFICATION_KEYS.recent],
+    queryFn: () => getRecentNotifications(15),
+    enabled: open
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: markNotificationAsRead,
+    onSuccess: invalidateNotifications
+  });
+
+  const markAllMutation = useMutation({
+    mutationFn: markAllNotificationsAsRead,
+    onSuccess: invalidateNotifications
+  });
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent): void {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const unreadCount = countQuery.data  0;
+  const notifications: AppNotification[] = listQuery.data  [];
+
+  function handleItemClick(n: AppNotification): void {
+    if (!n.isRead) markReadMutation.mutate(n.id);
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-label="Notificaciones"
+        className="relative flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Bell className="size-[15px]" />
+        {unreadCount > 0 && (
+          <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-brand-500 text-[9px] font-bold text-white ring-2 ring-white">
+            {unreadCount > 99  "99" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-11 z-50 w-80 overflow-hidden rounded-xl border bg-white shadow-lg">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b px-4 py-2.5">
+            <span className="text-[13px] font-semibold text-slate-800">
+              Notificaciones
+              {unreadCount > 0 && (
+                <span className="ml-1.5 rounded-full bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold text-brand-600">
+                  {unreadCount} nuevas
+                </span>
+              )}
+            </span>
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                className="flex items-center gap-1 text-[11px] text-brand-600 hover:text-brand-700"
+                onClick={() => markAllMutation.mutate()}
+                disabled={markAllMutation.isPending}
+              >
+                <CheckCheck className="size-3" />
+                Marcar todo
+              </button>
+            )}
+          </div>
+
+          {/* List */}
+          <div className="max-h-80 overflow-y-auto">
+            {listQuery.isLoading  (
+              <div className="py-8 text-center text-[12px] text-slate-400">Cargando...</div>
+            ) : notifications.length === 0  (
+              <div className="py-8 text-center text-[12px] text-slate-400">Sin notificaciones</div>
+            ) : (
+              notifications.map((n) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  aria-label={`${n.isRead  "Leída" : "No leída"}: ${n.title}`}
+                  className={cn(
+                    "flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50",
+                    !n.isRead && "bg-brand-50/60"
+                  )}
+                  onClick={() => handleItemClick(n)}
+                >
+                  <span
+                    className={cn(
+                      "mt-0.5 size-2 shrink-0 rounded-full",
+                      n.category && CATEGORY_COLORS[n.category]
+                         CATEGORY_COLORS[n.category]
+                        : "bg-slate-300"
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className={cn("text-[12px] leading-snug", n.isRead  "text-slate-600" : "font-semibold text-slate-800")}>
+                      {n.title}
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-slate-500 line-clamp-2">{n.message}</p>
+                    <p className="mt-1 text-[10px] text-slate-400">{timeAgo(n.createdAtUtc)}</p>
+                  </div>
+                  {!n.isRead && (
+                    <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand-500" />
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

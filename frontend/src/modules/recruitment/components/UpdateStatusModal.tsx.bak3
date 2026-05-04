@@ -1,0 +1,161 @@
+﻿import { useState, useEffect } from "react";
+import { ArrowRightCircle, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/forms/FormField";
+import type { RecruitmentStatus, RecruitmentStatusOption } from "@/modules/recruitment/types/recruitment.types";
+ UpdateStatusModalProps = {
+  open: boolean;
+  candidateName: string;
+  currentStatus: RecruitmentStatus;
+  statuses: RecruitmentStatusOption[];
+  loading: boolean;
+  onConfirm: (status: RecruitmentStatus, nextStepDate: string, notes: string, rejectionReason: string) => void;
+  onClose: () => void;
+};
+ STATUS_COLORS: Record<RecruitmentStatus, string> = {
+  new: "bg-slate-100 text-slate-600",
+  screening: "bg-blue-100 text-blue-700",
+  interview: "bg-indigo-100 text-indigo-700",
+  offered: "bg-amber-100 text-amber-700",
+  hired: "bg-emerald-100 text-emerald-700",
+  rejected: "bg-rose-100 text-rose-600"
+};
+ function UpdateStatusModal({
+  open,
+  candidateName,
+  currentStatus,
+  statuses,
+  loading,
+  onConfirm,
+  onClose
+}: UpdateStatusModalProps): JSX.Element | null {
+  const [status, setStatus] = useState<RecruitmentStatus>(currentStatus);
+  const [nextStepDate, setNextStepDate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setStatus(currentStatus);
+      setNextStepDate("");
+      setNotes("");
+      setRejectionReason("");
+      setError(null);
+    }
+  }, [open, currentStatus]);
+
+  if (!open) return null;
+
+  const isRejecting = status === "rejected";
+  const currentLabel = statuses.find((s) => s.code === currentStatus).name ? currentStatus;
+  const nextLabel = statuses.find((s) => s.code === status).name ? status;
+
+  function handleConfirm(): void {
+    if (isRejecting && !rejectionReason.trim()) {
+      setError("El motivo de rechazo es obligatorio.");
+      return;
+    }
+    setError(null);
+    onConfirm(status, nextStepDate || undefined, notes.trim() || undefined, isRejecting ? rejectionReason.trim() : undefined);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+      <div className="animate-modal-in w-full max-w-md rounded-2xl border bg-white shadow-panel-lg">
+        <div className="flex items-center justify-between border-b px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-brand-100">
+              <ArrowRightCircle className="size-4 text-brand-600" />
+            </div>
+            <div>
+              <h3 className="font-bold tracking-tight text-slate-800">Cambiar estado</h3>
+              <p className="text-[12px] text-slate-500">{candidateName}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            onClick={onClose}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Current â†’ New status visual */}
+          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5">
+            <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${STATUS_COLORS[currentStatus]}`}>
+              {currentLabel}
+            </span>
+            <ArrowRightCircle className="size-3.5 text-slate-400 shrink-0" />
+            <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${STATUS_COLORS[status]}`}>
+              {nextLabel}
+            </span>
+          </div>
+
+          {error ? (
+            <p className="rounded-lg bg-rose-50 px-3 py-2 text-[13px] text-rose-700">{error}</p>
+          ) : null}
+
+          <FormField label="Nuevo estado" required>
+            <Select value={status} onChange={(e) => { setStatus(e.target.value as RecruitmentStatus); setError(null); }}>
+              {statuses.map((s) => (
+                <option key={s.code} value={s.code}>{s.name}</option>
+              ))}
+            </Select>
+          </FormField>
+
+          {isRejecting ? (
+            <FormField label="Motivo de rechazo" required>
+              <Textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Indica el motivo por el que se descarta al candidato..."
+                className="rounded-lg"
+                rows={2}
+              />
+            </FormField>
+          ) : (
+            <FormField label="PrÃ³xima fecha de seguimiento">
+              <Input
+                type="date"
+                value={nextStepDate}
+                onChange={(e) => setNextStepDate(e.target.value)}
+              />
+            </FormField>
+          )}
+
+          <FormField label="Observaciones">
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Agrega notas sobre este cambio de estado..."
+              className="rounded-lg"
+              rows={2}
+            />
+          </FormField>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={onClose} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              variant={isRejecting ? "danger" : "primary"}
+              onClick={handleConfirm}
+              disabled={loading}
+            >
+              {loading ? "Actualizando..." : "Actualizar estado"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+

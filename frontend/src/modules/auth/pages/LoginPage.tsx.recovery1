@@ -1,0 +1,185 @@
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Building2,
+  CheckCircle2,
+  Clock3,
+  ShieldCheck,
+  Users
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/forms/FormField";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+
+const schema = z.object({
+  userNameOrEmail: z.string().min(3, "Ingresa tu usuario o correo"),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres")
+});
+
+type LoginForm = z.infer<typeof schema>;
+
+const features = [
+  { icon: Users, text: "Gestión completa de empleados y estructura organizacional" },
+  { icon: Clock3, text: "Control de asistencia, tardanzas y justificaciones" },
+  { icon: CheckCircle2, text: "Planilla automática con bonos y descuentos" }
+];
+
+export function LoginPage(): JSX.Element {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+  const [requestError, setRequestError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting }
+  } = useForm<LoginForm>({
+    resolver: zodResolver(schema),
+    defaultValues: { userNameOrEmail: "", password: "" }
+  });
+
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      setRequestError(null);
+      await login(values);
+      const redirectTo =
+        (location.state as { from: { pathname: string } } | null).from.pathname 
+        "/app/dashboard";
+      navigate(redirectTo, { replace: true });
+    } catch {
+      setRequestError("No se pudo iniciar sesión. Verifica tus credenciales.");
+    }
+  });
+
+  return (
+    <main className="grid min-h-screen grid-cols-1 lg:grid-cols-[1.1fr_0.9fr]">
+      {/* ── Left decorative panel ── */}
+      <section
+        className="relative hidden overflow-hidden lg:flex lg:flex-col lg:items-center lg:justify-center lg:p-14"
+        style={{ background: "#0c1c1d" }}
+      >
+        {/* Geometric rings — inspired by orbital arc from references */}
+        <div className="pointer-events-none absolute inset-0">
+          <svg
+            className="absolute -bottom-32 -left-32 opacity-[0.07]"
+            width="600"
+            height="600"
+            viewBox="0 0 600 600"
+            fill="none"
+          >
+            <circle cx="300" cy="300" r="250" stroke="#17aaa4" strokeWidth="1" />
+            <circle cx="300" cy="300" r="190" stroke="#17aaa4" strokeWidth="1" />
+            <circle cx="300" cy="300" r="130" stroke="#17aaa4" strokeWidth="1" />
+          </svg>
+          <svg
+            className="absolute -right-20 -top-20 opacity-[0.06]"
+            width="500"
+            height="500"
+            viewBox="0 0 500 500"
+            fill="none"
+          >
+            <circle cx="250" cy="250" r="220" stroke="#17aaa4" strokeWidth="1" />
+            <circle cx="250" cy="250" r="160" stroke="#17aaa4" strokeWidth="1" />
+          </svg>
+          {/* Subtle glow */}
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-20"
+            style={{
+              width: 480,
+              height: 480,
+              background:
+                "radial-gradient(circle, rgba(23,170,164,0.35) 0%, transparent 70%)"
+            }}
+          />
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 w-full max-w-md space-y-10">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-brand-500">
+              <Building2 className="size-5 text-white" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-white">HRMS</p>
+              <p className="text-[11px] text-white/35">Enterprise Suite</p>
+            </div>
+          </div>
+
+          {/* Headline */}
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/10 px-3 py-1 text-[11px] font-semibold text-brand-300">
+              <ShieldCheck className="size-3.5" />
+              Plataforma corporativa segura
+            </div>
+            <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-white">
+              Gestión moderna de talento y operación RRHH
+            </h1>
+            <p className="text-sm leading-relaxed text-white/50">
+              Controla empleados, asistencia, vacaciones y planilla desde un panel
+              pensado para escalar.
+            </p>
+          </div>
+
+          {/* Feature list */}
+          <ul className="space-y-3">
+            {features.map(({ icon: Icon, text }) => (
+              <li key={text} className="flex items-start gap-3">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-brand-500/20">
+                  <Icon className="size-3.5 text-brand-400" />
+                </div>
+                <span className="text-[13px] leading-snug text-white/55">{text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* ── Right login panel ── */}
+      <section
+        className="flex items-center justify-center bg-[hsl(var(--bg))] p-6 lg:p-12"
+      >
+        <Card className="w-full max-w-md shadow-panel-lg">
+          <CardHeader className="space-y-1 pb-0">
+            <div className="mb-1 flex items-center gap-2 text-brand-600">
+              <Building2 className="size-4" />
+              <span className="text-xs font-semibold tracking-wide">HRMS</span>
+            </div>
+            <CardTitle className="text-2xl font-extrabold tracking-tight">
+              Iniciar sesión
+            </CardTitle>
+            <p className="text-sm text-muted">Accede a la consola administrativa.</p>
+          </CardHeader>
+
+          <CardContent className="pt-6">
+            <form className="space-y-4" onSubmit={onSubmit}>
+              <FormField label="Usuario o correo" error={errors.userNameOrEmail.message}>
+                <Input placeholder="admin" {...register("userNameOrEmail")} />
+              </FormField>
+
+              <FormField label="Contraseña" error={errors.password.message}>
+                <Input type="password" placeholder="••••••••" {...register("password")} />
+              </FormField>
+
+              {requestError  (
+                <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">
+                  {requestError}
+                </p>
+              ) : null}
+
+              <Button className="mt-1 w-full" type="submit" disabled={isSubmitting}>
+                {isSubmitting  "Ingresando..." : "Entrar"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </section>
+    </main>
+  );
+}

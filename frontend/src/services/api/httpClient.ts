@@ -1,0 +1,94 @@
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { clearAuthStorage, getAccessToken, getRefreshToken, setTokens } from "@/services/auth/tokenStorage";
+
+export const httpClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 12000,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+httpClient.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+let isRefreshing = false;
+let pendingQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}> = [];
+
+function processPendingQueue(token: string | null, error: unknown): void {
+  for (const p of pendingQueue) {
+    if (token) {
+      p.resolve(token);
+    } else {
+      p.reject(error);
+    }
+  }
+  pendingQueue = [];
+}
+
+httpClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retried?: boolean };
+    if (!originalRequest || error.response?.status !== 401 || originalRequest._retried) {
+      return Promise.reject(error);
+    }
+
+    const url = originalRequest.url ?? "";
+    if (url.includes("/auth/login") || url.includes("/auth/refresh")) {
+      return Promise.reject(error);
+    }
+
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      forceLogout();
+      return Promise.reject(error);
+    }
+
+    if (isRefreshing) {
+      return new Promise<string>((resolve, reject) => {
+        pendingQueue.push({ resolve, reject });
+      }).then((newToken) => {
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        originalRequest._retried = true;
+        return httpClient(originalRequest);
+      });
+    }
+
+    isRefreshing = true;
+    originalRequest._retried = true;
+
+    try {
+      const { data } = await axios.post<{ accessToken: string; refreshToken: string }>(
+        `${import.meta.env.VITE_API_URL}/api/v1/auth/refresh`,
+        { refreshToken }
+      );
+
+      setTokens(data.accessToken, data.refreshToken);
+      processPendingQueue(data.accessToken, null);
+      originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+      return httpClient(originalRequest);
+    } catch (refreshError) {
+      processPendingQueue(null, refreshError);
+      forceLogout();
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
+  }
+);
+
+function forceLogout(): void {
+  clearAuthStorage();
+  if (!window.location.hash.includes("/login") && !window.location.pathname.includes("/login")) {
+    window.location.href = "/login";
+  }
+}

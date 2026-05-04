@@ -1,0 +1,1094 @@
+﻿import { Fragment, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  Globe,
+  Key,
+  Play,
+  Plus,
+  Power,
+  RefreshCw,
+  Trash2,
+  Webhook,
+  XCircle
+} from "lucide-react";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Modal } from "@/components/ui/modal";
+import { FormField } from "@/components/forms/FormField";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import {
+  getApiTokens, createApiToken, revokeApiToken, rotateApiToken,
+  getWebhooks, createWebhook, deleteWebhook, toggleWebhook,
+  getWebhookDeliveries, testWebhook, getWebhookEvents,
+  getCalendarFeeds, createCalendarFeed, revokeCalendarFeed, getCalendarFeedScopes,
+  getCalendarProviders, getGoogleAuthorizationUrl, getGoogleConnection, disconnectGoogle,
+  getMicrosoftAuthorizationUrl, getMicrosoftConnection, disconnectMicrosoft
+} from "@/modules/integrations/services/integrationsApi";
+import { AVAILABLE_SCOPES, WEBHOOK_PAYLOAD_FORMATS } from "@/modules/integrations/types/integrations.types";
+import type { ApiTokenCreated, CalendarFeed, CalendarFeedCreated, WebhookEndpoint, WebhookPayloadFormat } from "@/modules/integrations/types/integrations.types";
+ Pestania = "tokens" | "webhooks" | "calendars";
+ function PaginaIntegraciones(): JSX.Element {
+  const queryClient = useQueryClient();
+  const [pestania, setPestania] = useState<Pestania>("tokens");
+  const [retroalimentacion, setRetroalimentacion] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Formulario de token
+  const [mostrarModalToken, setMostrarModalToken] = useState(false);
+  const [nombreToken, setNombreToken] = useState("");
+  const [descToken, setDescToken] = useState("");
+  const [vencimientoToken, setVencimientoToken] = useState("90");
+  const [scopesToken, setScopesToken] = useState<string[]>(["employees:read"]);
+  const [tokenCreado, setTokenCreado] = useState<ApiTokenCreated | null>(null);
+  const [objetivoRevocar, setObjetivoRevocar] = useState<string | null>(null);
+  const [objetivoRotar, setObjetivoRotar] = useState<string | null>(null);
+
+  // Formulario de webhook
+  const [mostrarModalWebhook, setMostrarModalWebhook] = useState(false);
+  const [nombreWh, setNombreWh] = useState("");
+  const [urlWh, setUrlWh] = useState("");
+  const [descWh, setDescWh] = useState("");
+  const [eventosWh, setEventosWh] = useState<string[]>([]);
+  const [formatoWh, setFormatoWh] = useState<WebhookPayloadFormat>("raw");
+  const [objetivoEliminar, setObjetivoEliminar] = useState<WebhookEndpoint | null>(null);
+  const [webhookExpandido, setWebhookExpandido] = useState<string | null>(null);
+
+  // Formulario de feed de calendario
+  const [mostrarModalCalendario, setMostrarModalCalendario] = useState(false);
+  const [nombreCal, setNombreCal] = useState("");
+  const [scopesCal, setScopesCal] = useState<string[]>(["my-vacations"]);
+  const [calendarioCreado, setCalendarioCreado] = useState<CalendarFeedCreated | null>(null);
+  const [objetivoRevocarCal, setObjetivoRevocarCal] = useState<CalendarFeed | null>(null);
+
+  // Consultas
+  const tokensQuery = useQuery({ queryKey: ["api-tokens"], queryFn: getApiTokens });
+  const webhooksQuery = useQuery({ queryKey: ["webhooks"], queryFn: getWebhooks });
+  const eventosQuery = useQuery({ queryKey: ["webhook-events"], queryFn: getWebhookEvents, enabled: mostrarModalWebhook });
+  const entregasQuery = useQuery({
+    queryKey: ["webhook-deliveries", webhookExpandido],
+    queryFn: () => getWebhookDeliveries(webhookExpandido!, { limit: 30 }),
+    enabled: webhookExpandido !== null
+  });
+  const feedsCalendarioQuery = useQuery({ queryKey: ["calendar-feeds"], queryFn: getCalendarFeeds, enabled: pestania === "calendars" });
+  const scopesCalendarioQuery = useQuery({ queryKey: ["calendar-feed-scopes"], queryFn: getCalendarFeedScopes, enabled: mostrarModalCalendario });
+
+  // Google Calendar OAuth push
+  const conexionGoogleQuery = useQuery({ queryKey: ["google-connection"], queryFn: getGoogleConnection, enabled: pestania === "calendars" });
+  const proveedoresCalendarioQuery = useQuery({ queryKey: ["calendar-providers"], queryFn: getCalendarProviders, enabled: pestania === "calendars" });
+  const [desconectarGoogleAbierto, setDesconectarGoogleAbierto] = useState(false);
+
+  const mutacionAutorizarGoogle = useMutation({
+    mutationFn: getGoogleAuthorizationUrl,
+    onSuccess: (data) => { window.location.href = data.authorizationUrl; },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo iniciar la autorizaciÃ³n con Google. Verifica que estÃ© habilitado en el servidor." })
+  });
+  const mutacionDesconectarGoogle = useMutation({
+    mutationFn: disconnectGoogle,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["google-connection"] });
+      setDesconectarGoogleAbierto(false);
+      setRetroalimentacion({ type: "success", message: "ConexiÃ³n con Google Calendar eliminada." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo desconectar Google Calendar." })
+  });
+
+  // Microsoft / Outlook OAuth push
+  const conexionMicrosoftQuery = useQuery({ queryKey: ["microsoft-connection"], queryFn: getMicrosoftConnection, enabled: pestania === "calendars" });
+  const [desconectarMicrosoftAbierto, setDesconectarMicrosoftAbierto] = useState(false);
+  const mutacionAutorizarMicrosoft = useMutation({
+    mutationFn: getMicrosoftAuthorizationUrl,
+    onSuccess: (data) => { window.location.href = data.authorizationUrl; },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo iniciar la autorizaciÃ³n con Microsoft." })
+  });
+  const mutacionDesconectarMicrosoft = useMutation({
+    mutationFn: disconnectMicrosoft,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["microsoft-connection"] });
+      setDesconectarMicrosoftAbierto(false);
+      setRetroalimentacion({ type: "success", message: "ConexiÃ³n con Microsoft Calendar eliminada." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo desconectar Microsoft Calendar." })
+  });
+
+  // Lee los query params tras los callbacks OAuth (Google / Microsoft) y muestra retroalimentacion.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const proveedores: { key: string; label: string; queryKey: string }[] = [
+      { key: "googleOAuth",    label: "Google Calendar",    queryKey: "google-connection" },
+      { key: "microsoftOAuth", label: "Microsoft Calendar", queryKey: "microsoft-connection" }
+    ];
+    let encontrado = false;
+    for (const p of proveedores) {
+      const resultado = params.get(p.key);
+      if (!resultado) continue;
+      encontrado = true;
+      if (resultado === "success") {
+        setPestania("calendars");
+        setRetroalimentacion({ type: "success", message: `${p.label} conectado correctamente.` });
+        queryClient.invalidateQueries({ queryKey: [p.queryKey] });
+      } else {
+        const motivo = params.get("reason") ? "error";
+        setRetroalimentacion({ type: "error", message: `No se pudo conectar con ${p.label} (${motivo}).` });
+      }
+      params.delete(p.key);
+    }
+    if (!encontrado) return;
+    params.delete("reason");
+    const limpia = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (limpia ? `${limpia}` : ""));
+  }, [queryClient]);
+
+  // Mutaciones de tokens
+  const mutacionCrearToken = useMutation({
+    mutationFn: createApiToken,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["api-tokens"] });
+      setMostrarModalToken(false);
+      setTokenCreado(data);
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo crear el token." })
+  });
+
+  const mutacionRevocarToken = useMutation({
+    mutationFn: revokeApiToken,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["api-tokens"] });
+      setObjetivoRevocar(null);
+      setRetroalimentacion({ type: "success", message: "Token revocado." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo revocar el token." })
+  });
+
+  const mutacionRotarToken = useMutation({
+    mutationFn: rotateApiToken,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["api-tokens"] });
+      setObjetivoRotar(null);
+      setTokenCreado(data);
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo rotar el token." })
+  });
+
+  // Mutaciones de webhooks
+  const mutacionCrearWebhook = useMutation({
+    mutationFn: createWebhook,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["webhooks"] });
+      setMostrarModalWebhook(false);
+      setRetroalimentacion({ type: "success", message: "Webhook creado correctamente." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo crear el webhook." })
+  });
+
+  const mutacionEliminarWebhook = useMutation({
+    mutationFn: deleteWebhook,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["webhooks"] });
+      setObjetivoEliminar(null);
+      setRetroalimentacion({ type: "success", message: "Webhook eliminado." });
+    }
+  });
+
+  const mutacionToggle = useMutation({
+    mutationFn: toggleWebhook,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["webhooks"] })
+  });
+
+  const mutacionProbar = useMutation({
+    mutationFn: testWebhook,
+    onSuccess: () => setRetroalimentacion({ type: "success", message: "Evento de prueba enviado." }),
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo enviar el evento." })
+  });
+
+  // Mutaciones de feeds de calendario
+  const mutacionCrearCalendario = useMutation({
+    mutationFn: createCalendarFeed,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["calendar-feeds"] });
+      setMostrarModalCalendario(false);
+      setCalendarioCreado(data);
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo crear el feed de calendario." })
+  });
+
+  const mutacionRevocarCalendario = useMutation({
+    mutationFn: revokeCalendarFeed,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendar-feeds"] });
+      setObjetivoRevocarCal(null);
+      setRetroalimentacion({ type: "success", message: "Feed revocado. La URL ya no responde." });
+    }
+  });
+
+  // Manejadores
+  function abrirModalToken(): void {
+    setNombreToken(""); setDescToken(""); setVencimientoToken("90"); setScopesToken(["employees:read"]);
+    setMostrarModalToken(true);
+  }
+
+  function alternarScope(scope: string): void {
+    setScopesToken((prev) =>
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
+    );
+  }
+
+  function manejarCrearToken(e: React.FormEvent): void {
+    e.preventDefault();
+    if (!nombreToken.trim() || scopesToken.length === 0) return;
+    mutacionCrearToken.mutate({
+      name: nombreToken.trim(),
+      description: descToken.trim(),
+      scopes: scopesToken,
+      expirationDays: vencimientoToken ? Number(vencimientoToken) : null
+    });
+  }
+
+  function alternarEvento(evento: string): void {
+    setEventosWh((prev) =>
+      prev.includes(evento) ? prev.filter((e) => e !== evento) : [...prev, evento]
+    );
+  }
+
+  function manejarCrearWebhook(e: React.FormEvent): void {
+    e.preventDefault();
+    if (!nombreWh.trim() || !urlWh.trim() || eventosWh.length === 0) return;
+    mutacionCrearWebhook.mutate({
+      name: nombreWh.trim(),
+      url: urlWh.trim(),
+      description: descWh.trim(),
+      events: eventosWh,
+      format: formatoWh
+    });
+  }
+
+  function copiarAlPortapapeles(texto: string): void {
+    navigator.clipboard.writeText(texto).then(() =>
+      setRetroalimentacion({ type: "success", message: "Copiado al portapapeles." })
+    );
+  }
+
+  function alternarScopeCal(scope: string): void {
+    setScopesCal((prev) =>
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
+    );
+  }
+
+  function manejarCrearFeedCalendario(e: React.FormEvent): void {
+    e.preventDefault();
+    if (!nombreCal.trim() || scopesCal.length === 0) return;
+    mutacionCrearCalendario.mutate({ name: nombreCal.trim(), scopes: scopesCal });
+  }
+
+  const tokens = tokensQuery.data ?? [];
+  const webhooks = webhooksQuery.data ?? [];
+  const eventosDisponibles = eventosQuery.data ?? [];
+  const feedsCalendario = feedsCalendarioQuery.data ?? [];
+  const scopesCalendario = scopesCalendarioQuery.data ?? [];
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Integraciones"
+        description="API tokens para sistemas externos y webhooks para notificaciones en tiempo real."
+      />
+
+      {retroalimentacion && (
+        <Alert variant={retroalimentacion.type === "success" ? "success" : "error"} message={retroalimentacion.message} onClose={() => setRetroalimentacion(null)} />
+      )}
+
+      {/* Banner de Swagger */}
+      <div className="flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+        <Globe className="size-5 text-brand-600 shrink-0" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-brand-900">DocumentaciÃ³n de la API disponible</p>
+          <p className="text-xs text-brand-600">Swagger UI con ejemplos, schemas y autenticaciÃ³n interactiva.</p>
+        </div>
+        <a
+          href="/api-docs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 transition"
+        >
+          <ExternalLink className="size-3.5" /> Ver API Docs
+        </a>
+      </div>
+
+      {/* PestaÃ±as */}
+      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+        <button
+          onClick={() => setPestania("tokens")}
+          className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition ${pestania === "tokens" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+        >
+          <Key className="size-4" /> API Tokens
+        </button>
+        <button
+          onClick={() => setPestania("webhooks")}
+          className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition ${pestania === "webhooks" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+        >
+          <Webhook className="size-4" /> Webhooks
+        </button>
+        <button
+          onClick={() => setPestania("calendars")}
+          className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition ${pestania === "calendars" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+        >
+          <CalendarDays className="size-4" /> Calendarios
+        </button>
+      </div>
+
+      {/* â”€â”€ PestaÃ±a API Tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {pestania === "tokens" && (
+        <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>API Tokens</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Permite a sistemas externos autenticarse con la API del HRMS.</p>
+              </div>
+              <Button size="lg" className="btn-create" onClick={abrirModalToken}>
+                <Plus className="size-4" /> Nuevo token
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {tokensQuery.isLoading ? (
+              <TableSkeleton rows={4} cols={6} />
+            ) : tokens.length === 0 ? (
+              <TableEmptyState cols={6} message="No hay tokens de API creados." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-3 py-2.5">Nombre</th>
+                      <th className="px-3 py-2.5">Prefijo</th>
+                      <th className="px-3 py-2.5">Scopes</th>
+                      <th className="px-3 py-2.5">Expiracion</th>
+                      <th className="px-3 py-2.5">Ultimo uso</th>
+                      <th className="px-3 py-2.5 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tokens.map((t) => (
+                      <tr key={t.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                        <td className="px-3 py-2.5">
+                          <div>
+                            <p className="font-medium">{t.name}</p>
+                            {t.description && <p className="text-xs text-slate-400">{t.description}</p>}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <code className="rounded bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-700">
+                            {t.tokenPrefix}...
+                          </code>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex flex-wrap gap-1">
+                            {t.scopes.map((s) => (
+                              <span key={s} className="rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700">{s}</span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-slate-500">
+                          {t.expiresAtUtc ? new Date(t.expiresAtUtc).toLocaleDateString() : "Sin expiraciÃ³n"}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-slate-500">
+                          {t.lastUsedAtUtc ? new Date(t.lastUsedAtUtc).toLocaleString() : "Nunca"}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button
+                              className="rounded-md p-1.5 text-slate-400 transition hover:bg-brand-50 hover:text-brand-600"
+                              title="Rotar token (conserva el ID, reemplaza el valor)"
+                              onClick={() => setObjetivoRotar(t.id)}
+                            >
+                              <RefreshCw className="size-3.5" />
+                            </button>
+                            <button
+                              className="rounded-md p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                              title="Revocar token"
+                              onClick={() => setObjetivoRevocar(t.id)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* â”€â”€ PestaÃ±a Webhooks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {pestania === "webhooks" && (
+        <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>Webhooks</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Recibe notificaciones en tiempo real cuando ocurren eventos en el sistema.</p>
+              </div>
+              <Button
+                size="lg"
+                className="btn-create"
+                onClick={() => { setNombreWh(""); setUrlWh(""); setDescWh(""); setEventosWh([]); setFormatoWh("raw"); setMostrarModalWebhook(true); }}
+              >
+                <Plus className="size-4" /> Nuevo webhook
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {webhooksQuery.isLoading ? (
+              <TableSkeleton rows={4} cols={7} />
+            ) : webhooks.length === 0 ? (
+              <TableEmptyState cols={7} message="No hay webhooks configurados." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-3 py-2.5 w-8" />
+                      <th className="px-3 py-2.5">Nombre</th>
+                      <th className="px-3 py-2.5">URL</th>
+                      <th className="px-3 py-2.5">Eventos</th>
+                      <th className="px-3 py-2.5">Estado</th>
+                      <th className="px-3 py-2.5">Ultima entrega</th>
+                      <th className="px-3 py-2.5 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {webhooks.map((wh) => (
+                      <Fragment key={wh.id}>
+                        <tr className="border-b hover:bg-slate-50/50">
+                          <td className="px-3 py-2.5">
+                            <button onClick={() => setWebhookExpandido(webhookExpandido === wh.id ? null : wh.id)}>
+                              {webhookExpandido === wh.id
+                                 <ChevronDown className="size-4 text-slate-400" />
+                                : <ChevronRight className="size-4 text-slate-400" />}
+                            </button>
+                          </td>
+                          <td className="px-3 py-2.5 font-medium">{wh.name}</td>
+                          <td className="px-3 py-2.5">
+                            <code className="text-xs text-slate-600 truncate max-w-[180px] block">{wh.url}</code>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="neutral">{wh.events.length} eventos</Badge>
+                              {wh.format === "slack" && (
+                                <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700 uppercase tracking-wide">Slack</span>
+                              )}
+                              {wh.format === "teams" && (
+                                <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 uppercase tracking-wide">Teams</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            {wh.isActive
+                               <Badge variant="success">Activo</Badge>
+                              : <Badge variant="neutral">Inactivo</Badge>}
+                            {wh.failureCount > 0 && (
+                              <span className="ml-1.5 text-[11px] text-rose-500">{wh.failureCount} errores</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            {wh.lastDeliveryAtUtc ? (
+                              <div className="flex items-center gap-1.5">
+                                {wh.lastDeliverySuccess === true
+                                   <CheckCircle2 className="size-3.5 text-emerald-500" />
+                                  : wh.lastDeliverySuccess === false
+                                     <XCircle className="size-3.5 text-rose-500" />
+                                    : <AlertTriangle className="size-3.5 text-slate-400" />}
+                                <span className="text-xs text-slate-500">{new Date(wh.lastDeliveryAtUtc).toLocaleString()}</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-400">Sin entregas</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-right">
+                            <div className="flex justify-end gap-1">
+                              <button
+                                className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                title="Enviar evento de prueba"
+                                onClick={() => mutacionProbar.mutate(wh.id)}
+                              >
+                                <Play className="size-3.5" />
+                              </button>
+                              <button
+                                className={`rounded-md p-1.5 transition ${wh.isActive ? "text-emerald-500 hover:bg-emerald-50" : "text-slate-400 hover:bg-slate-100"}`}
+                                title={wh.isActive ? "Desactivar" : "Activar"}
+                                onClick={() => mutacionToggle.mutate(wh.id)}
+                              >
+                                <Power className="size-3.5" />
+                              </button>
+                              <button
+                                className="rounded-md p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                                title="Eliminar"
+                                onClick={() => setObjetivoEliminar(wh)}
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {webhookExpandido === wh.id && (
+                          <tr>
+                            <td colSpan={7} className="bg-slate-50/80 px-6 py-3">
+                                <div className="space-y-2">
+                                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Historial de entregas</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {wh.events.map((ev) => (
+                                      <span key={ev} className="rounded bg-slate-200 px-1.5 py-0.5 text-[11px] font-mono text-slate-600">{ev}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                                {entregasQuery.isLoading && <p className="text-xs text-slate-400">Cargando historial...</p>}
+                                {entregasQuery.data.length === 0 && <p className="text-xs text-slate-400">Sin entregas registradas.</p>}
+                                {entregasQuery.data.map((d) => (
+                                  <div key={d.id} className={`flex items-center gap-3 rounded-lg px-3 py-2 text-xs ${d.success ? "bg-emerald-50" : "bg-rose-50"}`}>
+                                    {d.success
+                                       <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
+                                      : <XCircle className="size-3.5 text-rose-500 shrink-0" />}
+                                    <span className={`font-medium ${d.success ? "text-emerald-700" : "text-rose-700"}`}>{d.eventType}</span>
+                                    {d.responseStatusCode && (
+                                      <span className={`font-mono px-1.5 py-0.5 rounded text-[11px] ${d.responseStatusCode < 300 ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                                        HTTP {d.responseStatusCode}
+                                      </span>
+                                    )}
+                                    <span className="text-slate-400 ml-auto">{new Date(d.deliveredAtUtc).toLocaleString()}</span>
+                                    {d.errorMessage && <span className="text-rose-500 truncate max-w-[200px]" title={d.errorMessage}>{d.errorMessage}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* â”€â”€ PestaÃ±a Calendarios â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {pestania === "calendars" && (
+        <div className="space-y-4">
+        {/* Google Calendar OAuth Push */}
+        {(() => {
+          const proveedorGoogle = proveedoresCalendarioQuery.data.find((p) => p.provider === "google");
+          const googleHabilitado = proveedorGoogle.enabled ? false;
+          const conn = conexionGoogleQuery.data ? null;
+          return (
+            <Card>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <CardTitle>Google Calendar (push automÃ¡tico)</CardTitle>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Cuando apruebes una vacaciÃ³n o permiso, el evento se crearÃ¡ automÃ¡ticamente en el Google Calendar del empleado que tenga su cuenta conectada.
+                    </p>
+                  </div>
+                  {!conn && googleHabilitado && (
+                    <Button size="sm" onClick={() => mutacionAutorizarGoogle.mutate()} disabled={mutacionAutorizarGoogle.isPending}>
+                      <Globe className="mr-1.5 size-3.5" />
+                      {mutacionAutorizarGoogle.isPending ? "Redirigiendo..." : "Conectar con Google"}
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                                {!googleHabilitado ? (
+                  <Alert
+                    variant="warning"
+                    message="Google Calendar no esta habilitado en el servidor. Configura GoogleCalendar:Enabled, ClientId, ClientSecret y RedirectUri en appsettings para activar esta integracion."
+                  />
+                ) : conexionGoogleQuery.isLoading ? (
+                  <p className="text-xs text-slate-400">Cargando estado de conexiÃ³n...</p>
+                ) : !conn ? (
+                  <p className="text-sm text-slate-500">No tienes ninguna cuenta de Google conectada. Conecta la tuya para recibir vacaciones/permisos aprobados directamente en tu calendario.</p>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="size-4 text-emerald-600" />
+                        <span className="text-sm font-medium">Conectado como <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">{conn.providerAccountEmail}</code></span>
+                        <Badge variant={conn.status === "active" ? "success" : conn.status === "unauthorized" ? "danger" : "warning"}>
+                          {conn.status === "active" ? "Activo" : conn.status === "unauthorized" ? "Reautorizar" : "Error"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Calendario: <code>{conn.calendarId}</code>
+                        {conn.lastSyncAtUtc && <> Â· Ãšltimo sync: {new Date(conn.lastSyncAtUtc).toLocaleString()}</>}
+                      </p>
+                      {conn.lastSyncError && <p className="text-xs text-rose-600">Error: {conn.lastSyncError}</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      {conn.status === "unauthorized" && (
+                        <Button size="sm" variant="ghost" onClick={() => mutacionAutorizarGoogle.mutate()} disabled={mutacionAutorizarGoogle.isPending}>
+                          <RefreshCw className="mr-1.5 size-3.5" /> Reautorizar
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => setDesconectarGoogleAbierto(true)}>
+                        <Trash2 className="mr-1.5 size-3.5" /> Desconectar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        {/* Microsoft / Outlook OAuth Push */}
+        {(() => {
+          const proveedorMs = proveedoresCalendarioQuery.data.find((p) => p.provider === "microsoft");
+          const msHabilitado = proveedorMs.enabled ? false;
+          const conn = conexionMicrosoftQuery.data ? null;
+          return (
+            <Card>
+                <CardHeader>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <CardTitle>Outlook / Microsoft 365 (push automÃ¡tico)</CardTitle>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Sincroniza vacaciones y permisos aprobados con el calendario de Outlook (cuenta personal o de trabajo) del empleado.
+                    </p>
+                  </div>
+                  {!conn && msHabilitado && (
+                    <Button size="sm" onClick={() => mutacionAutorizarMicrosoft.mutate()} disabled={mutacionAutorizarMicrosoft.isPending}>
+                      <Globe className="mr-1.5 size-3.5" />
+                      {mutacionAutorizarMicrosoft.isPending ? "Redirigiendo..." : "Conectar con Microsoft"}
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                                {!msHabilitado ? (
+                  <Alert
+                    variant="warning"
+                    message="Microsoft Calendar no esta habilitado en el servidor. Configura MicrosoftCalendar:Enabled, ClientId, ClientSecret, TenantId y RedirectUri en appsettings."
+                  />
+                ) : conexionMicrosoftQuery.isLoading ? (
+                  <p className="text-xs text-slate-400">Cargando estado de conexiÃ³n...</p>
+                ) : !conn ? (
+                  <p className="text-sm text-slate-500">No tienes ninguna cuenta de Microsoft conectada.</p>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="size-4 text-emerald-600" />
+                        <span className="text-sm font-medium">Conectado como <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">{conn.providerAccountEmail}</code></span>
+                        <Badge variant={conn.status === "active" ? "success" : conn.status === "unauthorized" ? "danger" : "warning"}>
+                          {conn.status === "active" ? "Activo" : conn.status === "unauthorized" ? "Reautorizar" : "Error"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Calendario: <code>{conn.calendarId}</code>
+                        {conn.lastSyncAtUtc && <> Â· Ãšltimo sync: {new Date(conn.lastSyncAtUtc).toLocaleString()}</>}
+                      </p>
+                      {conn.lastSyncError && <p className="text-xs text-rose-600">Error: {conn.lastSyncError}</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      {conn.status === "unauthorized" && (
+                        <Button size="sm" variant="ghost" onClick={() => mutacionAutorizarMicrosoft.mutate()} disabled={mutacionAutorizarMicrosoft.isPending}>
+                          <RefreshCw className="mr-1.5 size-3.5" /> Reautorizar
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => setDesconectarMicrosoftAbierto(true)}>
+                        <Trash2 className="mr-1.5 size-3.5" /> Desconectar
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>Feeds de Calendario (iCal)</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Genera URLs de suscripciÃ³n .ics para sincronizar vacaciones, permisos, feriados y evaluaciones con Google Calendar, Outlook o Apple Calendar.
+                </p>
+              </div>
+              <Button
+                size="lg"
+                className="btn-create"
+                onClick={() => { setNombreCal(""); setScopesCal(["my-vacations"]); setMostrarModalCalendario(true); }}
+              >
+                <Plus className="size-4" /> Nuevo feed
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {feedsCalendarioQuery.isLoading ? (
+              <TableSkeleton rows={4} cols={6} />
+            ) : feedsCalendario.length === 0 ? (
+              <TableEmptyState cols={6} message="AÃºn no has creado feeds de calendario." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-3 py-2.5">Nombre</th>
+                      <th className="px-3 py-2.5">Prefijo</th>
+                      <th className="px-3 py-2.5">Contenido</th>
+                      <th className="px-3 py-2.5">Ultimo acceso</th>
+                      <th className="px-3 py-2.5">Accesos</th>
+                      <th className="px-3 py-2.5 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {feedsCalendario.map((f) => (
+                      <tr key={f.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                        <td className="px-3 py-2.5 font-medium">{f.name}</td>
+                        <td className="px-3 py-2.5">
+                          <code className="rounded bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-700">{f.tokenPrefix}...</code>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <div className="flex flex-wrap gap-1">
+                            {f.scopes.map((s) => (
+                              <span key={s} className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">{s}</span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-slate-500">
+                          {f.lastAccessedAtUtc ? new Date(f.lastAccessedAtUtc).toLocaleString() : "Nunca"}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-slate-500">{f.accessCount}</td>
+                        <td className="px-3 py-2.5 text-right">
+                          <button
+                            className="rounded-md p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                            title="Revocar feed"
+                            onClick={() => setObjetivoRevocarCal(f)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        </div>
+      )}
+
+      {/* â”€â”€ Confirmar desconectar Google â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <ConfirmModal
+        open={desconectarGoogleAbierto}
+        title="Desconectar Google Calendar"
+        message="Â¿Seguro Dejaremos de enviar vacaciones/permisos a tu calendario y revocaremos el acceso. Los eventos ya creados no se eliminarÃ¡n automÃ¡ticamente â€” puedes borrarlos manualmente desde Google."
+        confirmLabel="Desconectar"
+        loading={mutacionDesconectarGoogle.isPending}
+        onConfirm={() => mutacionDesconectarGoogle.mutate()}
+        onClose={() => setDesconectarGoogleAbierto(false)}
+      />
+
+      {/* â”€â”€ Confirmar desconectar Microsoft â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <ConfirmModal
+        open={desconectarMicrosoftAbierto}
+        title="Desconectar Microsoft Calendar"
+        message="Â¿Seguro Dejaremos de enviar eventos a tu calendario de Outlook. Los eventos ya creados no se eliminarÃ¡n automÃ¡ticamente â€” puedes borrarlos manualmente desde Outlook, y revocar el acceso de la app desde https://myapps.microsoft.com."
+        confirmLabel="Desconectar"
+        loading={mutacionDesconectarMicrosoft.isPending}
+        onConfirm={() => mutacionDesconectarMicrosoft.mutate()}
+        onClose={() => setDesconectarMicrosoftAbierto(false)}
+      />
+
+      {/* â”€â”€ Modal Crear Token â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={mostrarModalToken} title="Nuevo API Token" onClose={() => setMostrarModalToken(false)}>
+        <form className="space-y-4" onSubmit={manejarCrearToken}>
+          <FormField label="Nombre del token" required>
+            <Input value={nombreToken} onChange={(e) => setNombreToken(e.target.value)} placeholder="Ej: ERP IntegraciÃ³n" required />
+          </FormField>
+          <FormField label="Descripcion">
+            <Input value={descToken} onChange={(e) => setDescToken(e.target.value)} placeholder="Para quÃ© sistema es este token" />
+          </FormField>
+          <FormField label="Expiracion (dias)">
+            <Select value={vencimientoToken} onChange={(e) => setVencimientoToken(e.target.value)}>
+              <option value="30">30 dÃ­as</option>
+              <option value="90">90 dÃ­as</option>
+              <option value="180">180 dÃ­as</option>
+              <option value="365">1 aÃ±o</option>
+              <option value="">Sin expiraciÃ³n</option>
+            </Select>
+          </FormField>
+          <FormField label="Permisos (scopes)" required>
+            <div className="space-y-1.5 rounded-lg border border-slate-200 p-3">
+              {AVAILABLE_SCOPES.map((s) => (
+                <label key={s.value} className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={scopesToken.includes(s.value)}
+                    onChange={() => alternarScope(s.value)}
+                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span className="text-sm text-slate-700">{s.label}</span>
+                  <code className="ml-auto text-[11px] text-slate-400 font-mono">{s.value}</code>
+                </label>
+              ))}
+            </div>
+          </FormField>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" type="button" onClick={() => setMostrarModalToken(false)}>Cancelar</Button>
+            <Button type="submit" disabled={mutacionCrearToken.isPending || scopesToken.length === 0}>
+              {mutacionCrearToken.isPending ? "Generando..." : "Generar token"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* â”€â”€ Modal Token Creado (mostrar una vez) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={tokenCreado !== null} title="Token generado exitosamente" onClose={() => setTokenCreado(null)}>
+        {tokenCreado && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-sm text-amber-800">
+                  <strong>Guarda este token ahora.</strong> No se mostrarÃ¡ nuevamente por razones de seguridad.
+                </p>
+              </div>
+            </div>
+            <FormField label="Token de API">
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded-lg bg-slate-900 px-3 py-2.5 text-xs text-emerald-400 font-mono break-all select-all">
+                  {tokenCreado.token}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => copiarAlPortapapeles(tokenCreado.token)}
+                  className="rounded-lg border border-slate-200 p-2.5 text-slate-500 hover:bg-slate-50 transition"
+                >
+                  <Copy className="size-4" />
+                </button>
+              </div>
+            </FormField>
+            <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
+              <p><strong>Uso:</strong></p>
+              <code className="block bg-slate-100 rounded px-2 py-1">Authorization: Bearer {tokenCreado.token}</code>
+              <p className="mt-2"><strong>Scopes:</strong> {tokenCreado.scopes.join(", ")}</p>
+              {tokenCreado.expiresAtUtc && (
+                <p><strong>Expira:</strong> {new Date(tokenCreado.expiresAtUtc).toLocaleDateString()}</p>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={() => setTokenCreado(null)}>Entendido, ya guardÃ© el token</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* â”€â”€ Modal Crear Webhook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={mostrarModalWebhook} title="Nuevo Webhook" onClose={() => setMostrarModalWebhook(false)}>
+        <form className="space-y-4" onSubmit={manejarCrearWebhook}>
+          <FormField label="Nombre" required>
+            <Input value={nombreWh} onChange={(e) => setNombreWh(e.target.value)} placeholder="Ej: ERP Notificaciones" required />
+          </FormField>
+          <FormField label="URL del endpoint" required>
+            <Input value={urlWh} onChange={(e) => setUrlWh(e.target.value)} placeholder="https://mi-erp.com/webhooks/hrms" required />
+          </FormField>
+          <FormField label="Descripcion">
+            <Input value={descWh} onChange={(e) => setDescWh(e.target.value)} />
+          </FormField>
+          <FormField label="Formato del payload" required>
+            <Select value={formatoWh} onChange={(e) => setFormatoWh(e.target.value as WebhookPayloadFormat)}>
+              {WEBHOOK_PAYLOAD_FORMATS.map((f) => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </Select>
+            <p className="mt-1 text-[11px] text-slate-500">
+              {WEBHOOK_PAYLOAD_FORMATS.find((f) => f.value === formatoWh).hint}
+            </p>
+          </FormField>
+          <FormField label="Eventos a escuchar" required>
+            <div className="space-y-1.5 rounded-lg border border-slate-200 p-3 max-h-52 overflow-y-auto">
+              {eventosDisponibles.map((ev) => (
+                <label key={ev.eventType} className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={eventosWh.includes(ev.eventType)}
+                    onChange={() => alternarEvento(ev.eventType)}
+                    className="mt-0.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <div>
+                    <p className="text-sm text-slate-700">{ev.description}</p>
+                    <code className="text-[11px] text-slate-400 font-mono">{ev.eventType}</code>
+                  </div>
+                </label>
+              ))}
+              {eventosDisponibles.length === 0 && <p className="text-xs text-slate-400">Cargando eventos...</p>}
+            </div>
+          </FormField>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" type="button" onClick={() => setMostrarModalWebhook(false)}>Cancelar</Button>
+            <Button type="submit" disabled={mutacionCrearWebhook.isPending || eventosWh.length === 0}>
+              {mutacionCrearWebhook.isPending ? "Creando..." : "Crear webhook"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Confirmar revocar token */}
+      <ConfirmModal
+        open={objetivoRevocar !== null}
+        title="Revocar token"
+        message="Esta accion es permanente. El token quedara inutilizable de inmediato."
+        variant="danger"
+        confirmLabel="Revocar"
+        loading={mutacionRevocarToken.isPending}
+        onConfirm={() => { if (objetivoRevocar) mutacionRevocarToken.mutate(objetivoRevocar); }}
+        onClose={() => setObjetivoRevocar(null)}
+      />
+
+      {/* Confirmar rotar token */}
+      <ConfirmModal
+        open={objetivoRotar !== null}
+        title="Rotar token"
+        message="Se generara un nuevo valor para este token. El valor anterior dejara de funcionar de inmediato. El ID, scopes y expiracion se conservan."
+        variant="primary"
+        confirmLabel="Rotar token"
+        loading={mutacionRotarToken.isPending}
+        onConfirm={() => { if (objetivoRotar) mutacionRotarToken.mutate(objetivoRotar); }}
+        onClose={() => setObjetivoRotar(null)}
+      />
+
+      {/* Confirmar eliminar webhook */}
+      <ConfirmModal
+        open={objetivoEliminar !== null}
+        title="Eliminar webhook"
+        message={`Eliminar "${objetivoEliminar.name}" Se perdera el historial de entregas.`}
+        variant="danger"
+        confirmLabel="Eliminar"
+        loading={mutacionEliminarWebhook.isPending}
+        onConfirm={() => { if (objetivoEliminar) mutacionEliminarWebhook.mutate(objetivoEliminar.id); }}
+        onClose={() => setObjetivoEliminar(null)}
+      />
+
+      {/* â”€â”€ Modal Crear Feed de Calendario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={mostrarModalCalendario} title="Nuevo feed de calendario" onClose={() => setMostrarModalCalendario(false)}>
+        <form className="space-y-4" onSubmit={manejarCrearFeedCalendario}>
+          <FormField label="Nombre del feed" required>
+            <Input value={nombreCal} onChange={(e) => setNombreCal(e.target.value)} placeholder="Ej: Mi calendario HRMS" required />
+          </FormField>
+          <FormField label="Que incluir en el feed" required>
+            <div className="space-y-1.5 rounded-lg border border-slate-200 p-3 max-h-64 overflow-y-auto">
+              {scopesCalendarioQuery.isLoading && <p className="text-xs text-slate-400">Cargando scopes...</p>}
+              {scopesCalendario.map((s) => (
+                <label key={s.code} className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={scopesCal.includes(s.code)}
+                    onChange={() => alternarScopeCal(s.code)}
+                    className="mt-0.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-medium text-slate-700">{s.label}</span>
+                      {s.requiresAdminRole && (
+                        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 uppercase tracking-wide">Admin</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500">{s.description}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </FormField>
+          <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 space-y-1">
+            <p><strong>Despues de crear el feed recibiras una URL.</strong> Pegala en:</p>
+            <p>- <strong>Google Calendar:</strong> Otros calendarios â†’ Desde URL</p>
+            <p>- <strong>Outlook:</strong> Agregar calendario â†’ Suscribirse desde la web</p>
+            <p>- <strong>Apple Calendar:</strong> Archivo â†’ Nueva suscripcion de calendario</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" type="button" onClick={() => setMostrarModalCalendario(false)}>Cancelar</Button>
+            <Button type="submit" disabled={mutacionCrearCalendario.isPending || scopesCal.length === 0 || !nombreCal.trim()}>
+              {mutacionCrearCalendario.isPending ? "Creando..." : "Crear feed"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* â”€â”€ Feed de Calendario Creado (mostrar URL una vez) â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={calendarioCreado !== null} title="Feed de calendario generado" onClose={() => setCalendarioCreado(null)}>
+        {calendarioCreado && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-sm text-amber-800">
+                  <strong>Copia esta URL ahora.</strong> No se mostrarÃ¡ nuevamente por seguridad. Si la pierdes, tendrÃ¡s que revocar este feed y crear uno nuevo.
+                </p>
+              </div>
+            </div>
+            <FormField label="URL de suscripcion">
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded-lg bg-slate-900 px-3 py-2.5 text-xs text-emerald-400 font-mono break-all select-all">
+                  {calendarioCreado.feedUrl}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => copiarAlPortapapeles(calendarioCreado.feedUrl)}
+                  className="rounded-lg border border-slate-200 p-2.5 text-slate-500 hover:bg-slate-50 transition"
+                >
+                  <Copy className="size-4" />
+                </button>
+              </div>
+            </FormField>
+            <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
+              <p><strong>Scopes:</strong> {calendarioCreado.scopes.join(", ")}</p>
+              <p className="mt-2"><strong>Como suscribirte:</strong></p>
+              <p>1. Abre tu cliente de calendario (Google / Outlook / Apple).</p>
+              <p>2. Busca la opcion de "Agregar calendario por URL" o "Suscribirse".</p>
+              <p>3. Pega la URL de arriba. El calendario se actualizara automaticamente.</p>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={() => setCalendarioCreado(null)}>Entendido, ya copie la URL</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Confirmar revocar feed de calendario */}
+      <ConfirmModal
+        open={objetivoRevocarCal !== null}
+        title="Revocar feed"
+        message={`Revocar "${objetivoRevocarCal.name}" La URL dejara de funcionar inmediatamente y los clientes de calendario mostraran un error al refrescar.`}
+        variant="danger"
+        confirmLabel="Revocar feed"
+        loading={mutacionRevocarCalendario.isPending}
+        onConfirm={() => { if (objetivoRevocarCal) mutacionRevocarCalendario.mutate(objetivoRevocarCal.id); }}
+        onClose={() => setObjetivoRevocarCal(null)}
+      />
+    </div>
+  );
+}
+
+
+

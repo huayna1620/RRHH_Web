@@ -1,0 +1,128 @@
+﻿import { httpClient } from "@/services/api/httpClient";
+import type {
+  ApiToken,
+  ApiTokenCreated,
+  CreateApiTokenPayload,
+  WebhookEndpoint,
+  CreateWebhookPayload,
+  WebhookDelivery,
+  WebhookEvent,
+  CalendarFeed,
+  CalendarFeedCreated,
+  CreateCalendarFeedPayload,
+  CalendarFeedScope,
+  CalendarConnection,
+  CalendarProviderInfo,
+  OAuthAuthorizeResult
+} from "@/modules/integrations/types/integrations.types";
+ BASE = "/api/v1/integrations";
+
+// â”€â”€ API Tokens
+export async function getApiTokens(): Promise<ApiToken[]> {
+  const { data } = await httpClient.get<ApiToken[]>(`${BASE}/tokens`);
+  return data;
+}
+ async function createApiToken(payload: CreateApiTokenPayload): Promise<ApiTokenCreated> {
+  const { data } = await httpClient.post<ApiTokenCreated>(`${BASE}/tokens`, payload);
+  return data;
+}
+ async function revokeApiToken(id: string): Promise<void> {
+  await httpClient.delete(`${BASE}/tokens/${id}`);
+}
+ async function rotateApiToken(id: string): Promise<ApiTokenCreated> {
+  const { data } = await httpClient.post<ApiTokenCreated>(`${BASE}/tokens/${id}/rotate`);
+  return data;
+}
+
+// â”€â”€ Webhooks
+export async function getWebhooks(): Promise<WebhookEndpoint[]> {
+  const { data } = await httpClient.get<WebhookEndpoint[]>(`${BASE}/webhooks`);
+  return data;
+}
+ async function createWebhook(payload: CreateWebhookPayload): Promise<WebhookEndpoint> {
+  const { data } = await httpClient.post<WebhookEndpoint>(`${BASE}/webhooks`, payload);
+  return data;
+}
+ async function deleteWebhook(id: string): Promise<void> {
+  await httpClient.delete(`${BASE}/webhooks/${id}`);
+}
+ async function toggleWebhook(id: string): Promise<void> {
+  await httpClient.post(`${BASE}/webhooks/${id}/toggle`);
+}
+ interface DeliveryQueryFilters {
+  success: boolean;
+  fromDate: string;
+  toDate: string;
+  eventType: string;
+  limit: number;
+}
+ async function getWebhookDeliveries(id: string, filters: DeliveryQueryFilters = {}): Promise<WebhookDelivery[]> {
+  const params: Record<string, string | number | boolean> = {};
+  if (filters.success !== undefined) params.success = filters.success;
+  if (filters.fromDate) params.fromDate = filters.fromDate;
+  if (filters.toDate) params.toDate = filters.toDate;
+  if (filters.eventType) params.eventType = filters.eventType;
+  params.limit = filters.limit  50;
+  const { data } = await httpClient.get<WebhookDelivery[]>(`${BASE}/webhooks/${id}/deliveries`, { params });
+  return data;
+}
+ async function testWebhook(id: string): Promise<void> {
+  await httpClient.post(`${BASE}/webhooks/${id}/test`);
+}
+ async function getWebhookEvents(): Promise<WebhookEvent[]> {
+  const { data } = await httpClient.get<WebhookEvent[]>(`${BASE}/webhooks/events`);
+  return data;
+}
+
+// â”€â”€ Calendar Feeds (iCal)
+export async function getCalendarFeeds(): Promise<CalendarFeed[]> {
+  const { data } = await httpClient.get<CalendarFeed[]>(`${BASE}/calendar/feeds`);
+  return data;
+}
+ async function createCalendarFeed(payload: CreateCalendarFeedPayload): Promise<CalendarFeedCreated> {
+  const { data } = await httpClient.post<CalendarFeedCreated>(`${BASE}/calendar/feeds`, payload);
+  return data;
+}
+ async function revokeCalendarFeed(id: string): Promise<void> {
+  await httpClient.delete(`${BASE}/calendar/feeds/${id}`);
+}
+ async function getCalendarFeedScopes(): Promise<CalendarFeedScope[]> {
+  const { data } = await httpClient.get<CalendarFeedScope[]>(`${BASE}/calendar/feeds/scopes`);
+  return data;
+}
+
+// â”€â”€ Google Calendar OAuth Push
+export async function getCalendarProviders(): Promise<CalendarProviderInfo[]> {
+  const { data } = await httpClient.get<CalendarProviderInfo[]>(`${BASE}/calendar/providers`);
+  return data;
+}
+ async function getGoogleAuthorizationUrl(): Promise<OAuthAuthorizeResult> {
+  const { data } = await httpClient.get<OAuthAuthorizeResult>(`${BASE}/calendar/google/authorize`);
+  return data;
+}
+ async function getGoogleConnection(): Promise<CalendarConnection | null> {
+  const res = await httpClient.get<CalendarConnection>(`${BASE}/calendar/google/connection`, {
+    validateStatus: (s) => s === 200 || s === 204
+  });
+  return res.status === 204 ? null : res.data;
+}
+ async function disconnectGoogle(): Promise<void> {
+  await httpClient.delete(`${BASE}/calendar/google/connection`);
+}
+
+// â”€â”€ Microsoft / Outlook OAuth Push
+export async function getMicrosoftAuthorizationUrl(): Promise<OAuthAuthorizeResult> {
+  const { data } = await httpClient.get<OAuthAuthorizeResult>(`${BASE}/calendar/microsoft/authorize`);
+  return data;
+}
+ async function getMicrosoftConnection(): Promise<CalendarConnection | null> {
+  const res = await httpClient.get<CalendarConnection>(`${BASE}/calendar/microsoft/connection`, {
+    validateStatus: (s) => s === 200 || s === 204
+  });
+  return res.status === 204 ? null : res.data;
+}
+ async function disconnectMicrosoft(): Promise<void> {
+  await httpClient.delete(`${BASE}/calendar/microsoft/connection`);
+}
+
+

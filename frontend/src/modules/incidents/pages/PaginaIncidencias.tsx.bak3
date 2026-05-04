@@ -1,0 +1,364 @@
+﻿import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, CheckCircle, Clock, RefreshCw, Search, XCircle } from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
+import { JustifyIncidentModal } from "@/modules/incidents/components/JustifyIncidentModal";
+import { ReviewIncidentModal } from "@/modules/incidents/components/ReviewIncidentModal";
+import {
+  getIncidents,
+  getIncidentStats,
+  submitJustification,
+  approveIncident,
+  rejectIncident,
+  expireOpenIncidents
+} from "@/modules/incidents/services/incidentsApi";
+import type { AttendanceIncident, AttendanceIncidentQuery } from "@/modules/incidents/types/incident.types";
+ PAGE_SIZE = 20;
+ BadgeVariant = "success" | "danger" | "neutral" | "warning" | "info";
+ statusConfig: Record<string, { label: string; variant: BadgeVariant }> = {
+  open: { label: "Abierta", variant: "warning" },
+  justified: { label: "Justificada", variant: "success" },
+  rejected: { label: "Rechazada", variant: "danger" },
+  expired: { label: "Expirada", variant: "neutral" }
+};
+ typeConfig: Record<string, { label: string; variant: BadgeVariant }> = {
+  tardanza: { label: "Tardanza", variant: "warning" },
+  falta: { label: "Falta", variant: "danger" },
+  salida_anticipada: { label: "Salida anticipada", variant: "info" },
+  no_marcacion: { label: "Sin marcaciÃ³n", variant: "neutral" }
+};
+ function PaginaIncidencias(): JSX.Element {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const canJustify = user.permissions.includes("attendance.incidents.justify") ? false;
+  const canApprove = user.permissions.includes("attendance.incidents.approve") ? false;
+
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const [justifyTarget, setJustifyTarget] = useState<AttendanceIncident | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<AttendanceIncident | null>(null);
+
+  const query: AttendanceIncidentQuery = {
+    search: search || undefined,
+    incidentType: filterType || undefined,
+    status: filterStatus || undefined,
+    pageNumber: page,
+    pageSize: PAGE_SIZE
+  };
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["incidents", query],
+    queryFn: () => getIncidents(query)
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ["incidents", "stats", query],
+    queryFn: () => getIncidentStats(query)
+  });
+
+  const justifyMutation = useMutation({
+    mutationFn: ({ id, text }: { id: string; text: string }) => submitJustification(id, text),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      setJustifyTarget(null);
+      setFeedback({ type: "success", message: "JustificaciÃ³n enviada correctamente." });
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo enviar la justificaciÃ³n." })
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: ({ id, comment }: { id: string; comment: string }) => approveIncident(id, comment),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      setReviewTarget(null);
+      setFeedback({ type: "success", message: "Incidencia aprobada." });
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo aprobar la incidencia." })
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, comment }: { id: string; comment: string }) => rejectIncident(id, comment),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      setReviewTarget(null);
+      setFeedback({ type: "success", message: "Incidencia rechazada." });
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo rechazar la incidencia." })
+  });
+
+  const expireMutation = useMutation({
+    mutationFn: expireOpenIncidents,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      setFeedback({
+        type: "success",
+        message: result.expiredCount > 0
+           `Se expiraron ${result.expiredCount} incidencia(s).`
+          : "No hay incidencias vencidas pendientes."
+      });
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo ejecutar el proceso de expiraciÃ³n." })
+  });
+
+  const totalPages = data ? Math.ceil(data.totalCount / PAGE_SIZE) : 0;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Incidencias de Asistencia"
+        description="GestiÃ³n de tardanzas, faltas, salidas anticipadas y justificaciones."
+      />
+
+      {feedback && (
+        <Alert
+          variant={feedback.type === "success" ? "success" : "error"}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
+      )}
+
+      {/* KPI Summary â€” global counters from backend, honoring current filters */}
+      <div className="grid gap-4 sm:grid-cols-4">
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <AlertTriangle className="size-8 text-amber-500" />
+            <div>
+              <p className="text-2xl font-bold">{stats.total  0}</p>
+              <p className="text-xs text-slate-500">Total incidencias</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <Clock className="size-8 text-blue-500" />
+            <div>
+              <p className="text-2xl font-bold">{stats.open  0}</p>
+              <p className="text-xs text-slate-500">
+                Abiertas
+                {stats.openPendingReview ? ` Â· ${stats.openPendingReview} pend. rev.` : ""}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <CheckCircle className="size-8 text-emerald-500" />
+            <div>
+              <p className="text-2xl font-bold">{stats.justified  0}</p>
+              <p className="text-xs text-slate-500">Justificadas</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <XCircle className="size-8 text-rose-500" />
+            <div>
+              <p className="text-2xl font-bold">{(stats.rejected  0) + (stats.expired  0)}</p>
+              <p className="text-xs text-slate-500">Rechazadas/Expiradas</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <CardTitle>Listado de incidencias</CardTitle>
+              {data.totalCount ? (
+                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+                  {data.totalCount} registros
+                </span>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {canApprove && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => expireMutation.mutate()}
+                  disabled={expireMutation.isPending}
+                >
+                  <RefreshCw className="mr-1.5 size-3.5" />
+                  {expireMutation.isPending ? "Procesando..." : "Expirar vencidas"}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr]">
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Buscar</label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+                <Input
+                  className="pl-8"
+                  placeholder="Buscar empleado..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Tipo</label>
+              <Select value={filterType} onChange={(e) => { setFilterType(e.target.value); setPage(1); }}>
+                <option value="">Todos los tipos</option>
+                <option value="tardanza">Tardanza</option>
+                <option value="falta">Falta</option>
+                <option value="salida_anticipada">Salida anticipada</option>
+                <option value="no_marcacion">Sin marcaciÃ³n</option>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Estado</label>
+              <Select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
+                <option value="">Todos los estados</option>
+                <option value="open">Abierta</option>
+                <option value="justified">Justificada</option>
+                <option value="rejected">Rechazada</option>
+                <option value="expired">Expirada</option>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <tbody>
+                  <TableSkeleton rows={8} cols={7} />
+                </tbody>
+              </table>
+            </div>
+          ) : !data || data.items.length === 0 ? (
+            <TableEmptyState cols={7} message="No se encontraron incidencias." />
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-3 py-2.5">Empleado</th>
+                      <th className="px-3 py-2.5">Fecha</th>
+                      <th className="px-3 py-2.5">Tipo</th>
+                      <th className="px-3 py-2.5">Impacto</th>
+                      <th className="px-3 py-2.5">Estado</th>
+                      <th className="px-3 py-2.5">Plazo</th>
+                      <th className="px-3 py-2.5 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.items.map((incident) => {
+                      const typeCfg = typeConfig[incident.incidentType]  { label: incident.incidentType, variant: "neutral" as BadgeVariant };
+                      const statusCfg = statusConfig[incident.status]  { label: incident.status, variant: "neutral" as BadgeVariant };
+                      const isExpiredOrPastDeadline = incident.justificationDeadlineUtc
+                         new Date(incident.justificationDeadlineUtc) < new Date()
+                        : false;
+
+                      return (
+                        <tr key={incident.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                          <td className="px-3 py-2.5">
+                            <p className="font-medium">{incident.employeeName}</p>
+                            <p className="text-xs text-slate-400">{incident.area}</p>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs">
+                            {incident.incidentDate}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <Badge variant={typeCfg.variant}>{typeCfg.label}</Badge>
+                          </td>
+                          <td className="px-3 py-2.5 text-xs">
+                            {incident.minutesImpacted > 0 ? `${incident.minutesImpacted} min` : "â€”"}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
+                            {incident.justificationText && incident.status === "open" && (
+                              <span className="ml-1 text-xs text-blue-500">Â· pendiente revisiÃ³n</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-xs">
+                            {incident.justificationDeadlineUtc ? (
+                              <span className={isExpiredOrPastDeadline ? "text-rose-500" : "text-slate-500"}>
+                                {new Date(incident.justificationDeadlineUtc).toLocaleDateString("es-PE")}
+                              </span>
+                            ) : "â€”"}
+                          </td>
+                          <td className="px-3 py-2.5 text-right">
+                            <div className="flex justify-end gap-1">
+                              {/* Justify button: allowed while incident is Open (re-edit before review) */}
+                              {canJustify && incident.status === "open" && (
+                                <button
+                                  className="rounded-md px-2 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
+                                  onClick={() => setJustifyTarget(incident)}
+                                >
+                                  {incident.justificationText ? "Editar" : "Justificar"}
+                                </button>
+                              )}
+                              {/* Review button: for open incidents that have been justified */}
+                              {canApprove && incident.status === "open" && (
+                                <button
+                                  className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
+                                  onClick={() => setReviewTarget(incident)}
+                                >
+                                  Revisar
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {totalPages > 1 && (
+                <div className="mt-4">
+                  <Pagination
+                    page={page}
+                    totalPages={totalPages}
+                    totalCount={data.totalCount}
+                    pageSize={PAGE_SIZE}
+                    onChange={setPage}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modals */}
+      <JustifyIncidentModal
+        incident={justifyTarget}
+        saving={justifyMutation.isPending}
+        onClose={() => setJustifyTarget(null)}
+        onSubmit={(id, text) => justifyMutation.mutate({ id, text })}
+      />
+
+      <ReviewIncidentModal
+        incident={reviewTarget}
+        saving={approveMutation.isPending || rejectMutation.isPending}
+        onClose={() => setReviewTarget(null)}
+        onApprove={(id, comment) => approveMutation.mutate({ id, comment })}
+        onReject={(id, comment) => rejectMutation.mutate({ id, comment })}
+      />
+    </div>
+  );
+}
+
+

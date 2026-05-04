@@ -1,0 +1,576 @@
+﻿import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  CheckCircle2,
+  Clock,
+  Eye,
+  FileSignature,
+  FileText,
+  ListChecks,
+  Plus,
+  Send,
+  Trash2,
+  XCircle
+} from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Modal } from "@/components/ui/modal";
+import { FormField } from "@/components/forms/FormField";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import {
+  getDocumentTemplates,
+  createDocumentTemplate,
+  deleteDocumentTemplate,
+  getDocuments,
+  createDocument,
+  sendForSignature,
+  signDocument,
+  rejectDocument
+} from "@/modules/documents/services/documentsApi";
+import { getEmployees } from "@/modules/employees/services/employeesApi";
+import type { DocumentTemplate, EmployeeDocument } from "@/modules/documents/types/documents.types";
+ Pestania = "documents" | "templates";
+ CONFIG_ESTADOS: Record<string, { label: string; variant: "neutral" | "warning" | "success" | "danger"; icon: typeof FileText }> = {
+  draft: { label: "Borrador", variant: "neutral", icon: FileText },
+  pending_signature: { label: "Pendiente firma", variant: "warning", icon: Clock },
+  signed: { label: "Firmado", variant: "success", icon: CheckCircle2 },
+  rejected: { label: "Rechazado", variant: "danger", icon: XCircle }
+};
+ TIPOS_DOC: Record<string, string> = {
+  contract: "Contrato",
+  certificate: "Constancia",
+  receipt: "Recibo",
+  memo: "MemorÃ¡ndum"
+};
+ function PaginaDocumentos(): JSX.Element {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const permisos = user.permissions ?? [];
+  const puedeCrear = permisos.includes("documents.create");
+  const puedeEditar = permisos.includes("documents.edit");
+
+  const [pestania, setPestania] = useState<Pestania>("documents");
+  const [retroalimentacion, setRetroalimentacion] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [filtroEstado, setFiltroEstado] = useState("");
+
+  // Formulario de plantilla
+  const [mostrarModalPlantilla, setMostrarModalPlantilla] = useState(false);
+  const [nombreTpl, setNombreTpl] = useState("");
+  const [tipoTpl, setTipoTpl] = useState("contract");
+  const [descTpl, setDescTpl] = useState("");
+  const [htmlTpl, setHtmlTpl] = useState("");
+  const [objetivoEliminar, setObjetivoEliminar] = useState<DocumentTemplate | null>(null);
+
+  // Formulario de documento
+  const [mostrarModalDoc, setMostrarModalDoc] = useState(false);
+  const [empleadoDoc, setEmpleadoDoc] = useState("");
+  const [plantillaDoc, setPlantillaDoc] = useState("");
+  const [tituloDoc, setTituloDoc] = useState("");
+  const [tipoDoc, setTipoDoc] = useState("contract");
+  const [htmlDoc, setHtmlDoc] = useState("");
+
+  // Vista previa / rechazo
+  const [vistaPrevia, setVistaPrevia] = useState<EmployeeDocument | null>(null);
+  const [objetivoRechazo, setObjetivoRechazo] = useState<EmployeeDocument | null>(null);
+  const [motivoRechazo, setMotivoRechazo] = useState("");
+
+  // Consultas
+  const plantillasQuery = useQuery({ queryKey: ["doc-templates"], queryFn: getDocumentTemplates });
+  const documentosQuery = useQuery({
+    queryKey: ["documents", filtroEstado],
+    queryFn: () => getDocuments(undefined, filtroEstado || undefined)
+  });
+  const empleadosQuery = useQuery({
+    queryKey: ["employees-list-docs"],
+    queryFn: () => getEmployees({ pageNumber: 1, pageSize: 500, isActive: true }),
+    enabled: mostrarModalDoc
+  });
+
+  // Mutaciones
+  const mutacionCrearTpl = useMutation({
+    mutationFn: createDocumentTemplate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["doc-templates"] });
+      setMostrarModalPlantilla(false);
+      setRetroalimentacion({ type: "success", message: "Plantilla creada." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo crear la plantilla." })
+  });
+
+  const mutacionEliminarTpl = useMutation({
+    mutationFn: deleteDocumentTemplate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["doc-templates"] });
+      setObjetivoEliminar(null);
+      setRetroalimentacion({ type: "success", message: "Plantilla eliminada." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo eliminar." })
+  });
+
+  const mutacionCrearDoc = useMutation({
+    mutationFn: createDocument,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      setMostrarModalDoc(false);
+      setRetroalimentacion({ type: "success", message: "Documento creado." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo crear el documento." })
+  });
+
+  const mutacionEnviar = useMutation({
+    mutationFn: sendForSignature,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      setRetroalimentacion({ type: "success", message: "Documento enviado para firma." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo enviar." })
+  });
+
+  const mutacionFirmar = useMutation({
+    mutationFn: signDocument,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      setVistaPrevia(null);
+      setRetroalimentacion({ type: "success", message: "Documento firmado exitosamente." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo firmar." })
+  });
+
+  const mutacionRechazar = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => rejectDocument(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      setObjetivoRechazo(null);
+      setRetroalimentacion({ type: "success", message: "Documento rechazado." });
+    },
+    onError: () => setRetroalimentacion({ type: "error", message: "No se pudo rechazar." })
+  });
+
+  function abrirModalPlantilla(): void {
+    setNombreTpl(""); setTipoTpl("contract"); setDescTpl(""); setHtmlTpl("");
+    setMostrarModalPlantilla(true);
+  }
+
+  function manejarCrearPlantilla(e: React.FormEvent): void {
+    e.preventDefault();
+    if (!nombreTpl.trim() || !htmlTpl.trim()) return;
+    mutacionCrearTpl.mutate({ name: nombreTpl.trim(), type: tipoTpl, htmlContent: htmlTpl, description: descTpl.trim() });
+  }
+
+  function abrirModalDoc(): void {
+    setEmpleadoDoc(""); setPlantillaDoc(""); setTituloDoc(""); setTipoDoc("contract"); setHtmlDoc("");
+    setMostrarModalDoc(true);
+  }
+
+  function seleccionarPlantilla(plantillaId: string): void {
+    setPlantillaDoc(plantillaId);
+    if (plantillaId) {
+      const tpl = plantillas.find((t) => t.id === plantillaId);
+      if (tpl) {
+        setTipoDoc(tpl.type);
+        setHtmlDoc(tpl.htmlContent);
+        if (!tituloDoc) setTituloDoc(tpl.name);
+      }
+    }
+  }
+
+  function manejarCrearDoc(e: React.FormEvent): void {
+    e.preventDefault();
+    if (!empleadoDoc || !tituloDoc.trim() || !htmlDoc.trim()) return;
+    mutacionCrearDoc.mutate({
+      employeeId: empleadoDoc,
+      templateId: plantillaDoc || null,
+      title: tituloDoc.trim(),
+      type: tipoDoc,
+      htmlContent: htmlDoc
+    });
+  }
+
+  const plantillas = plantillasQuery.data ?? [];
+  const documentos = documentosQuery.data ?? [];
+  const empleados = empleadosQuery.data.items ?? [];
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Documentos y Firma Digital" description="Gestiona contratos, constancias y recibos con firma electronica." />
+
+      {retroalimentacion && (
+        <Alert variant={retroalimentacion.type === "success" ? "success" : "error"} message={retroalimentacion.message} onClose={() => setRetroalimentacion(null)} />
+      )}
+
+      {/* Tarjetas KPI */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {(["draft", "pending_signature", "signed", "rejected"] as const).map((s) => {
+          const cfg = CONFIG_ESTADOS[s];
+          const Icon = cfg.icon;
+          const cantidad = documentos.filter((d) => d.status === s).length;
+          return (
+            <button
+              key={s}
+              onClick={() => setFiltroEstado(filtroEstado === s ? "" : s)}
+              className={`rounded-xl border p-4 text-left transition hover:shadow-sm ${
+                filtroEstado === s ? "border-brand-300 bg-brand-50" : "border-slate-200 bg-white"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Icon className="size-4 text-slate-400" />
+                <span className="text-xs font-medium text-slate-500">{cfg.label}</span>
+              </div>
+              <p className="mt-1 text-2xl font-bold text-slate-800">{cantidad}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* PestaÃ±as */}
+      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+        <button
+          onClick={() => setPestania("documents")}
+          className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition ${
+            pestania === "documents" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <FileSignature className="size-4" /> Documentos
+        </button>
+        <button
+          onClick={() => setPestania("templates")}
+          className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition ${
+            pestania === "templates" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <ListChecks className="size-4" /> Plantillas
+        </button>
+      </div>
+
+      {/* â”€â”€ PestaÃ±a Documentos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {pestania === "documents" && (
+        <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle>Documentos</CardTitle>
+              {puedeCrear && (
+                <Button size="lg" className="btn-create" onClick={abrirModalDoc}>
+                  <Plus className="size-4" /> Nuevo documento
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {documentosQuery.isLoading ? (
+              <TableSkeleton rows={5} cols={7} />
+            ) : documentos.length === 0 ? (
+              <TableEmptyState cols={7} message="No hay documentos." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-3 py-2.5">Titulo</th>
+                      <th className="px-3 py-2.5">Empleado</th>
+                      <th className="px-3 py-2.5">Tipo</th>
+                      <th className="px-3 py-2.5">Estado</th>
+                      <th className="px-3 py-2.5">Fecha</th>
+                      <th className="px-3 py-2.5">Firma</th>
+                      <th className="px-3 py-2.5 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documentos.map((doc) => {
+                      const cfg = CONFIG_ESTADOS[doc.status] ? CONFIG_ESTADOS.draft;
+                      return (
+                        <tr key={doc.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                          <td className="px-3 py-2.5 font-medium">{doc.title}</td>
+                          <td className="px-3 py-2.5">
+                            <div>
+                              <p className="text-sm">{doc.employeeName}</p>
+                              <p className="text-xs text-slate-400">{doc.employeeCode}</p>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <Badge variant="neutral">{TIPOS_DOC[doc.type] ? doc.type}</Badge>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                          </td>
+                          <td className="px-3 py-2.5 whitespace-nowrap text-xs font-mono text-slate-500">
+                            {new Date(doc.createdAtUtc).toLocaleDateString()}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            {doc.signedAtUtc ? (
+                              <div className="text-xs">
+                                <p className="text-emerald-600 font-medium">{doc.signedByUserName}</p>
+                                <p className="text-slate-400">{new Date(doc.signedAtUtc).toLocaleDateString()}</p>
+                              </div>
+                            ) : doc.rejectionReason ? (
+                              <p className="text-xs text-rose-500 truncate max-w-[120px]" title={doc.rejectionReason}>
+                                {doc.rejectionReason}
+                              </p>
+                            ) : (
+                              <span className="text-xs text-slate-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-right">
+                            <div className="flex justify-end gap-1">
+                              <button
+                                className="rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                title="Ver documento"
+                                onClick={() => setVistaPrevia(doc)}
+                              >
+                                <Eye className="size-3.5" />
+                              </button>
+                              {puedeEditar && doc.status === "draft" && (
+                                <button
+                                  className="rounded-md p-1.5 text-slate-400 transition hover:bg-blue-50 hover:text-blue-600"
+                                  title="Enviar para firma"
+                                  onClick={() => mutacionEnviar.mutate(doc.id)}
+                                >
+                                  <Send className="size-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* â”€â”€ PestaÃ±a Plantillas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {pestania === "templates" && (
+        <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle>Plantillas de documento</CardTitle>
+              {puedeCrear && (
+                <Button size="lg" className="btn-create" onClick={abrirModalPlantilla}>
+                  <Plus className="size-4" /> Nueva plantilla
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {plantillasQuery.isLoading ? (
+              <TableSkeleton rows={4} cols={4} />
+            ) : plantillas.length === 0 ? (
+              <TableEmptyState cols={4} message="No hay plantillas." />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      <th className="px-3 py-2.5">Nombre</th>
+                      <th className="px-3 py-2.5">Tipo</th>
+                      <th className="px-3 py-2.5">Descripcion</th>
+                      {puedeEditar && <th className="px-3 py-2.5 text-right">Acciones</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {plantillas.map((t) => (
+                      <tr key={t.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                        <td className="px-3 py-2.5 font-medium">{t.name}</td>
+                        <td className="px-3 py-2.5">
+                          <Badge variant="neutral">{TIPOS_DOC[t.type] ? t.type}</Badge>
+                        </td>
+                        <td className="px-3 py-2.5 text-slate-500 max-w-xs truncate">{t.description ? "-"}</td>
+                        {puedeEditar && (
+                          <td className="px-3 py-2.5 text-right">
+                            <button
+                              className="rounded-md p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                              onClick={() => setObjetivoEliminar(t)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* â”€â”€ Modal Crear Plantilla â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={mostrarModalPlantilla} title="Nueva plantilla de documento" onClose={() => setMostrarModalPlantilla(false)}>
+        <form className="space-y-4" onSubmit={manejarCrearPlantilla}>
+          <FormField label="Nombre" required>
+            <Input value={nombreTpl} onChange={(e) => setNombreTpl(e.target.value)} required />
+          </FormField>
+          <FormField label="Tipo">
+            <Select value={tipoTpl} onChange={(e) => setTipoTpl(e.target.value)}>
+              {Object.entries(TIPOS_DOC).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Descripcion">
+            <Input value={descTpl} onChange={(e) => setDescTpl(e.target.value)} />
+          </FormField>
+          <FormField label="Contenido HTML" required>
+            <textarea
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              rows={8}
+              value={htmlTpl}
+              onChange={(e) => setHtmlTpl(e.target.value)}
+              placeholder="<h1>Contrato de trabajo</h1>&#10;<p>Empleado: {{employeeName}} ({{employeeCode}})</p>&#10;<p>Documento: {{documentNumber}}</p>&#10;<p>Fecha ingreso: {{hireDate}}</p>&#10;<p>Salario: S/ {{salary}}</p>"
+              required
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Variables: {"{{employeeName}}, {{employeeCode}}, {{documentNumber}}, {{hireDate}}, {{currentDate}}, {{salary}}"}
+            </p>
+          </FormField>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" type="button" onClick={() => setMostrarModalPlantilla(false)}>Cancelar</Button>
+            <Button type="submit" disabled={mutacionCrearTpl.isPending}>
+              {mutacionCrearTpl.isPending ? "Creando..." : "Crear plantilla"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* â”€â”€ Modal Crear Documento â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={mostrarModalDoc} title="Nuevo documento" onClose={() => setMostrarModalDoc(false)}>
+        <form className="space-y-4" onSubmit={manejarCrearDoc}>
+          <FormField label="Empleado" required>
+            <Select value={empleadoDoc} onChange={(e) => setEmpleadoDoc(e.target.value)} required>
+              <option value="">Seleccionar...</option>
+              {empleados.map((emp) => (
+                <option key={emp.id} value={emp.id}>{emp.employeeCode} - {emp.fullName}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Desde plantilla (opcional)">
+            <Select value={plantillaDoc} onChange={(e) => seleccionarPlantilla(e.target.value)}>
+              <option value="">Sin plantilla (contenido libre)</option>
+              {plantillas.filter((t) => t.isActive).map((t) => (
+                <option key={t.id} value={t.id}>{t.name} ({TIPOS_DOC[t.type] ? t.type})</option>
+              ))}
+            </Select>
+          </FormField>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Titulo" required>
+              <Input value={tituloDoc} onChange={(e) => setTituloDoc(e.target.value)} required />
+            </FormField>
+            <FormField label="Tipo">
+              <Select value={tipoDoc} onChange={(e) => setTipoDoc(e.target.value)}>
+                {Object.entries(TIPOS_DOC).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </Select>
+            </FormField>
+          </div>
+          <FormField label="Contenido del documento" required>
+            <textarea
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              rows={8}
+              value={htmlDoc}
+              onChange={(e) => setHtmlDoc(e.target.value)}
+              required
+            />
+          </FormField>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" type="button" onClick={() => setMostrarModalDoc(false)}>Cancelar</Button>
+            <Button type="submit" disabled={mutacionCrearDoc.isPending}>
+              {mutacionCrearDoc.isPending ? "Creando..." : "Crear documento"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* â”€â”€ Modal Vista previa / Firmar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={vistaPrevia !== null} title={vistaPrevia.title ? "Documento"} onClose={() => setVistaPrevia(null)}>
+        {vistaPrevia && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-sm text-slate-600">
+              <Badge variant={CONFIG_ESTADOS[vistaPrevia.status].variant ? "neutral"}>
+                {CONFIG_ESTADOS[vistaPrevia.status].label ? vistaPrevia.status}
+              </Badge>
+              <span>{vistaPrevia.employeeName} ({vistaPrevia.employeeCode})</span>
+            </div>
+
+            {/* Vista previa del documento */}
+            <div
+              className="rounded-lg border border-slate-200 bg-white p-6 prose prose-sm max-w-none max-h-80 overflow-y-auto"
+              dangerouslySetInnerHTML={{ __html: vistaPrevia.htmlContent }}
+            />
+
+            {vistaPrevia.signatureHash && (
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+                <p className="text-xs font-medium text-emerald-700">Firma digital verificada</p>
+                <p className="text-[11px] text-emerald-500 font-mono mt-1 break-all">{vistaPrevia.signatureHash}</p>
+                <p className="text-[11px] text-emerald-600 mt-1">
+                  Firmado por {vistaPrevia.signedByUserName} el {new Date(vistaPrevia.signedAtUtc!).toLocaleString()}
+                </p>
+              </div>
+            )}
+
+            {vistaPrevia.status === "pending_signature" && (
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => { setObjetivoRechazo(vistaPrevia); setVistaPrevia(null); setMotivoRechazo(""); }}>
+                  <XCircle className="mr-1.5 size-3.5" /> Rechazar
+                </Button>
+                <Button onClick={() => mutacionFirmar.mutate(vistaPrevia.id)} disabled={mutacionFirmar.isPending}>
+                  <CheckCircle2 className="mr-1.5 size-3.5" />
+                  {mutacionFirmar.isPending ? "Firmando..." : "Firmar documento"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* â”€â”€ Modal Rechazar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal open={objetivoRechazo !== null} title="Rechazar documento" onClose={() => setObjetivoRechazo(null)}>
+        {objetivoRechazo && (
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (motivoRechazo.trim()) mutacionRechazar.mutate({ id: objetivoRechazo.id, reason: motivoRechazo.trim() }); }}>
+            <p className="text-sm text-slate-600">Rechazar: <span className="font-medium">{objetivoRechazo.title}</span></p>
+            <FormField label="Motivo del rechazo" required>
+              <textarea
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                rows={3}
+                value={motivoRechazo}
+                onChange={(e) => setMotivoRechazo(e.target.value)}
+                required
+              />
+            </FormField>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" type="button" onClick={() => setObjetivoRechazo(null)}>Cancelar</Button>
+              <Button type="submit" disabled={mutacionRechazar.isPending}>
+                {mutacionRechazar.isPending ? "Rechazando..." : "Confirmar rechazo"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Confirmar eliminar plantilla */}
+      <ConfirmModal
+        open={objetivoEliminar !== null}
+        title="Eliminar plantilla"
+        message={`Seguro que deseas eliminar la plantilla "${objetivoEliminar.name}"`}
+        variant="danger"
+        confirmLabel="Eliminar"
+        loading={mutacionEliminarTpl.isPending}
+        onConfirm={() => { if (objetivoEliminar) mutacionEliminarTpl.mutate(objetivoEliminar.id); }}
+        onClose={() => setObjetivoEliminar(null)}
+      />
+    </div>
+  );
+}
+
+

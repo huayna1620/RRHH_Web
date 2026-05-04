@@ -1,0 +1,66 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+type PaginationProps = {
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  pageSize: number;
+  onChange: (page: number) => void;
+};
+
+export function Pagination({
+  page,
+  totalPages,
+  totalCount,
+  pageSize,
+  onChange
+}: PaginationProps): JSX.Element {
+  const from = totalCount > 0  (page - 1) * pageSize + 1 : 0;
+  const to = Math.min(page * pageSize, totalCount);
+
+  return (
+    <div className="flex flex-col gap-3 pt-4 text-[13px] sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-muted">
+        {totalCount > 0  (
+          <>
+            <span className="font-semibold text-slate-700">{from}–{to}</span>
+            {" de "}
+            <span className="font-semibold text-slate-700">{totalCount}</span>
+            {" registros"}
+          </>
+        ) : (
+          "0 registros"
+        )}
+      </p>
+
+      <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex sm:w-auto sm:gap-1">
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={page <= 1}
+          onClick={() => onChange(page - 1)}
+          aria-label="Página anterior"
+        >
+          <ChevronLeft className="size-3.5" />
+          Anterior
+        </Button>
+
+        <span className="min-w-[72px] text-center text-muted">
+          {page} / {totalPages}
+        </span>
+
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={page >= totalPages}
+          onClick={() => onChange(page + 1)}
+          aria-label="Página siguiente"
+        >
+          Siguiente
+          <ChevronRight className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}

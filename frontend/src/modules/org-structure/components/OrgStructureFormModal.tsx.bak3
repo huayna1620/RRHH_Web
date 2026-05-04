@@ -1,0 +1,93 @@
+﻿import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { FormField } from "@/components/forms/FormField";
+import type { OrgItem, OrgModuleType, OrgPayload } from "@/modules/org-structure/types/orgStructure.types";
+ schema = z.object({
+  code: z.string().min(2, "Codigo requerido"),
+  name: z.string().min(2, "Nombre requerido")
+});
+ FormValues = z.infer<typeof schema>;
+ OrgStructureFormModalProps = {
+  open: boolean;
+  moduleType: OrgModuleType;
+  mode: "create" | "edit";
+  saving: boolean;
+  item: OrgItem | null;
+  onClose: () => void;
+  onSubmit: (payload: OrgPayload) => Promise<void>;
+};
+ function OrgStructureFormModal({
+  open,
+  moduleType,
+  mode,
+  saving,
+  item,
+  onClose,
+  onSubmit
+}: OrgStructureFormModalProps): JSX.Element {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors }
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      code: "",
+      name: ""
+    }
+  });
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (mode === "edit" && item) {
+      reset({ code: item.code, name: item.name });
+      return;
+    }
+
+    reset({ code: "", name: "" });
+  }, [item, mode, open, reset]);
+
+  const moduleLabel = moduleType === "areas" ? "Area" : "Cargo";
+  const title = mode === "create" ? `Nuevo ${moduleLabel.toLowerCase()}` : `Editar ${moduleLabel.toLowerCase()}`;
+
+  return (
+    <Modal open={open} title={title} onClose={onClose}>
+      <form
+        className="space-y-4"
+        onSubmit={handleSubmit(async (values) => {
+          await onSubmit({
+            code: values.code.trim(),
+            name: values.name.trim()
+          });
+        })}
+      >
+        <FormField label={`Codigo de ${moduleLabel.toLowerCase()}`} error={errors.code.message}>
+          <Input {...register("code")} />
+        </FormField>
+
+        <FormField label={`Nombre de ${moduleLabel.toLowerCase()}`} error={errors.name.message}>
+          <Input {...register("name")} />
+        </FormField>
+
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Guardando..." : mode === "create" ? "Crear" : "Guardar"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+
+

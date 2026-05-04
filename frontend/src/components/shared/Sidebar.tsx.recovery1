@@ -1,0 +1,161 @@
+import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  BriefcaseBusiness,
+  Building2,
+  CalendarDays,
+  CalendarRange,
+  CircleUserRound,
+  Clock3,
+  ClipboardCheck,
+  ClipboardList,
+  CreditCard,
+  FileCheck2,
+  FileSignature,
+  LayoutDashboard,
+  LayoutGrid,
+  Megaphone,
+  PlaneTakeoff,
+  Plug,
+  Settings2,
+  Shield,
+  Star,
+  Tags,
+  UserCog,
+  UserPlus,
+  Users,
+  WalletCards
+} from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { cn } from "@/lib/utils/cn";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import type { LucideIcon } from "lucide-react";
+
+type NavItem = { to: string; icon: LucideIcon; label: string; permission: string };
+type NavGroup = { label: string; items: NavItem[] };
+
+const navGroups: NavGroup[] = [
+  {
+    label: "Principal",
+    items: [
+      { to: "/app/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+      { to: "/app/my-portal", icon: LayoutGrid, label: "Mi Portal" },
+      { to: "/app/calendar", icon: CalendarRange, label: "Calendario" },
+      { to: "/app/profile", icon: CircleUserRound, label: "Mi Perfil" }
+    ]
+  },
+  {
+    label: "Gestión",
+    items: [
+      { to: "/app/employees", icon: Users, label: "Empleados", permission: "employees.view" },
+      { to: "/app/org-structure", icon: BriefcaseBusiness, label: "Áreas y Cargos", permission: "areas.view" },
+      { to: "/app/attendance", icon: Clock3, label: "Asistencia", permission: "attendance.view" },
+      { to: "/app/incidents", icon: AlertTriangle, label: "Incidencias", permission: "attendance.incidents.view" },
+      { to: "/app/vacations", icon: PlaneTakeoff, label: "Vacaciones", permission: "vacations.view" },
+      { to: "/app/leaves", icon: FileCheck2, label: "Permisos y Licencias", permission: "leaves.view" },
+      { to: "/app/holidays", icon: CalendarDays, label: "Feriados", permission: "holidays.view" },
+      { to: "/app/onboarding", icon: ClipboardCheck, label: "Onboarding", permission: "onboarding.view" },
+      { to: "/app/evaluations", icon: Star, label: "Evaluaciones", permission: "evaluations.view" },
+      { to: "/app/documents", icon: FileSignature, label: "Documentos", permission: "documents.view" }
+    ]
+  },
+  {
+    label: "Finanzas",
+    items: [
+      { to: "/app/payroll", icon: WalletCards, label: "Planilla", permission: "payroll.view" },
+      { to: "/app/payroll-concepts", icon: Tags, label: "Conceptos", permission: "payroll.concepts.view" },
+      { to: "/app/payroll-loans", icon: CreditCard, label: "Préstamos", permission: "payroll.loans.view" },
+      { to: "/app/recruitment", icon: UserPlus, label: "Reclutamiento", permission: "recruitment.view" },
+      { to: "/app/job-postings", icon: Megaphone, label: "Vacantes", permission: "jobpostings.view" }
+    ]
+  },
+  {
+    label: "Sistema",
+    items: [
+      { to: "/app/users", icon: UserCog, label: "Usuarios", permission: "users.view" },
+      { to: "/app/roles", icon: Shield, label: "Roles", permission: "roles.view" },
+      { to: "/app/audit-log", icon: ClipboardList, label: "Auditoría", permission: "auditlog.view" },
+      { to: "/app/reports", icon: BarChart3, label: "Reportes", permission: "reports.view" },
+      { to: "/app/analytics", icon: Activity, label: "Analytics", permission: "analytics.view" },
+      { to: "/app/integrations", icon: Plug, label: "Integraciones", permission: "integrations.manage" },
+      { to: "/app/configuration", icon: Settings2, label: "Configuración", permission: "configuration.view" }
+    ]
+  }
+];
+
+export function Sidebar(): JSX.Element {
+  const { user } = useAuth();
+  const permissions = user.permissions  [];
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.permission || permissions.includes(item.permission))
+    }))
+    .filter((group) => group.items.length > 0);
+
+  return (
+    <aside className="hidden min-h-screen w-64 shrink-0 flex-col lg:flex" style={{ background: "#0c1c1d" }}>
+      {/* Branding */}
+      <div className="flex items-center gap-3 border-b border-white/[0.07] px-5 py-[18px]">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-500">
+          <Building2 className="size-[17px] text-white" />
+        </div>
+        <div>
+          <p className="text-sm font-bold leading-none text-white">HRMS</p>
+          <p className="mt-0.5 text-[10px] font-medium tracking-wide text-white/30">Enterprise Suite</p>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">
+        {visibleGroups.map((group) => (
+          <div key={group.label}>
+            <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.1em] text-white/25">
+              {group.label}
+            </p>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      cn(
+                        "group flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-[13px] font-medium transition-all duration-150",
+                        isActive
+                           "bg-brand-500/[0.18] text-brand-300"
+                          : "text-white/45 hover:bg-white/[0.05] hover:text-white/75"
+                      )
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <Icon
+                          className={cn(
+                            "size-4 shrink-0 transition-colors",
+                            isActive  "text-brand-400" : "text-white/40 group-hover:text-white/65"
+                          )}
+                        />
+                        <span className="flex-1 truncate">{item.label}</span>
+                        {isActive && (
+                          <span className="size-1.5 shrink-0 rounded-full bg-brand-400" />
+                        )}
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="border-t border-white/[0.07] px-5 py-3">
+        <p className="text-center text-[10px] text-white/20">v1.0.0 · HRMS</p>
+      </div>
+    </aside>
+  );
+}

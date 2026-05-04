@@ -1,0 +1,62 @@
+﻿using Hrms.Application.Common.Authorization;
+using Hrms.Application.DTOs.Positions;
+using Hrms.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Hrms.Api.Controllers;
+
+[ApiController]
+[Route("api/v1/positions")]
+[Authorize]
+public sealed class PositionsController(IPositionService positionService) : ControllerBase
+{
+    [Authorize(Policy = AppPermissions.PositionsView)]
+    [HttpGet]
+    public async Task<IActionResult> GetPaged([FromQuery] PositionQueryDto query, CancellationToken cancellationToken)
+    {
+        var result = await positionService.GetPagedAsync(query, cancellationToken);
+        return Ok(result);
+    }
+
+    [Authorize(Policy = AppPermissions.PositionsView)]
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var position = await positionService.GetByIdAsync(id, cancellationToken);
+        return position is null ? NotFound() : Ok(position);
+    }
+
+    [Authorize(Policy = AppPermissions.PositionsCreate)]
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreatePositionRequestDto request, CancellationToken cancellationToken)
+    {
+        var position = await positionService.CreateAsync(request, cancellationToken);
+        return CreatedAtAction(nameof(GetById), new { id = position.Id }, position);
+    }
+
+    [Authorize(Policy = AppPermissions.PositionsEdit)]
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePositionRequestDto request, CancellationToken cancellationToken)
+    {
+        var position = await positionService.UpdateAsync(id, request, cancellationToken);
+        return position is null ? NotFound() : Ok(position);
+    }
+
+    [Authorize(Policy = AppPermissions.PositionsEdit)]
+    [HttpPatch("{id:guid}/status")]
+    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdatePositionStatusRequestDto request, CancellationToken cancellationToken)
+    {
+        var updated = await positionService.UpdateStatusAsync(id, request.IsActive, cancellationToken);
+        return updated ? NoContent() : NotFound();
+    }
+
+    [Authorize(Policy = AppPermissions.PositionsDelete)]
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var deleted = await positionService.DeleteAsync(id, cancellationToken);
+        return deleted ? NoContent() : NotFound();
+    }
+}
+

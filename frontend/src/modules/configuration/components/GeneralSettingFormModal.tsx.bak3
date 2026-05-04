@@ -1,0 +1,115 @@
+﻿import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/forms/FormField";
+import type { GeneralSettingItem, GeneralSettingPayload } from "@/modules/configuration/types/configuration.types";
+ schema = z.object({
+  key: z.string().min(2, "Clave requerida"),
+  value: z.string().min(1, "Valor requerido"),
+  description: z.string().optional(),
+  isSensitive: z.enum(["yes", "no"])
+});
+ FormValues = z.infer<typeof schema>;
+ GeneralSettingFormModalProps = {
+  open: boolean;
+  mode: "create" | "edit";
+  item: GeneralSettingItem | null;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (key: string, payload: GeneralSettingPayload) => Promise<void>;
+};
+ function GeneralSettingFormModal({
+  open,
+  mode,
+  item,
+  saving,
+  onClose,
+  onSubmit
+}: GeneralSettingFormModalProps): JSX.Element {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors }
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      key: "",
+      value: "",
+      description: "",
+      isSensitive: "no"
+    }
+  });
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (mode === "edit" && item) {
+      reset({
+        key: item.key,
+        value: item.value,
+        description: item.description ? "",
+        isSensitive: item.isSensitive ? "yes" : "no"
+      });
+      return;
+    }
+
+    reset({
+      key: "",
+      value: "",
+      description: "",
+      isSensitive: "no"
+    });
+  }, [item, mode, open, reset]);
+
+  return (
+    <Modal open={open} title={mode === "create" ? "Nuevo parametro" : "Editar parametro"} onClose={onClose}>
+      <form
+        className="space-y-4"
+        onSubmit={handleSubmit(async (values) => {
+          await onSubmit(values.key.trim(), {
+            value: values.value.trim(),
+            description: values.description.trim() || undefined,
+            isSensitive: values.isSensitive === "yes"
+          });
+        })}
+      >
+        <FormField label="Clave" error={errors.key.message}>
+          <Input {...register("key")} disabled={mode === "edit"} placeholder="ej. company.name" />
+        </FormField>
+
+        <FormField label="Valor" error={errors.value.message}>
+          <Input {...register("value")} />
+        </FormField>
+
+        <FormField label="Descripcion" error={errors.description.message}>
+          <Textarea rows={3} {...register("description")} />
+        </FormField>
+
+        <FormField label="Dato sensible" error={errors.isSensitive.message}>
+          <Select {...register("isSensitive")}>
+            <option value="no">No</option>
+            <option value="yes">Si</option>
+          </Select>
+        </FormField>
+
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Guardando..." : mode === "create" ? "Crear" : "Guardar"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+

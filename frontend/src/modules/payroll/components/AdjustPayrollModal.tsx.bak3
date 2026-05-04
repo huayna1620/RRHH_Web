@@ -1,0 +1,134 @@
+﻿import { useState, useEffect } from "react";
+import { SlidersHorizontal, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/forms/FormField";
+ AdjustPayrollModalProps = {
+  open: boolean;
+  employeeName: string;
+  currentBonuses: number;
+  currentDeductions: number;
+  currentNotes: string | null;
+  loading: boolean;
+  onConfirm: (bonuses: number, deductions: number, notes: string) => void;
+  onClose: () => void;
+};
+ function AdjustPayrollModal({
+  open,
+  employeeName,
+  currentBonuses,
+  currentDeductions,
+  currentNotes,
+  loading,
+  onConfirm,
+  onClose
+}: AdjustPayrollModalProps): JSX.Element | null {
+  const [bonuses, setBonuses] = useState("");
+  const [deductions, setDeductions] = useState("");
+  const [notes, setNotes] = useState("");
+  const [errors, setErrors] = useState<{ bonuses: string; deductions: string }>({});
+
+  useEffect(() => {
+    if (open) {
+      setBonuses(currentBonuses.toFixed(2));
+      setDeductions(currentDeductions.toFixed(2));
+      setNotes(currentNotes ? "");
+      setErrors({});
+    }
+  }, [open, currentBonuses, currentDeductions, currentNotes]);
+
+  if (!open) return null;
+
+  function validate(): boolean {
+    const newErrors: { bonuses: string; deductions: string } = {};
+    const bonusVal = Number(bonuses);
+    const deductionVal = Number(deductions);
+
+    if (!Number.isFinite(bonusVal) || bonusVal < 0) {
+      newErrors.bonuses = "Debe ser un nÃºmero mayor o igual a 0.";
+    }
+    if (!Number.isFinite(deductionVal) || deductionVal < 0) {
+      newErrors.deductions = "Debe ser un nÃºmero mayor o igual a 0.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  function handleSubmit(): void {
+    if (!validate()) return;
+    onConfirm(Number(bonuses), Number(deductions), notes.trim() || undefined);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+      <div className="animate-modal-in w-full max-w-md rounded-2xl border bg-white shadow-panel-lg">
+        <div className="flex items-center justify-between border-b px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-100">
+              <SlidersHorizontal className="size-4 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="font-bold tracking-tight text-slate-800">Ajustar planilla</h3>
+              <p className="text-[12px] text-slate-500">{employeeName}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            onClick={onClose}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Bonos (S/)" error={errors.bonuses}>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={bonuses}
+                onChange={(e) => setBonuses(e.target.value)}
+                className="tabular-nums"
+              />
+            </FormField>
+            <FormField label="Descuentos (S/)" error={errors.deductions}>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={deductions}
+                onChange={(e) => setDeductions(e.target.value)}
+                className="tabular-nums"
+              />
+            </FormField>
+          </div>
+
+          <FormField label="Notas">
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Observaciones adicionales sobre los ajustes..."
+              className="rounded-lg"
+              rows={2}
+            />
+          </FormField>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={onClose} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={handleSubmit} disabled={loading}>
+              {loading ? "Guardando..." : "Guardar ajustes"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+

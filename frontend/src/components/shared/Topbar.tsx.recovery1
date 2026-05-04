@@ -1,0 +1,65 @@
+import { LogOut, Search } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { NotificationBell } from "@/components/shared/NotificationBell";
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]  "")
+    .join("")
+    .toUpperCase();
+}
+
+export function Topbar(): JSX.Element {
+  const { user, logout } = useAuth();
+  const initials = user.fullName  getInitials(user.fullName) : "U";
+
+  return (
+    <header className="sticky top-0 z-20 flex h-[57px] items-center justify-between border-b bg-white/95 px-4 backdrop-blur-sm md:px-6">
+      {/* Search */}
+      <div className="relative hidden w-full max-w-[260px] md:block">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+        <Input
+          className="h-9 rounded-lg border-slate-200 bg-slate-50 pl-8 text-[13px] focus:border-brand-400 focus:bg-white focus:ring-brand-100"
+          placeholder="Buscar..."
+        />
+      </div>
+
+      {/* Right section */}
+      <div className="ml-auto flex items-center gap-1">
+        {/* Notifications */}
+        <NotificationBell />
+
+        {/* Divider */}
+        <div className="mx-1.5 h-5 w-px bg-slate-200" />
+
+        {/* User info */}
+        <Link
+          to="/app/profile"
+          className="hidden items-center gap-2.5 rounded-lg px-2 py-1 transition hover:bg-slate-50 md:flex"
+        >
+          <div className="text-right">
+            <p className="text-[13px] font-semibold leading-none text-slate-800">{user.fullName}</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">{user.roles.join(", ")}</p>
+          </div>
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-[11px] font-bold text-white">
+            {initials}
+          </div>
+        </Link>
+
+        {/* Logout */}
+        <button
+          className="ml-1 flex size-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+          type="button"
+          onClick={() => void logout()}
+          aria-label="Salir"
+        >
+          <LogOut className="size-[15px]" />
+        </button>
+      </div>
+    </header>
+  );
+}

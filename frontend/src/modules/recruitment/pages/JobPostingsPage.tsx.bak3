@@ -1,0 +1,437 @@
+﻿import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Briefcase, Pencil, Plus, X } from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { PageHeader } from "@/components/ui/page-header";
+import { FormField } from "@/components/forms/FormField";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import {
+  closeJobPosting,
+  createJobPosting,
+  deleteJobPosting,
+  getJobPostings,
+  updateJobPosting
+} from "@/modules/recruitment/services/jobPostingsApi";
+import type { JobPosting, JobPostingPayload, JobPostingStatus, UpdateJobPostingPayload } from "@/modules/recruitment/types/recruitment.types";
+ pageSize = 12;
+ STATUS_LABELS: Record<JobPostingStatus, string> = {
+  open: "Abierta",
+  paused: "Pausada",
+  closed: "Cerrada"
+};
+ STATUS_CLASS: Record<JobPostingStatus, string> = {
+  open: "bg-emerald-50 text-emerald-700",
+  paused: "bg-amber-50 text-amber-700",
+  closed: "bg-slate-100 text-slate-500"
+};
+ FormState = {
+  title: string;
+  description: string;
+  areaName: string;
+  positionName: string;
+  openedDate: string;
+  requiredCount: string;
+  notes: string;
+  status: JobPostingStatus;
+  closedDate: string;
+};
+ DEFAULT_FORM: FormState = {
+  title: "",
+  description: "",
+  areaName: "",
+  positionName: "",
+  openedDate: new Date().toISOString().slice(0, 10),
+  requiredCount: "1",
+  notes: "",
+  status: "open",
+  closedDate: ""
+};
+ function JobPostingsPage(): JSX.Element {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const canCreate = user.permissions.includes("jobpostings.create") ? false;
+  const canEdit = user.permissions.includes("jobpostings.edit") ? false;
+
+  const [pageNumber, setPageNumber] = useState(1);
+  const [search, setSearch] = useState("");
+  const [draftSearch, setDraftSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [editTarget, setEditTarget] = useState<JobPosting | null>(null);
+  const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [closeTarget, setCloseTarget] = useState<JobPosting | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<JobPosting | null>(null);
+
+  const postingsQuery = useQuery({
+    queryKey: ["job-postings", pageNumber, search, statusFilter],
+    queryFn: () => getJobPostings({ search: search || undefined, status: statusFilter || undefined, pageNumber, pageSize })
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (payload: JobPostingPayload) => createJobPosting(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["job-postings"] });
+      setFeedback({ type: "success", message: "Vacante creada exitosamente." });
+      closeForm();
+    },
+    onError: (err: { response: { data: { error: string } } }) => {
+      setFormError(err.response.data.error ? "Error al crear la vacante.");
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateJobPostingPayload }) => updateJobPosting(id, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["job-postings"] });
+      setFeedback({ type: "success", message: "Vacante actualizada." });
+      closeForm();
+    },
+    onError: (err: { response: { data: { error: string } } }) => {
+      setFormError(err.response.data.error ? "Error al actualizar la vacante.");
+    }
+  });
+
+  const closeMutation = useMutation({
+    mutationFn: closeJobPosting,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["job-postings"] });
+      setFeedback({ type: "success", message: "Vacante cerrada." });
+      setCloseTarget(null);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo cerrar la vacante." });
+      setCloseTarget(null);
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteJobPosting,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["job-postings"] });
+      setFeedback({ type: "success", message: "Vacante eliminada." });
+      setDeleteTarget(null);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo eliminar la vacante." });
+      setDeleteTarget(null);
+    }
+  });
+
+  function openCreate(): void {
+    setEditTarget(null);
+    setForm(DEFAULT_FORM);
+    setFormError(null);
+    setShowForm(true);
+  }
+
+  function openEdit(posting: JobPosting): void {
+    setEditTarget(posting);
+    setForm({
+      title: posting.title,
+      description: posting.description ? "",
+      areaName: posting.areaName ? "",
+      positionName: posting.positionName ? "",
+      openedDate: posting.openedDate,
+      requiredCount: String(posting.requiredCount),
+      notes: posting.notes ? "",
+      status: posting.status,
+      closedDate: posting.closedDate ? ""
+    });
+    setFormError(null);
+    setShowForm(true);
+  }
+
+  function closeForm(): void {
+    setShowForm(false);
+    setEditTarget(null);
+    setForm(DEFAULT_FORM);
+    setFormError(null);
+  }
+
+  function handleSubmit(): void {
+    if (!form.title.trim()) { setFormError("El tÃ­tulo es obligatorio."); return; }
+    const count = Number(form.requiredCount);
+    if (!Number.isFinite(count) || count < 1) { setFormError("El nÃºmero de vacantes debe ser al menos 1."); return; }
+    setFormError(null);
+
+    if (editTarget) {
+      updateMutation.mutate({
+        id: editTarget.id,
+        payload: {
+          title: form.title.trim(),
+          description: form.description.trim() || undefined,
+          areaName: form.areaName.trim() || undefined,
+          positionName: form.positionName.trim() || undefined,
+          openedDate: form.openedDate,
+          requiredCount: count,
+          notes: form.notes.trim() || undefined,
+          status: form.status,
+          closedDate: form.closedDate || undefined
+        }
+      });
+    } else {
+      createMutation.mutate({
+        title: form.title.trim(),
+        description: form.description.trim() || undefined,
+        areaName: form.areaName.trim() || undefined,
+        positionName: form.positionName.trim() || undefined,
+        openedDate: form.openedDate,
+        requiredCount: count,
+        notes: form.notes.trim() || undefined
+      });
+    }
+  }
+
+  const postings = postingsQuery.data.items ?? [];
+  const totalPages = Math.max(1, Math.ceil((postingsQuery.data.totalCount  0) / pageSize));
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <section className="animate-fade-up space-y-5">
+      <PageHeader
+        title="Vacantes"
+        description="GestiÃ³n de puestos abiertos para reclutamiento."
+      />
+
+      {feedback ? (
+        <Alert variant={feedback.type === "success" ? "success" : "error"} message={feedback.message} onClose={() => setFeedback(null)} />
+      ) : null}
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-3 py-4">
+          <Input
+            value={draftSearch}
+            onChange={(e) => setDraftSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { setSearch(draftSearch.trim()); setPageNumber(1); } }}
+            placeholder="Buscar vacante..."
+            className="w-56"
+          />
+          <Select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPageNumber(1); }} className="w-40">
+            <option value="">Todos los estados</option>
+            <option value="open">Abierta</option>
+            <option value="paused">Pausada</option>
+            <option value="closed">Cerrada</option>
+          </Select>
+          <Button variant="secondary" size="sm" onClick={() => { setSearch(draftSearch.trim()); setPageNumber(1); }}>
+            Buscar
+          </Button>
+          {canCreate ? (
+            <Button size="lg" className="ml-auto btn-create" onClick={openCreate}>
+              <Plus className="size-4" />
+              Nueva vacante
+            </Button>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {/* Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Vacantes registradas</CardTitle>
+          {postingsQuery.data.totalCount ? (
+            <span className="text-[12px] text-muted">{postingsQuery.data.totalCount} vacantes</span>
+          ) : null}
+        </CardHeader>
+        <CardContent className="p-0 pb-4">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b bg-slate-50">
+                  {["TÃ­tulo", "Ãrea / Puesto", "Estado", "Apertura", "Vacantes", "Candidatos", ""].map((col) => (
+                    <th key={col} className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400 last:text-right">
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {postingsQuery.isLoading ? (
+                  <TableSkeleton cols={7} />
+                ) : postings.length ? (
+                  postings.map((posting) => (
+                    <tr key={posting.id} className="border-t transition-colors hover:bg-slate-50/70">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-800">{posting.title}</p>
+                        {posting.notes ? <p className="mt-0.5 text-[11px] text-muted truncate max-w-[200px]">{posting.notes}</p> : null}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {posting.areaName || posting.positionName ? (
+                          <>
+                            {posting.areaName ? <p>{posting.areaName}</p> : null}
+                            {posting.positionName ? <p className="text-[11px] text-muted">{posting.positionName}</p> : null}
+                          </>
+                        ) : <span className="text-muted">â€”</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_CLASS[posting.status]}`}>
+                          {STATUS_LABELS[posting.status]}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums text-slate-600">{posting.openedDate}</td>
+                      <td className="px-4 py-3 tabular-nums text-slate-700 font-semibold">{posting.requiredCount}</td>
+                      <td className="px-4 py-3 tabular-nums text-slate-600">{posting.candidateCount}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {canEdit ? (
+                            <>
+                              <button
+                                type="button"
+                                className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                title="Editar"
+                                onClick={() => openEdit(posting)}
+                              >
+                                <Pencil className="size-3.5" />
+                              </button>
+                              {posting.status !== "closed" ? (
+                                <button
+                                  type="button"
+                                  className="rounded px-2 py-1 text-[11px] text-amber-600 transition hover:bg-amber-50"
+                                  onClick={() => setCloseTarget(posting)}
+                                >
+                                  Cerrar
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                className="flex size-8 items-center justify-center rounded-lg text-rose-400 transition hover:bg-rose-50"
+                                title="Eliminar"
+                                onClick={() => setDeleteTarget(posting)}
+                              >
+                                <X className="size-3.5" />
+                              </button>
+                            </>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <TableEmptyState cols={7} icon={Briefcase} message="No hay vacantes registradas." />
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4">
+            <Pagination page={pageNumber} totalPages={totalPages} totalCount={postingsQuery.data.totalCount  0} pageSize={pageSize} onChange={setPageNumber} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <ConfirmModal
+        open={closeTarget !== null}
+        title="Â¿Cerrar vacante"
+        message={closeTarget ? `Se cerrarÃ¡ la vacante "${closeTarget.title}". No se aceptarÃ¡n mÃ¡s candidatos.` : ""}
+        confirmLabel="SÃ­, cerrar"
+        variant="danger"
+        loading={closeMutation.isPending}
+        onConfirm={() => { if (closeTarget) closeMutation.mutate(closeTarget.id); }}
+        onClose={() => setCloseTarget(null)}
+      />
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title="Â¿Eliminar vacante"
+        message={deleteTarget ? `Se eliminarÃ¡ permanentemente la vacante "${deleteTarget.title}".` : ""}
+        confirmLabel="SÃ­, eliminar"
+        variant="danger"
+        loading={deleteMutation.isPending}
+        onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.id); }}
+        onClose={() => setDeleteTarget(null)}
+      />
+
+      {/* Form modal */}
+      {showForm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+          <div className="animate-modal-in w-full max-w-lg rounded-2xl border bg-white shadow-panel-lg">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-brand-100">
+                  <Briefcase className="size-4 text-brand-600" />
+                </div>
+                <h3 className="font-bold tracking-tight text-slate-800">
+                  {editTarget ? "Editar vacante" : "Nueva vacante"}
+                </h3>
+              </div>
+              <button type="button" className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100" onClick={closeForm}>
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="space-y-4 p-5 max-h-[80vh] overflow-y-auto">
+              {formError ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-[13px] text-rose-700">{formError}</p> : null}
+
+              <FormField label="TÃ­tulo" required>
+                <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Ej: Desarrollador Backend Senior" />
+              </FormField>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Ãrea">
+                  <Input value={form.areaName} onChange={(e) => setForm((f) => ({ ...f, areaName: e.target.value }))} placeholder="TecnologÃ­a" />
+                </FormField>
+                <FormField label="Puesto">
+                  <Input value={form.positionName} onChange={(e) => setForm((f) => ({ ...f, positionName: e.target.value }))} placeholder="Backend Developer" />
+                </FormField>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Fecha de apertura" required>
+                  <Input type="date" value={form.openedDate} onChange={(e) => setForm((f) => ({ ...f, openedDate: e.target.value }))} />
+                </FormField>
+                <FormField label="Vacantes requeridas" required>
+                  <Input type="number" min={1} value={form.requiredCount} onChange={(e) => setForm((f) => ({ ...f, requiredCount: e.target.value }))} />
+                </FormField>
+              </div>
+
+              {editTarget ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField label="Estado">
+                    <Select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as JobPostingStatus }))}>
+                      <option value="open">Abierta</option>
+                      <option value="paused">Pausada</option>
+                      <option value="closed">Cerrada</option>
+                    </Select>
+                  </FormField>
+                  <FormField label="Fecha de cierre">
+                    <Input type="date" value={form.closedDate} onChange={(e) => setForm((f) => ({ ...f, closedDate: e.target.value }))} />
+                  </FormField>
+                </div>
+              ) : null}
+
+              <FormField label="DescripciÃ³n">
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="DescripciÃ³n del puesto y requisitos..."
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200"
+                  rows={3}
+                />
+              </FormField>
+
+              <FormField label="Notas">
+                <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Observaciones internas..." />
+              </FormField>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" size="sm" onClick={closeForm} disabled={isPending}>Cancelar</Button>
+                <Button size="sm" onClick={handleSubmit} disabled={isPending}>
+                  {isPending ? "Guardando..." : editTarget ? "Guardar cambios" : "Crear vacante"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+

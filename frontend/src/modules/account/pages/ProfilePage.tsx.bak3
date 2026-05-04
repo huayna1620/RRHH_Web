@@ -1,0 +1,241 @@
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { KeyRound, Shield, User } from "lucide-react";
+import { httpClient } from "@/services/api/httpClient";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { FormField } from "@/components/forms/FormField";
+import { PageHeader } from "@/components/ui/page-header";
+import { getMyProfile, updateMyProfile } from "@/modules/account/services/accountApi";
+
+// ──────────────────────────────────────────────
+// Profile form
+// ──────────────────────────────────────────────
+const profileSchema = z.object({
+  fullName: z.string().min(3, "Mínimo 3 caracteres")
+});
+type ProfileValues = z.infer<typeof profileSchema>;
+
+// ──────────────────────────────────────────────
+// Password form
+// ──────────────────────────────────────────────
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1, "Requerido"),
+  newPassword: z.string().min(6, "Mínimo 6 caracteres"),
+  confirmPassword: z.string().min(1, "Requerido")
+}).refine((d) => d.newPassword === d.confirmPassword, {
+  message: "Las contrasenas no coinciden",
+  path: ["confirmPassword"]
+});
+type PasswordValues = z.infer<typeof passwordSchema>;
+ function ProfilePage(): JSX.Element {
+  const { user, updateUser } = useAuth();
+  const queryClient = useQueryClient();
+  const [profileFeedback, setProfileFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [passwordFeedback, setPasswordFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  const profileQuery = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: getMyProfile
+  });
+
+  // Profile form
+  const profileForm = useForm<ProfileValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: { fullName: "" }
+  });
+
+  useEffect(() => {
+    if (profileQuery.data) {
+      profileForm.reset({ fullName: profileQuery.data.fullName });
+    }
+  }, [profileQuery.data, profileForm]);
+
+  const updateProfileMutation = useMutation({
+    mutationFn: updateMyProfile,
+    onSuccess: (updated) => {
+      void queryClient.invalidateQueries({ queryKey: ["my-profile"] });
+      profileForm.reset({ fullName: updated.fullName });
+      updateUser({ fullName: updated.fullName });
+      setProfileFeedback({ type: "success", msg: "Perfil actualizado correctamente." });
+    },
+    onError: () => setProfileFeedback({ type: "error", msg: "No se pudo actualizar el perfil." })
+  });
+
+  // Password form
+  const passwordForm = useForm<PasswordValues>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" }
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async (values: PasswordValues) => {
+      await httpClient.post("/api/v1/auth/change-password", {
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword
+      });
+    },
+    onSuccess: () => {
+      passwordForm.reset();
+      setPasswordFeedback({ type: "success", msg: "Contrasena actualizada correctamente." });
+    },
+    onError: (err: { response: { data: { error: string; message: string } } }) => {
+      const msg = err?.response?.data?.message ?? "No se pudo cambiar la contrasena.";
+      setPasswordFeedback({ type: "error", msg });
+    }
+  });
+
+  const profile = profileQuery.data;
+
+  return (
+    <section className="animate-fade-up mx-auto max-w-2xl space-y-5">
+      <PageHeader
+        title="Mi Perfil"
+        description="Gestiona tu informacion personal y seguridad de cuenta."
+      />
+
+      {/* Profile info */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <User className="size-4 text-brand-500" />
+            <CardTitle>Información personal</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {profileFeedback && (
+            <Alert
+              variant={profileFeedback.type === "success" ? "success" : "error"}
+              message={profileFeedback.msg}
+              onClose={() => setProfileFeedback(null)}
+            />
+          )}
+
+          {profileQuery.isLoading ? (
+            <p className="text-sm text-muted">Cargando...</p>
+          ) : (
+            <>
+              {/* Read-only info */}
+              <div className="grid gap-3 rounded-lg bg-slate-50 p-4 text-[13px] md:grid-cols-2">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Usuario</p>
+                  <p className="mt-0.5 text-slate-700">{profile.userName}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Correo</p>
+                  <p className="mt-0.5 text-slate-700">{profile.email}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Roles</p>
+                  <p className="mt-0.5 text-slate-700">{profile.roles.join(", ") || "—"}</p>
+                </div>
+                {profile.employeeName && (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Empleado vinculado</p>
+                    <p className="mt-0.5 text-slate-700">{profile.employeeCode} — {profile.employeeName}</p>
+                  </div>
+                )}
+                {profile.lastLoginAtUtc && (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Último acceso</p>
+                    <p className="mt-0.5 text-slate-700">
+                      {new Date(profile.lastLoginAtUtc).toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" })}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Editable name */}
+              <form
+                className="space-y-4"
+                onSubmit={profileForm.handleSubmit((v) => updateProfileMutation.mutate(v))}
+              >
+                <FormField label="Nombre completo" error={profileForm.formState.errors.fullName.message}>
+                  <Input {...profileForm.register("fullName")} />
+                </FormField>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={updateProfileMutation.isPending}>
+                    {updateProfileMutation.isPending ? "Guardando..." : "Guardar nombre"}
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Roles & permissions */}
+      {user && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Shield className="size-4 text-brand-500" />
+              <CardTitle>Permisos asignados</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-1.5">
+              {user.permissions.map((p) => (
+                <span
+                  key={p}
+                  className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-600"
+                >
+                  {p}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Change password */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <KeyRound className="size-4 text-brand-500" />
+            <CardTitle>Cambiar contrasena</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {passwordFeedback && (
+            <Alert
+              variant={passwordFeedback.type === "success" ? "success" : "error"}
+              message={passwordFeedback.msg}
+              onClose={() => setPasswordFeedback(null)}
+            />
+          )}
+          <form
+            className="mt-3 space-y-4"
+            onSubmit={passwordForm.handleSubmit((v) => changePasswordMutation.mutate(v))}
+          >
+            <FormField label="Contrasena actual" error={passwordForm.formState.errors.currentPassword.message}>
+              <Input type="password" autoComplete="current-password" {...passwordForm.register("currentPassword")} />
+            </FormField>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Nueva contrasena" error={passwordForm.formState.errors.newPassword.message}>
+                <Input type="password" autoComplete="new-password" {...passwordForm.register("newPassword")} />
+              </FormField>
+              <FormField label="Confirmar contrasena" error={passwordForm.formState.errors.confirmPassword.message}>
+                <Input type="password" autoComplete="new-password" {...passwordForm.register("confirmPassword")} />
+              </FormField>
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={changePasswordMutation.isPending}>
+                {changePasswordMutation.isPending ? "Cambiando..." : "Cambiar contrasena"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+
+

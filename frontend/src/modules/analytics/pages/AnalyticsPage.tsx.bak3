@@ -1,0 +1,407 @@
+﻿import { useQuery } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  DollarSign,
+  Minus,
+  TrendingUp,
+  UserCheck,
+  UserMinus,
+  UserPlus,
+  Users
+} from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from "recharts";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import {
+  getAnalyticsSummary,
+  getHeadcountTrend,
+  getLaborCostTrend,
+  getAttendanceTrend,
+  getAreaDistribution,
+  getTurnoverRisk,
+  getCostProjection,
+  getYearComparison
+} from "@/modules/analytics/services/analyticsApi";
+ COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16"];
+ formatCurrency(value: number): string {
+  return `S/ ${value.toLocaleString("es-PE", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+ function AnalyticsPage(): JSX.Element {
+  const { user } = useAuth();
+  const enabled = Boolean(user);
+
+  const summaryQuery = useQuery({ queryKey: ["analytics-summary"], queryFn: getAnalyticsSummary, enabled });
+  const headcountQuery = useQuery({ queryKey: ["analytics-headcount"], queryFn: () => getHeadcountTrend(12), enabled });
+  const laborCostQuery = useQuery({ queryKey: ["analytics-labor-cost"], queryFn: () => getLaborCostTrend(12), enabled });
+  const attendanceQuery = useQuery({ queryKey: ["analytics-attendance"], queryFn: () => getAttendanceTrend(12), enabled });
+  const areaQuery = useQuery({ queryKey: ["analytics-area"], queryFn: getAreaDistribution, enabled });
+  const riskQuery = useQuery({ queryKey: ["analytics-risk"], queryFn: () => getTurnoverRisk(10), enabled });
+  const projectionQuery = useQuery({ queryKey: ["analytics-projection"], queryFn: () => getCostProjection(6), enabled });
+  const comparisonQuery = useQuery({ queryKey: ["analytics-comparison"], queryFn: () => getYearComparison(), enabled });
+
+  const s = summaryQuery.data;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Analytics Avanzado" description="Metricas clave, tendencias, predicciones y comparativas del sistema." />
+
+      {/* â”€â”€ KPI Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {summaryQuery.isLoading ? (
+        <TableSkeleton rows={1} cols={6} />
+      ) : s ? (
+        <div className="hidden grid-cols-2 gap-4 md:grid lg:grid-cols-4 xl:grid-cols-6">
+          <KpiCard icon={Users} label="Empleados activos" value={s.activeEmployees} sub={`${s.totalEmployees} total`} color="blue" />
+          <KpiCard icon={UserPlus} label="Nuevos este mes" value={s.newHiresThisMonth} color="emerald" />
+          <KpiCard icon={UserMinus} label="Bajas este mes" value={s.terminationsThisMonth} color="rose" />
+          <KpiCard icon={UserCheck} label="Asistencia" value={`${s.attendanceRate}%`} sub={`${s.lateRate}% tardanza`} color="blue" />
+          <KpiCard icon={DollarSign} label="Planilla total" value={formatCurrency(s.totalPayrollCost)} sub={`Prom: ${formatCurrency(s.averagePayrollCost)}`} color="amber" />
+          <KpiCard icon={AlertTriangle} label="Pendientes" value={s.pendingVacations + s.pendingLeaves} sub={`${s.pendingVacations} vac / ${s.pendingLeaves} perm`} color="amber" />
+        </div>
+      ) : null}
+
+      {s ? (
+        <div className="md:hidden">
+          <div className="-mx-2 flex snap-x snap-mandatory gap-3 overflow-x-auto px-2 pb-1">
+            <div className="min-w-[210px] snap-start"><KpiCard icon={Users} label="Empleados activos" value={s.activeEmployees} sub={`${s.totalEmployees} total`} color="blue" /></div>
+            <div className="min-w-[210px] snap-start"><KpiCard icon={UserPlus} label="Nuevos este mes" value={s.newHiresThisMonth} color="emerald" /></div>
+            <div className="min-w-[210px] snap-start"><KpiCard icon={UserMinus} label="Bajas este mes" value={s.terminationsThisMonth} color="rose" /></div>
+            <div className="min-w-[210px] snap-start"><KpiCard icon={UserCheck} label="Asistencia" value={`${s.attendanceRate}%`} sub={`${s.lateRate}% tardanza`} color="blue" /></div>
+            <div className="min-w-[210px] snap-start"><KpiCard icon={DollarSign} label="Planilla total" value={formatCurrency(s.totalPayrollCost)} sub={`Prom: ${formatCurrency(s.averagePayrollCost)}`} color="amber" /></div>
+            <div className="min-w-[210px] snap-start"><KpiCard icon={AlertTriangle} label="Pendientes" value={s.pendingVacations + s.pendingLeaves} sub={`${s.pendingVacations} vac / ${s.pendingLeaves} perm`} color="amber" /></div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* â”€â”€ Row 1: Headcount Trend + Area Distribution â”€â”€â”€â”€â”€â”€â”€ */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle>Tendencia de personal (12 meses)</CardTitle></CardHeader>
+          <CardContent>
+            {headcountQuery.isLoading ? <TableSkeleton rows={4} cols={3} /> : (
+              <div className="overflow-x-auto">
+                <div className="min-w-[620px]">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={headcountQuery.data}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Area type="monotone" dataKey="activeCount" name="Activos" fill="#3b82f6" fillOpacity={0.15} stroke="#3b82f6" strokeWidth={2} />
+                      <Area type="monotone" dataKey="hiresCount" name="Ingresos" fill="#10b981" fillOpacity={0.15} stroke="#10b981" strokeWidth={2} />
+                      <Area type="monotone" dataKey="terminationsCount" name="Bajas" fill="#ef4444" fillOpacity={0.15} stroke="#ef4444" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Distribucion por area</CardTitle></CardHeader>
+          <CardContent>
+            {areaQuery.isLoading ? <TableSkeleton rows={4} cols={2} /> : (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={areaQuery.data}
+                      dataKey="employeeCount"
+                      nameKey="areaName"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={2}
+                    >
+                      {areaQuery.data.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="mt-2 space-y-1">
+                  {areaQuery.data.map((a, i) => (
+                    <div key={a.areaName} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="size-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                        <span className="text-slate-600">{a.areaName}</span>
+                      </div>
+                      <span className="font-medium">{a.employeeCount}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* â”€â”€ Row 2: Labor Cost + Attendance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle>Costo de planilla mensual</CardTitle></CardHeader>
+          <CardContent>
+            {laborCostQuery.isLoading ? <TableSkeleton rows={4} cols={3} /> : (
+              <div className="overflow-x-auto">
+                <div className="min-w-[580px]">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={laborCostQuery.data}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(value) => formatCurrency(Number(value  0))} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="totalCost" name="Costo total" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="averageCost" name="Promedio" fill="#93c5fd" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Tendencia de asistencia</CardTitle></CardHeader>
+          <CardContent>
+            {attendanceQuery.isLoading ? <TableSkeleton rows={4} cols={3} /> : (
+              <div className="overflow-x-auto">
+                <div className="min-w-[580px]">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={attendanceQuery.data}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} unit="%" />
+                      <Tooltip formatter={(value) => `${Number(value  0)}%`} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Line type="monotone" dataKey="attendancePercent" name="Asistencia %" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* â”€â”€ Row 3: Cost Projection + Year Comparison â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle>Proyeccion de costos (6 meses)</CardTitle></CardHeader>
+          <CardContent>
+            {projectionQuery.isLoading ? <TableSkeleton rows={4} cols={3} /> : (
+              <div className="overflow-x-auto">
+                <div className="min-w-[580px]">
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={projectionQuery.data}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(value) => formatCurrency(Number(value  0))} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="actualCost" name="Costo real" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="projectedCost" name="Proyectado" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Comparativa anual</CardTitle></CardHeader>
+          <CardContent>
+            {comparisonQuery.isLoading ? <TableSkeleton rows={4} cols={4} /> : (
+              <div className="space-y-4">
+                {comparisonQuery.data.map((c) => (
+                  <div key={c.metric} className="rounded-lg border border-slate-200 p-4">
+                    <p className="text-xs font-medium text-slate-500 mb-2">{c.metric}</p>
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p className="text-xl font-bold text-slate-800">
+                          {c.metric.includes("Costo") ? formatCurrency(c.currentYear) : c.currentYear.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          Anterior: {c.metric.includes("Costo") ? formatCurrency(c.previousYear) : c.previousYear.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        c.changePercent > 0
+                           c.metric.includes("Incidencia") ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"
+                          : c.changePercent < 0
+                           c.metric.includes("Incidencia") ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+                          : "bg-slate-100 text-slate-600"
+                      }`}>
+                        {c.changePercent > 0 ? <ArrowUp className="size-3" /> : c.changePercent < 0 ? <ArrowDown className="size-3" /> : <Minus className="size-3" />}
+                        {Math.abs(c.changePercent)}%
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* â”€â”€ Row 4: Turnover Risk â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <TrendingUp className="size-5 text-amber-500" />
+            <CardTitle>Prediccion de riesgo de renuncia (Top 10)</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {riskQuery.isLoading ? (
+            <TableSkeleton rows={5} cols={7} />
+          ) : !riskQuery.data.length ? (
+            <p className="text-sm text-slate-400 text-center py-8">No hay datos suficientes para analisis de riesgo.</p>
+          ) : (
+            <>
+            <div className="space-y-3 md:hidden">
+              {riskQuery.data.map((r) => (
+                <article key={r.employeeId} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-slate-800">{r.employeeName}</p>
+                      <p className="text-xs text-slate-400">{r.employeeCode} Â· {r.areaName}</p>
+                    </div>
+                    <Badge variant={r.riskLevel === "high" ? "danger" : r.riskLevel === "medium" ? "warning" : "success"}>
+                      {r.riskLevel === "high" ? "Alto" : r.riskLevel === "medium" ? "Medio" : "Bajo"}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 text-xs text-slate-600">{r.positionName}</div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="rounded-lg bg-slate-50 p-2"><p className="text-slate-400">Antig.</p><p className="font-semibold">{r.tenureMonths}m</p></div>
+                    <div className="rounded-lg bg-slate-50 p-2"><p className="text-slate-400">Incid.</p><p className="font-semibold">{r.incidentCount}</p></div>
+                    <div className="rounded-lg bg-slate-50 p-2"><p className="text-slate-400">Aus.</p><p className="font-semibold">{r.absenceCount}</p></div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="h-2.5 flex-1 rounded-full bg-slate-200">
+                      <div
+                        className={`h-2.5 rounded-full ${r.riskLevel === "high" ? "bg-rose-500" : r.riskLevel === "medium" ? "bg-amber-500" : "bg-emerald-500"}`}
+                        style={{ width: `${r.riskScore}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-500">{r.riskScore}%</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-3 py-2.5">Empleado</th>
+                    <th className="px-3 py-2.5">Area</th>
+                    <th className="px-3 py-2.5">Cargo</th>
+                    <th className="px-3 py-2.5">Antiguedad</th>
+                    <th className="px-3 py-2.5">Incidencias</th>
+                    <th className="px-3 py-2.5">Ausencias</th>
+                    <th className="px-3 py-2.5">Riesgo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {riskQuery.data.map((r) => (
+                    <tr key={r.employeeId} className="border-b last:border-0 hover:bg-slate-50/50">
+                      <td className="px-3 py-2.5">
+                        <div>
+                          <p className="font-medium">{r.employeeName}</p>
+                          <p className="text-xs text-slate-400">{r.employeeCode}</p>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-600">{r.areaName}</td>
+                      <td className="px-3 py-2.5 text-slate-600">{r.positionName}</td>
+                      <td className="px-3 py-2.5 text-slate-500">{r.tenureMonths} meses</td>
+                      <td className="px-3 py-2.5 font-mono text-sm">{r.incidentCount}</td>
+                      <td className="px-3 py-2.5 font-mono text-sm">{r.absenceCount}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-16 rounded-full bg-slate-200">
+                            <div
+                              className={`h-2 rounded-full transition-all ${
+                                r.riskLevel === "high" ? "bg-rose-500" : r.riskLevel === "medium" ? "bg-amber-500" : "bg-emerald-500"
+                              }`}
+                              style={{ width: `${r.riskScore}%` }}
+                            />
+                          </div>
+                          <Badge variant={r.riskLevel === "high" ? "danger" : r.riskLevel === "medium" ? "warning" : "success"}>
+                            {r.riskLevel === "high" ? "Alto" : r.riskLevel === "medium" ? "Medio" : "Bajo"}
+                          </Badge>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// â”€â”€ KPI Card Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  color
+}: {
+  icon: typeof Users;
+  label: string;
+  value: string | number;
+  sub: string;
+  color: string;
+}): JSX.Element {
+  const colorClasses: Record<string, string> = {
+    blue: "bg-blue-50 text-blue-600",
+    emerald: "bg-emerald-50 text-emerald-600",
+    rose: "bg-rose-50 text-rose-600",
+    amber: "bg-amber-50 text-amber-600"
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`rounded-lg p-1.5 ${colorClasses[color] ? colorClasses.blue}`}>
+          <Icon className="size-4" />
+        </div>
+        <span className="text-xs font-medium text-slate-500">{label}</span>
+      </div>
+      <p className="text-xl font-bold text-slate-800">{value}</p>
+      {sub && <p className="text-[11px] text-slate-400 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+

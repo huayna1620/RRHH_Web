@@ -1,0 +1,102 @@
+﻿import { useState, useEffect } from "react";
+import { UserX, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+ Employee = {
+  id: string;
+  label: string;
+};
+ MarkAbsentModalProps = {
+  open: boolean;
+  employees: Employee[];
+  selectedEmployeeId: string;
+  loading: boolean;
+  onConfirm: (employeeId: string, reason: string) => void;
+  onClose: () => void;
+};
+ function MarkAbsentModal({
+  open,
+  employees,
+  selectedEmployeeId,
+  loading,
+  onConfirm,
+  onClose
+}: MarkAbsentModalProps): JSX.Element | null {
+  const [employeeId, setEmployeeId] = useState(selectedEmployeeId ? "");
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setEmployeeId(selectedEmployeeId ? "");
+      setReason("");
+    }
+  }, [open, selectedEmployeeId]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+      <div className="animate-modal-in w-full max-w-md rounded-2xl border bg-white shadow-panel-lg">
+        <div className="flex items-center justify-between border-b px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-rose-100">
+              <UserX className="size-4 text-rose-500" />
+            </div>
+            <h3 className="font-bold tracking-tight text-slate-800">Marcar falta</h3>
+          </div>
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            onClick={onClose}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-[12px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+              Empleado <span className="text-rose-500">*</span>
+            </label>
+            <Select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+              <option value="">Selecciona un empleado</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>{emp.label}</option>
+              ))}
+            </Select>
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+              Motivo <span className="text-slate-400 font-normal normal-case tracking-normal">(opcional)</span>
+            </label>
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Indica el motivo de la falta..."
+              className="rounded-lg"
+              rows={2}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={onClose} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => { if (employeeId) onConfirm(employeeId, reason.trim() || undefined); }}
+              disabled={loading || !employeeId}
+            >
+              {loading ? "Registrando..." : "Marcar falta"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+

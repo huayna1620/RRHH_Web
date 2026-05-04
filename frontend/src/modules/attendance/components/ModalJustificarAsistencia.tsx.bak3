@@ -1,0 +1,83 @@
+﻿import { useState, useEffect } from "react";
+import { FileText, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+ JustifyAttendanceModalProps = {
+  open: boolean;
+  employeeName: string;
+  currentJustification: string | null;
+  loading: boolean;
+  onConfirm: (justification: string) => void;
+  onClose: () => void;
+};
+ function ModalJustificarAsistencia({
+  open,
+  employeeName,
+  currentJustification,
+  loading,
+  onConfirm,
+  onClose
+}: JustifyAttendanceModalProps): JSX.Element | null {
+  const [justification, setJustification] = useState("");
+
+  useEffect(() => {
+    if (open) setJustification(currentJustification ? "");
+  }, [open, currentJustification]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">
+      <div className="animate-modal-in w-full max-w-md rounded-2xl border bg-white shadow-panel-lg">
+        <div className="flex items-center justify-between border-b px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-brand-100">
+              <FileText className="size-4 text-brand-600" />
+            </div>
+            <div>
+              <h3 className="font-bold tracking-tight text-slate-800">Justificar asistencia</h3>
+              <p className="text-[12px] text-slate-500">{employeeName}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            onClick={onClose}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-[12px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
+              JustificaciÃ³n <span className="text-rose-500">*</span>
+            </label>
+            <Textarea
+              value={justification}
+              onChange={(e) => setJustification(e.target.value)}
+              placeholder="Describe el motivo o justificaciÃ³n de la tardanza / falta..."
+              className="rounded-lg"
+              rows={3}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={onClose} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => { if (justification.trim()) onConfirm(justification.trim()); }}
+              disabled={loading || !justification.trim()}
+            >
+              {loading ? "Guardando..." : "Guardar justificaciÃ³n"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+

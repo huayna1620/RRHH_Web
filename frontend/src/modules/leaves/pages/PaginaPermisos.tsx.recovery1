@@ -1,0 +1,424 @@
+﻿import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Ban, Check, FileText, X } from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { PageHeader } from "@/components/ui/page-header";
+import { ApproveRejectModal } from "@/components/modals/ApproveRejectModal";
+import { FormField } from "@/components/forms/FormField";
+import {
+  approveLeaveRequest,
+  cancelLeaveRequest,
+  createLeaveRequest,
+  getLeaveCatalogs,
+  getLeaves,
+  rejectLeaveRequest
+} from "@/modules/leaves/services/leavesApi";
+import type { LeaveStatus, LeaveType } from "@/modules/leaves/types/leave.types";
+ ModalAprobacion = { id: string; action: "approve" | "reject" } | null;
+ tamanioPagina = 10;
+ ETIQUETAS_TIPO: Record<LeaveType, string> = {
+  personal: "Permiso personal",
+  medical: "Licencia mÃ©dica",
+  study: "Licencia por estudios",
+  maternity_paternity: "Maternidad / Paternidad",
+  other: "Otro"
+};
+ VARIANTES_TIPO: Record<LeaveType, string> = {
+  personal: "bg-blue-50 text-blue-700",
+  medical: "bg-rose-50 text-rose-600",
+  study: "bg-indigo-50 text-indigo-700",
+  maternity_paternity: "bg-purple-50 text-purple-700",
+  other: "bg-slate-100 text-slate-600"
+};
+ function PaginaPermisos(): JSX.Element {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const anioActual = new Date().getFullYear();
+
+  const [numeroPagina, setNumeroPagina] = useState(1);
+  const [anio, setAnio] = useState<number>(anioActual);
+  const [borrador, setBorrador] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState<"all" | LeaveStatus>("all");
+  const [filtroTipo, setFiltroTipo] = useState<"all" | LeaveType>("all");
+  const [filtroEmpleado, setFiltroEmpleado] = useState("");
+  const [empleadoId, setEmpleadoId] = useState("");
+  const [tipoPermiso, setTipoPermiso] = useState<LeaveType>("personal");
+  const [conGoce, setConGoce] = useState<"paid" | "unpaid">("paid");
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [modalAprobacion, setModalAprobacion] = useState<ModalAprobacion>(null);
+  const [retroalimentacion, setRetroalimentacion] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const puedeCrear = user.permissions.includes("leaves.create") ? false;
+  const puedeAprobar = user.permissions.includes("leaves.approve") ? false;
+
+  const catalogosQuery = useQuery({
+    queryKey: ["leaves-catalogs"],
+    queryFn: getLeaveCatalogs
+  });
+
+  const permisosQuery = useQuery({
+    queryKey: ["leaves", numeroPagina, anio, busqueda, filtroEstado, filtroTipo, filtroEmpleado],
+    queryFn: () =>
+      getLeaves({
+        search: busqueda || undefined,
+        employeeId: filtroEmpleado || undefined,
+        year: anio,
+        status: filtroEstado === "all" ? undefined : filtroEstado,
+        leaveType: filtroTipo === "all" ? undefined : filtroTipo,
+        pageNumber: numeroPagina,
+        pageSize: tamanioPagina
+      })
+  });
+
+  const mutacionCrear = useMutation({
+    mutationFn: createLeaveRequest,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["leaves"] });
+      setRetroalimentacion({ type: "success", message: "Solicitud de permiso registrada." });
+      setEmpleadoId("");
+      setTipoPermiso("personal");
+      setConGoce("paid");
+      setFechaInicio("");
+      setFechaFin("");
+      setMotivo("");
+    },
+    onError: () => {
+      setRetroalimentacion({ type: "error", message: "No se pudo registrar la solicitud." });
+    }
+  });
+
+  const mutacionAprobar = useMutation({
+    mutationFn: ({ id, comment }: { id: string; comment: string }) => approveLeaveRequest(id, comment),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["leaves"] });
+      setRetroalimentacion({ type: "success", message: "Solicitud aprobada." });
+      setModalAprobacion(null);
+    },
+    onError: () => {
+      setRetroalimentacion({ type: "error", message: "No se pudo aprobar la solicitud." });
+    }
+  });
+
+  const mutacionRechazar = useMutation({
+    mutationFn: ({ id, comment }: { id: string; comment: string }) => rejectLeaveRequest(id, comment),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["leaves"] });
+      setRetroalimentacion({ type: "success", message: "Solicitud rechazada." });
+      setModalAprobacion(null);
+    },
+    onError: () => {
+      setRetroalimentacion({ type: "error", message: "No se pudo rechazar la solicitud." });
+    }
+  });
+
+  const mutacionCancelar = useMutation({
+    mutationFn: cancelLeaveRequest,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["leaves"] });
+      setRetroalimentacion({ type: "success", message: "Solicitud cancelada." });
+    },
+    onError: () => {
+      setRetroalimentacion({ type: "error", message: "No se pudo cancelar la solicitud." });
+    }
+  });
+
+  const totalPaginas = useMemo(() => {
+    const total = permisosQuery.data.totalCount  0;
+    return Math.max(1, Math.ceil(total / tamanioPagina));
+  }, [permisosQuery.data.totalCount]);
+
+  const procesando = mutacionAprobar.isPending || mutacionRechazar.isPending;
+
+  return (
+    <section className="animate-fade-up space-y-5">
+      <PageHeader
+        title="Permisos y licencias"
+        description="Solicitudes, aprobaciones/rechazos y trazabilidad de motivos."
+      />
+
+      {retroalimentacion ? (
+        <Alert
+          variant={retroalimentacion.type === "success" ? "success" : "error"}
+          message={retroalimentacion.message}
+          onClose={() => setRetroalimentacion(null)}
+        />
+      ) : null}
+
+      {/* Nueva solicitud */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Nueva solicitud</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_2fr_auto]">
+          <FormField label="Empleado" required>
+            <Select value={empleadoId} onChange={(e) => setEmpleadoId(e.target.value)}>
+              <option value="">Selecciona empleado</option>
+              {catalogosQuery.data.employees.map((item) => (
+                <option key={item.id} value={item.id}>{item.label}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Tipo" required>
+            <Select value={tipoPermiso} onChange={(e) => setTipoPermiso(e.target.value as LeaveType)}>
+              {catalogosQuery.data.leaveTypes.map((item) => (
+                <option key={item.code} value={item.code}>{item.name}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Goce">
+            <Select value={conGoce} onChange={(e) => setConGoce(e.target.value as "paid" | "unpaid")}>
+              <option value="paid">Con goce</option>
+              <option value="unpaid">Sin goce</option>
+            </Select>
+          </FormField>
+          <FormField label="Desde" required>
+            <Input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
+          </FormField>
+          <FormField label="Hasta" required>
+            <Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
+          </FormField>
+          <FormField label="Motivo" required>
+            <Input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo obligatorio" />
+          </FormField>
+          <div className="flex items-end sm:col-span-2 xl:col-span-1">
+            <Button
+              className="w-full xl:w-auto"
+              disabled={!puedeCrear || !empleadoId || !fechaInicio || !fechaFin || !motivo.trim() || mutacionCrear.isPending}
+              onClick={() =>
+                mutacionCrear.mutate({
+                  employeeId: empleadoId,
+                  leaveType: tipoPermiso,
+                  startDate: fechaInicio,
+                  endDate: fechaFin,
+                  isPaid: conGoce === "paid",
+                  reason: motivo.trim()
+                })
+              }
+            >
+              {mutacionCrear.isPending ? "Enviando..." : "Solicitar"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabla con filtros */}
+      <Card>
+        <CardHeader className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>Historial de permisos</CardTitle>
+            {permisosQuery.data.totalCount ? (
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
+                {permisosQuery.data.totalCount} registros
+              </span>
+            ) : null}
+          </div>
+
+          {/* Filtros */}
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[2fr_1fr_1fr_1fr_120px_auto]">
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Buscar</label>
+              <Input
+                value={borrador}
+                onChange={(e) => setBorrador(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { setBusqueda(borrador.trim()); setNumeroPagina(1); } }}
+                placeholder="Empleado, cÃ³digo o Ã¡rea..."
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Estado</label>
+              <Select value={filtroEstado} onChange={(e) => { setFiltroEstado(e.target.value as "all" | LeaveStatus); setNumeroPagina(1); }}>
+                <option value="all">Todos los estados</option>
+                <option value="pending">Pendiente</option>
+                <option value="approved">Aprobada</option>
+                <option value="rejected">Rechazada</option>
+                <option value="cancelled">Cancelada</option>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Tipo</label>
+              <Select value={filtroTipo} onChange={(e) => { setFiltroTipo(e.target.value as "all" | LeaveType); setNumeroPagina(1); }}>
+                <option value="all">Todos los tipos</option>
+                {catalogosQuery.data.leaveTypes.map((item) => (
+                  <option key={item.code} value={item.code}>{item.name}</option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Empleado</label>
+              <Select value={filtroEmpleado} onChange={(e) => { setFiltroEmpleado(e.target.value); setNumeroPagina(1); }}>
+                <option value="">Todos los empleados</option>
+                {catalogosQuery.data.employees.map((item) => (
+                  <option key={item.id} value={item.id}>{item.label}</option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">AÃ±o</label>
+              <Input
+                type="number"
+                min={anioActual - 10}
+                max={anioActual + 5}
+                value={anio}
+                onChange={(e) => {
+                  const siguiente = Number(e.target.value);
+                  if (!Number.isFinite(siguiente)) return;
+                  setAnio(siguiente);
+                  setNumeroPagina(1);
+                }}
+              />
+            </div>
+            <div className="flex items-end sm:col-span-2 lg:col-span-3 xl:col-span-1">
+              <Button
+                className="w-full xl:w-auto"
+                variant="secondary"
+                onClick={() => { setBusqueda(borrador.trim()); setNumeroPagina(1); }}
+              >
+                Buscar
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0 pb-4">
+          <div className="overflow-x-auto">
+            <table className="min-w-[980px] w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b bg-slate-50">
+                  {["Empleado", "Tipo", "Rango", "DÃ­as", "Estado", "Detalle", ""].map((col) => (
+                    <th
+                      key={col}
+                      className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400 last:text-right"
+                    >
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {permisosQuery.isLoading ? (
+                  <TableSkeleton cols={7} />
+                ) : permisosQuery.data.items.length ? (
+                  permisosQuery.data.items.map((item) => {
+                    const etiquetaEstado = item.status === "approved" ? "Aprobada" : item.status === "rejected" ? "Rechazada" : item.status === "cancelled" ? "Cancelada" : "Pendiente";
+                    const varianteEstado = item.status === "approved" ? "success" : item.status === "rejected" ? "danger" : item.status === "cancelled" ? "warning" : "neutral";
+                    const colorTipo = VARIANTES_TIPO[item.leaveType] ? "bg-slate-100 text-slate-600";
+
+                    return (
+                      <tr key={item.id} className="border-t transition-colors hover:bg-slate-50/70">
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-slate-800">{item.employeeName}</p>
+                          <p className="text-[11px] text-muted">{item.employeeCode} Â· {item.area}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${colorTipo}`}>
+                            {ETIQUETAS_TIPO[item.leaveType] ? item.leaveType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {item.startDate} <span className="text-slate-300">â†’</span> {item.endDate}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums font-medium text-slate-700">{item.requestedDays}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={varianteEstado as "success" | "danger" | "neutral"}>{etiquetaEstado}</Badge>
+                        </td>
+                        <td className="max-w-[180px] px-4 py-3">
+                          <p className="truncate text-slate-600">{item.reason ? <span className="text-slate-300">â€”</span>}</p>
+                          <p className="text-[11px] text-muted">
+                            {item.isPaid ? "Con goce" : "Sin goce"}
+                            {item.reviewerComment ? ` Â· ${item.reviewerComment}` : ""}
+                          </p>
+                        </td>
+                        <td className="w-[120px] px-4 py-3">
+                          <div className="flex justify-end gap-0.5">
+                            {puedeAprobar && item.status === "pending" ? (
+                              <>
+                                <button
+                                  className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600"
+                                  title="Aprobar"
+                                  onClick={() => setModalAprobacion({ id: item.id, action: "approve" })}
+                                >
+                                  <Check className="size-3.5" />
+                                </button>
+                                <button
+                                  className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                                  title="Rechazar"
+                                  onClick={() => setModalAprobacion({ id: item.id, action: "reject" })}
+                                >
+                                  <X className="size-3.5" />
+                                </button>
+                                <button
+                                  className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-amber-50 hover:text-amber-600"
+                                  title="Cancelar solicitud"
+                                  disabled={mutacionCancelar.isPending}
+                                  onClick={() => mutacionCancelar.mutate(item.id)}
+                                >
+                                  <Ban className="size-3.5" />
+                                </button>
+                              </>
+                            ) : puedeCrear && item.status === "pending" ? (
+                              <button
+                                className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-amber-50 hover:text-amber-600"
+                                title="Cancelar solicitud"
+                                disabled={mutacionCancelar.isPending}
+                                onClick={() => mutacionCancelar.mutate(item.id)}
+                              >
+                                <Ban className="size-3.5" />
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <TableEmptyState cols={7} icon={FileText} message="Sin solicitudes para el filtro actual." />
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="px-4">
+            <Pagination
+              page={numeroPagina}
+              totalPages={totalPaginas}
+              totalCount={permisosQuery.data.totalCount  0}
+              pageSize={tamanioPagina}
+              onChange={setNumeroPagina}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <ApproveRejectModal
+        open={modalAprobacion !== null}
+        action={modalAprobacion.action ? "approve"}
+        title={modalAprobacion.action === "approve" ? "Aprobar permiso / licencia" : "Rechazar permiso / licencia"}
+        requireComment={modalAprobacion.action === "reject"}
+        loading={procesando}
+        onConfirm={(comment) => {
+          if (!modalAprobacion) return;
+          if (modalAprobacion.action === "approve") {
+            mutacionAprobar.mutate({ id: modalAprobacion.id, comment });
+          } else {
+            if (!comment) return;
+            mutacionRechazar.mutate({ id: modalAprobacion.id, comment });
+          }
+        }}
+        onClose={() => setModalAprobacion(null)}
+      />
+    </section>
+  );
+}
+
+

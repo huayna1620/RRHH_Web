@@ -1,0 +1,471 @@
+﻿import { Fragment, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, ChevronRight, History, Pencil, Trash2, UserCheck, UserPlus } from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { PageHeader } from "@/components/ui/page-header";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
+import { RecruitmentCandidateFormModal } from "@/modules/recruitment/components/RecruitmentCandidateFormModal";
+import { UpdateStatusModal } from "@/modules/recruitment/components/UpdateStatusModal";
+import {
+  createRecruitmentCandidate,
+  deleteRecruitmentCandidate,
+  getRecruitmentCandidateById,
+  getRecruitmentCandidates,
+  getRecruitmentCatalogs,
+  getRecruitmentStatusHistory,
+  updateRecruitmentCandidate,
+  updateRecruitmentStatus
+} from "@/modules/recruitment/services/recruitmentApi";
+import type {
+  CandidateStatusHistory,
+  RecruitmentCandidateListItem,
+  RecruitmentCandidatePayload,
+  RecruitmentStatus
+} from "@/modules/recruitment/types/recruitment.types";
+ ModalState =
+  | { mode: "create"; id: null }
+  | { mode: "edit"; id: string }
+  | null;
+ StatusModalState = {
+  id: string;
+  candidateName: string;
+  currentStatus: RecruitmentStatus;
+} | null;
+ pageSize = 10;
+ STATUS_COLORS: Record<RecruitmentStatus, string> = {
+  new: "bg-slate-100 text-slate-600",
+  screening: "bg-blue-100 text-blue-700",
+  interview: "bg-indigo-100 text-indigo-700",
+  offered: "bg-amber-100 text-amber-700",
+  hired: "bg-emerald-100 text-emerald-700",
+  rejected: "bg-rose-100 text-rose-600"
+};
+ STATUS_LABELS: Record<RecruitmentStatus, string> = {
+  new: "Nuevo",
+  screening: "Filtro inicial",
+  interview: "Entrevista",
+  offered: "Oferta",
+  hired: "Contratado",
+  rejected: "Descartado"
+};
+ HistoryRow({ candidateId }: { candidateId: string }): JSX.Element {
+  const historyQuery = useQuery({
+    queryKey: ["candidate-history", candidateId],
+    queryFn: () => getRecruitmentStatusHistory(candidateId)
+  });
+
+  if (historyQuery.isLoading) {
+    return <p className="text-[12px] text-muted py-2">Cargando historial...</p>;
+  }
+
+  const history: CandidateStatusHistory[] = historyQuery.data ?? [];
+
+  if (!history.length) {
+    return <p className="text-[12px] text-muted py-2">Sin cambios de estado registrados.</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {history.map((entry) => (
+        <div key={entry.id} className="flex items-start gap-3 text-[12px]">
+          <div className="mt-0.5 shrink-0 w-32 text-muted tabular-nums">
+            {new Date(entry.changedAtUtc).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[entry.fromStatus]}`}>{STATUS_LABELS[entry.fromStatus]}</span>
+            <span className="text-muted">â†’</span>
+            <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[entry.toStatus]}`}>{STATUS_LABELS[entry.toStatus]}</span>
+          </div>
+          {entry.rejectionReason ? (
+            <span className="text-rose-600 italic">"{entry.rejectionReason}"</span>
+          ) : entry.notes ? (
+            <span className="text-muted italic truncate max-w-[250px]">{entry.notes}</span>
+          ) : null}
+          <span className="ml-auto text-muted shrink-0">por {entry.changedBy}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+ function RecruitmentPage(): JSX.Element {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const [modalState, setModalState] = useState<ModalState>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [draftSearch, setDraftSearch] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | RecruitmentStatus>("all");
+  const [potentialFilter, setPotentialFilter] = useState<"all" | "yes" | "no">("all");
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [statusModalState, setStatusModalState] = useState<StatusModalState>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<{ id: string; name: string } | null>(null);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+
+  const canCreate = user.permissions.includes("recruitment.create") ? false;
+  const canEdit = user.permissions.includes("recruitment.edit") ? false;
+  const canDelete = user.permissions.includes("recruitment.delete") ? false;
+
+  const selectedId = modalState.mode === "edit" ? modalState.id : undefined;
+
+  const catalogsQuery = useQuery({
+    queryKey: ["recruitment-catalogs"],
+    queryFn: getRecruitmentCatalogs
+  });
+
+  const candidatesQuery = useQuery({
+    queryKey: ["recruitment", pageNumber, search, statusFilter, potentialFilter],
+    queryFn: () =>
+      getRecruitmentCandidates({
+        search: search || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        isPotentialHire: potentialFilter === "all" ? undefined : potentialFilter === "yes",
+        pageNumber,
+        pageSize
+      })
+  });
+
+  const detailQuery = useQuery({
+    queryKey: ["recruitment-candidate", selectedId],
+    queryFn: () => getRecruitmentCandidateById(selectedId ? ""),
+    enabled: Boolean(selectedId)
+  });
+
+  const createMutation = useMutation({
+    mutationFn: createRecruitmentCandidate,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["recruitment"] });
+      setFeedback({ type: "success", message: "Postulante creado." });
+      setModalState(null);
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo crear el postulante." })
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: RecruitmentCandidatePayload }) =>
+      updateRecruitmentCandidate(id, {
+        fullName: payload.fullName,
+        email: payload.email,
+        phoneNumber: payload.phoneNumber,
+        positionApplied: payload.positionApplied,
+        expectedSalary: payload.expectedSalary,
+        source: payload.source,
+        isPotentialHire: payload.isPotentialHire,
+        applicationDate: payload.applicationDate,
+        nextStepDate: payload.nextStepDate,
+        notes: payload.notes,
+        jobPostingId: payload.jobPostingId
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["recruitment"] });
+      setFeedback({ type: "success", message: "Postulante actualizado." });
+      setModalState(null);
+    },
+    onError: () => setFeedback({ type: "error", message: "No se pudo actualizar el postulante." })
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status, nextStepDate, notes, rejectionReason }: {
+      id: string;
+      status: RecruitmentStatus;
+      nextStepDate: string;
+      notes: string;
+      rejectionReason: string;
+    }) => updateRecruitmentStatus(id, { status, nextStepDate, notes, rejectionReason }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["recruitment"] });
+      await queryClient.invalidateQueries({ queryKey: ["candidate-history"] });
+      setFeedback({ type: "success", message: "Estado actualizado." });
+      setStatusModalState(null);
+    },
+    onError: (err: { response: { data: { error: string } } }) => {
+      setFeedback({ type: "error", message: err.response.data.error ? "No se pudo actualizar el estado." });
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteRecruitmentCandidate,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["recruitment"] });
+      setFeedback({ type: "success", message: "Postulante eliminado." });
+      setDeleteCandidate(null);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo eliminar el postulante." });
+      setDeleteCandidate(null);
+    }
+  });
+
+  const totalPages = useMemo(() => {
+    const totalCount = candidatesQuery.data.totalCount  0;
+    return Math.max(1, Math.ceil(totalCount / pageSize));
+  }, [candidatesQuery.data.totalCount]);
+
+  const candidates: RecruitmentCandidateListItem[] = candidatesQuery.data.items ?? [];
+
+  return (
+    <section className="animate-fade-up space-y-5">
+      <PageHeader
+        title="Reclutamiento"
+        description="Postulantes, estado del proceso y seguimiento de potencial de contrataciÃ³n."
+        action={
+          canCreate ? (
+            <Button
+              size="lg"
+              className="btn-create"
+              onClick={() => setModalState({ mode: "create", id: null })}
+            >
+              <UserPlus className="size-4" /> Nuevo postulante
+            </Button>
+          ) : undefined
+        }
+      />
+
+      {feedback ? (
+        <Alert
+          variant={feedback.type === "success" ? "success" : "error"}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
+      ) : null}
+
+      <Card>
+        <CardContent className="grid gap-3 py-4 md:grid-cols-[2fr_1fr_1fr_auto]">
+          <Input
+            value={draftSearch}
+            onChange={(e) => setDraftSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { setSearch(draftSearch.trim()); setPageNumber(1); } }}
+            placeholder="Buscar por nombre, correo o puesto"
+          />
+          <Select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as "all" | RecruitmentStatus); setPageNumber(1); }}>
+            <option value="all">Todos los estados</option>
+            {catalogsQuery.data.statuses.map((s) => (
+              <option key={s.code} value={s.code}>{s.name}</option>
+            ))}
+          </Select>
+          <Select value={potentialFilter} onChange={(e) => { setPotentialFilter(e.target.value as "all" | "yes" | "no"); setPageNumber(1); }}>
+            <option value="all">Todos</option>
+            <option value="yes">Posible contrataciÃ³n</option>
+            <option value="no">No priorizado</option>
+          </Select>
+          <Button variant="secondary" onClick={() => { setSearch(draftSearch.trim()); setPageNumber(1); }}>
+            Aplicar
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Listado de postulantes</CardTitle>
+          {candidatesQuery.data.totalCount ? (
+            <span className="text-[12px] text-muted">{candidatesQuery.data.totalCount} registros</span>
+          ) : null}
+        </CardHeader>
+        <CardContent className="p-0 pb-4">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b bg-slate-50">
+                  <th className="w-6 px-3 py-2.5" />
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">Postulante</th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">Puesto / Vacante</th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">Estado</th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">F. postulaciÃ³n</th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">Potencial</th>
+                  <th className="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-wide text-slate-400">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {candidatesQuery.isLoading ? (
+                  <TableSkeleton cols={7} />
+                ) : candidates.length ? (
+                  candidates.map((candidate) => {
+                    const statusVariant =
+                      candidate.currentStatus === "hired" ? "success"
+                      : candidate.currentStatus === "rejected" ? "danger"
+                      : "neutral";
+                    const isExpanded = expandedHistoryId === candidate.id;
+
+                    return (
+                      <Fragment key={candidate.id}>
+                        <tr className="border-t transition-colors hover:bg-slate-50/70">
+                          <td className="px-3 py-3">
+                            <button
+                              type="button"
+                              className="text-slate-400 hover:text-slate-600"
+                              title="Ver historial"
+                              onClick={() => setExpandedHistoryId(isExpanded ? null : candidate.id)}
+                            >
+                              {isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-semibold text-slate-800">{candidate.fullName}</p>
+                            <p className="text-[11px] text-muted">{candidate.email} Â· {candidate.phoneNumber}</p>
+                            {candidate.convertedToEmployee ? (
+                              <span className="mt-0.5 inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">Convertido a empleado</span>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="text-slate-700">{candidate.positionApplied}</p>
+                            {candidate.jobPostingTitle ? (
+                              <p className="text-[11px] text-muted">Vacante: {candidate.jobPostingTitle}</p>
+                            ) : null}
+                            {typeof candidate.expectedSalary === "number" ? (
+                              <p className="text-[11px] text-muted">PretensiÃ³n: S/ {candidate.expectedSalary.toFixed(2)}</p>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant={statusVariant as "success" | "danger" | "neutral"}>
+                              {STATUS_LABELS[candidate.currentStatus]}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 tabular-nums">{candidate.applicationDate}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={candidate.isPotentialHire ? "success" : "neutral"}>
+                              {candidate.isPotentialHire ? "SÃ­" : "No"}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex justify-end gap-0.5">
+                              <button
+                                type="button"
+                                className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                title="Ver historial"
+                                onClick={() => setExpandedHistoryId(isExpanded ? null : candidate.id)}
+                              >
+                                <History className="size-3.5" />
+                              </button>
+
+                              {canEdit && !candidate.convertedToEmployee ? (
+                                <button
+                                  type="button"
+                                  className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                  onClick={() => setModalState({ mode: "edit", id: candidate.id })}
+                                  title="Editar"
+                                >
+                                  <Pencil className="size-3.5" />
+                                </button>
+                              ) : null}
+
+                              {canEdit && candidate.currentStatus !== "hired" && candidate.currentStatus !== "rejected" ? (
+                                <button
+                                  type="button"
+                                  className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                  title="Cambiar estado"
+                                  onClick={() => setStatusModalState({
+                                    id: candidate.id,
+                                    candidateName: candidate.fullName,
+                                    currentStatus: candidate.currentStatus
+                                  })}
+                                >
+                                  <UserCheck className="size-3.5" />
+                                </button>
+                              ) : null}
+
+                              {canDelete ? (
+                                <button
+                                  type="button"
+                                  className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                                  title="Eliminar"
+                                  onClick={() => setDeleteCandidate({ id: candidate.id, name: candidate.fullName })}
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded ? (
+                          <tr className="border-t bg-slate-50/60">
+                            <td colSpan={7} className="px-6 py-3">
+                              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Historial de estados</p>
+                              <HistoryRow candidateId={candidate.id} />
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })
+                ) : (
+                  <TableEmptyState cols={7} icon={UserPlus} message="Sin postulantes para el filtro actual." />
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="px-4">
+            <Pagination
+              page={pageNumber}
+              totalPages={totalPages}
+              totalCount={candidatesQuery.data.totalCount  0}
+              pageSize={pageSize}
+              onChange={setPageNumber}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <RecruitmentCandidateFormModal
+        open={modalState !== null}
+        mode={modalState.mode ? "create"}
+        catalogs={catalogsQuery.data}
+        candidate={detailQuery.data ? null}
+        loadingCandidate={detailQuery.isLoading}
+        saving={createMutation.isPending || updateMutation.isPending}
+        onClose={() => setModalState(null)}
+        onSubmit={async (payload) => {
+          if (modalState.mode === "edit" && modalState.id) {
+            await updateMutation.mutateAsync({ id: modalState.id, payload });
+            return;
+          }
+          await createMutation.mutateAsync(payload);
+        }}
+      />
+
+      <UpdateStatusModal
+        open={statusModalState !== null}
+        candidateName={statusModalState.candidateName ? ""}
+        currentStatus={statusModalState.currentStatus ? "new"}
+        statuses={catalogsQuery.data.statuses ?? []}
+        loading={updateStatusMutation.isPending}
+        onConfirm={(status, nextStepDate, notes, rejectionReason) => {
+          if (!statusModalState) return;
+          updateStatusMutation.mutate({
+            id: statusModalState.id,
+            status,
+            nextStepDate,
+            notes,
+            rejectionReason
+          });
+        }}
+        onClose={() => setStatusModalState(null)}
+      />
+
+      <ConfirmModal
+        open={deleteCandidate !== null}
+        title="Eliminar postulante"
+        message={`Se eliminarÃ¡ a ${deleteCandidate.name ? "este postulante"}. Â¿Deseas continuar`}
+        confirmLabel="Eliminar"
+        variant="danger"
+        loading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (!deleteCandidate) return;
+          deleteMutation.mutate(deleteCandidate.id);
+        }}
+        onClose={() => setDeleteCandidate(null)}
+      />
+    </section>
+  );
+}
+
+

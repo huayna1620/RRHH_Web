@@ -1,0 +1,75 @@
+﻿import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/forms/FormField";
+import { Modal } from "@/components/ui/modal";
+import type { AttendanceIncident } from "@/modules/incidents/types/incident.types";
+ JustifyIncidentModalProps = {
+  incident: AttendanceIncident | null;
+  saving: boolean;
+  onClose: () => void;
+  onSubmit: (id: string, text: string) => void;
+};
+ incidentTypeLabels: Record<string, string> = {
+  tardanza: "Tardanza",
+  falta: "Falta",
+  salida_anticipada: "Salida anticipada",
+  no_marcacion: "No marcaciÃ³n"
+};
+ function JustifyIncidentModal({ incident, saving, onClose, onSubmit }: JustifyIncidentModalProps): JSX.Element {
+  const [text, setText] = useState("");
+
+  useEffect(() => {
+    setText(incident.justificationText ? "");
+  }, [incident]);
+
+  function handleSubmit(e: React.FormEvent): void {
+    e.preventDefault();
+    if (!incident || !text.trim()) return;
+    onSubmit(incident.id, text.trim());
+  }
+
+  if (!incident) return <></>;
+
+  const typeLabel = incidentTypeLabels[incident.incidentType] ? incident.incidentType;
+
+  return (
+    <Modal open={!!incident} title="Enviar justificaciÃ³n" onClose={onClose}>
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <div className="rounded-lg border bg-slate-50 px-4 py-3 text-sm">
+          <p className="font-medium text-slate-700">{incident.employeeName}</p>
+          <p className="mt-0.5 text-slate-500">
+            {typeLabel} Â· {incident.incidentDate}
+            {incident.minutesImpacted > 0 && ` Â· ${incident.minutesImpacted} min`}
+          </p>
+          {incident.justificationDeadlineUtc && (
+            <p className="mt-1 text-xs text-amber-600">
+              Plazo: {new Date(incident.justificationDeadlineUtc).toLocaleDateString("es-PE")}
+            </p>
+          )}
+        </div>
+
+        <FormField label="JustificaciÃ³n" required>
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Describe el motivo de la incidencia..."
+            rows={4}
+            required
+          />
+        </FormField>
+
+        <div className="flex justify-end gap-2 pt-1">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving || !text.trim()}>
+            {saving ? "Enviando..." : "Enviar justificaciÃ³n"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+

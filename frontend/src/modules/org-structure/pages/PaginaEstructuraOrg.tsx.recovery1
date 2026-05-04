@@ -1,0 +1,281 @@
+﻿import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BriefcaseBusiness, Pencil, Plus, Trash2, UserCheck, UserX } from "lucide-react";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TableEmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
+import { PageHeader } from "@/components/ui/page-header";
+import { OrgStructureFormModal } from "@/modules/org-structure/components/OrgStructureFormModal";
+import {
+  createArea,
+  createPosition,
+  deleteArea,
+  deletePosition,
+  getAreas,
+  getPositions,
+  updateArea,
+  updateAreaStatus,
+  updatePosition,
+  updatePositionStatus
+} from "@/modules/org-structure/services/orgStructureApi";
+import type { OrgItem, OrgModuleType, OrgPayload } from "@/modules/org-structure/types/orgStructure.types";
+import { cn } from "@/lib/utils/cn";
+ ModalState =
+  | { mode: "create"; item: null }
+  | { mode: "edit"; item: OrgItem }
+  | null;
+ pageSize = 10;
+ function PaginaEstructuraOrg(): JSX.Element {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const [moduleType, setModuleType] = useState<OrgModuleType>("areas");
+  const [modalState, setModalState] = useState<ModalState>(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [draftSearch, setDraftSearch] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const listQuery = useQuery({
+    queryKey: ["org-structure", moduleType, pageNumber, search, statusFilter],
+    queryFn: () => {
+      const baseQuery = {
+        pageNumber,
+        pageSize,
+        search: search || undefined,
+        isActive: statusFilter === "all" ? undefined : statusFilter === "active",
+        sortBy: "name",
+        sortDirection: "asc" as const
+      };
+      return moduleType === "areas" ? getAreas(baseQuery) : getPositions(baseQuery);
+    }
+  });
+
+  const canCreate = user.permissions.includes(moduleType === "areas" ? "areas.create" : "positions.create") ? false;
+  const canEdit = user.permissions.includes(moduleType === "areas" ? "areas.edit" : "positions.edit") ? false;
+  const canDelete = user.permissions.includes(moduleType === "areas" ? "areas.delete" : "positions.delete") ? false;
+
+  const createMutation = useMutation({
+    mutationFn: (payload: OrgPayload) => (moduleType === "areas" ? createArea(payload) : createPosition(payload)),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["org-structure"] });
+      setFeedback({ type: "success", message: `${moduleType === "areas" ? "Area" : "Cargo"} creado correctamente.` });
+      setModalState(null);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: `No se pudo crear ${moduleType === "areas" ? "el area" : "el cargo"}.` });
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: OrgPayload }) =>
+      (moduleType === "areas" ? updateArea(id, payload) : updatePosition(id, payload)),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["org-structure"] });
+      setFeedback({ type: "success", message: `${moduleType === "areas" ? "Area" : "Cargo"} actualizado correctamente.` });
+      setModalState(null);
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: `No se pudo actualizar ${moduleType === "areas" ? "el area" : "el cargo"}.` });
+    }
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      (moduleType === "areas" ? updateAreaStatus(id, isActive) : updatePositionStatus(id, isActive)),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["org-structure"] });
+      setFeedback({ type: "success", message: "Estado actualizado." });
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo actualizar el estado." });
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => (moduleType === "areas" ? deleteArea(id) : deletePosition(id)),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["org-structure"] });
+      setFeedback({ type: "success", message: `${moduleType === "areas" ? "Area" : "Cargo"} eliminado.` });
+    },
+    onError: () => {
+      setFeedback({ type: "error", message: "No se pudo eliminar. Verifica si tiene empleados asociados." });
+    }
+  });
+
+  const totalPages = useMemo(() => {
+    const totalCount = listQuery.data.totalCount  0;
+    return Math.max(1, Math.ceil(totalCount / pageSize));
+  }, [listQuery.data.totalCount]);
+
+  function switchModule(next: OrgModuleType): void {
+    setModuleType(next);
+    setSearch("");
+    setDraftSearch("");
+    setStatusFilter("all");
+    setPageNumber(1);
+    setModalState(null);
+  }
+
+  function applyFilters(): void {
+    setSearch(draftSearch.trim());
+    setPageNumber(1);
+  }
+
+  const isAreas = moduleType === "areas";
+
+  return (
+    <section className="animate-fade-up space-y-5">
+      <PageHeader
+        title="Areas y Cargos"
+        description="Estructura organizacional base para relacionar empleados."
+        action={
+          canCreate ? (
+            <Button size="lg" className="btn-create" onClick={() => setModalState({ mode: "create", item: null })}>
+              <Plus className="size-4" /> Nuevo {isAreas ? "area" : "cargo"}
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <div className="grid w-full grid-cols-2 gap-1 rounded-lg border bg-white p-1 shadow-panel sm:w-fit sm:grid-cols-none sm:flex">
+        {(["areas", "positions"] as OrgModuleType[]).map((type) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => switchModule(type)}
+            className={cn(
+              "flex items-center justify-center gap-2 rounded-md px-3 py-2 text-[13px] font-semibold transition-all",
+              moduleType === type ? "bg-brand-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            <BriefcaseBusiness className="size-3.5" />
+            {type === "areas" ? "Areas" : "Cargos"}
+          </button>
+        ))}
+      </div>
+
+      {feedback ? <Alert variant={feedback.type === "success" ? "success" : "error"} message={feedback.message} onClose={() => setFeedback(null)} /> : null}
+
+      <Card>
+        <CardHeader className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>{isAreas ? "Listado de areas" : "Listado de cargos"}</CardTitle>
+            {listQuery.data.totalCount ? <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">{listQuery.data.totalCount} registros</span> : null}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_auto]">
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Buscar</label>
+              <Input value={draftSearch} onChange={(e) => setDraftSearch(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") applyFilters(); }} placeholder={`Buscar ${isAreas ? "area" : "cargo"} por nombre o codigo...`} />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Estado</label>
+              <Select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as "all" | "active" | "inactive"); setPageNumber(1); }}>
+                <option value="all">Todos los estados</option>
+                <option value="active">Activos</option>
+                <option value="inactive">Inactivos</option>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button className="w-full sm:w-auto" variant="secondary" onClick={applyFilters}>Buscar</Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0 pb-4">
+          <div className="space-y-3 px-3 pb-1 pt-2 md:hidden">
+            {listQuery.isLoading ? (
+              <TableSkeleton cols={1} />
+            ) : listQuery.data.items.length ? (
+              listQuery.data.items.map((item) => (
+                <article key={item.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-800">{item.name}</p>
+                      <span className="mt-1 inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{item.code}</span>
+                    </div>
+                    <Badge variant={item.isActive ? "success" : "danger"}>{item.isActive ? "Activo" : "Inactivo"}</Badge>
+                  </div>
+                  <div className="mt-2 text-xs text-slate-500">Empleados: <span className="font-semibold text-slate-700">{item.employeesCount}</span></div>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {canEdit ? <Button size="sm" variant="secondary" onClick={() => setModalState({ mode: "edit", item })}><Pencil className="size-3.5" /> Editar</Button> : null}
+                    {canEdit ? <Button size="sm" variant={item.isActive ? "danger" : "primary"} onClick={() => statusMutation.mutate({ id: item.id, isActive: !item.isActive })}>{item.isActive ? <UserX className="size-3.5" /> : <UserCheck className="size-3.5" />}{item.isActive ? "Desact." : "Activar"}</Button> : null}
+                    {canDelete ? <Button size="sm" variant="ghost" className="text-rose-600 hover:bg-rose-50 hover:text-rose-700" onClick={() => { if (!window.confirm(`Eliminar ${isAreas ? "el area" : "el cargo"}`)) return; deleteMutation.mutate(item.id); }}><Trash2 className="size-3.5" /> Eliminar</Button> : null}
+                  </div>
+                </article>
+              ))
+            ) : (
+              <TableEmptyState cols={1} icon={BriefcaseBusiness} message={`No se encontraron ${isAreas ? "areas" : "cargos"}.`} />
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b bg-slate-50">
+                  {["Codigo", "Nombre", "Empleados", "Estado", ""].map((col) => (
+                    <th key={col} className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400 last:text-right">{col}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {listQuery.isLoading ? (
+                  <TableSkeleton cols={5} />
+                ) : listQuery.data.items.length ? (
+                  listQuery.data.items.map((item) => (
+                    <tr key={item.id} className="border-t transition-colors hover:bg-slate-50/70">
+                      <td className="px-4 py-3"><span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{item.code}</span></td>
+                      <td className="px-4 py-3 font-medium text-slate-800">{item.name}</td>
+                      <td className="px-4 py-3 text-slate-500">{item.employeesCount}</td>
+                      <td className="px-4 py-3"><Badge variant={item.isActive ? "success" : "danger"}>{item.isActive ? "Activo" : "Inactivo"}</Badge></td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-0.5">
+                          {canEdit ? <button className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600" title="Editar" onClick={() => setModalState({ mode: "edit", item })}><Pencil className="size-3.5" /></button> : null}
+                          {canEdit ? <button className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600" title={item.isActive ? "Desactivar" : "Activar"} onClick={() => statusMutation.mutate({ id: item.id, isActive: !item.isActive })}>{item.isActive ? <UserX className="size-3.5" /> : <UserCheck className="size-3.5" />}</button> : null}
+                          {canDelete ? <button className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-500" title="Eliminar" onClick={() => { if (!window.confirm(`Eliminar ${isAreas ? "el area" : "el cargo"}`)) return; deleteMutation.mutate(item.id); }}><Trash2 className="size-3.5" /></button> : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <TableEmptyState cols={5} icon={BriefcaseBusiness} message={`No se encontraron ${isAreas ? "areas" : "cargos"}.`} />
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="px-3 sm:px-4">
+            <Pagination page={pageNumber} totalPages={totalPages} totalCount={listQuery.data.totalCount  0} pageSize={pageSize} onChange={setPageNumber} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <OrgStructureFormModal
+        open={modalState !== null}
+        moduleType={moduleType}
+        mode={modalState.mode ? "create"}
+        item={modalState.item ? null}
+        saving={createMutation.isPending || updateMutation.isPending}
+        onClose={() => setModalState(null)}
+        onSubmit={async (payload) => {
+          if (modalState.mode === "edit" && modalState.item) {
+            await updateMutation.mutateAsync({ id: modalState.item.id, payload });
+            return;
+          }
+          await createMutation.mutateAsync(payload);
+        }}
+      />
+    </section>
+  );
+}
+
+
