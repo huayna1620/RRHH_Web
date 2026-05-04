@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Hrms.Infrastructure.Services;
 
-public sealed class AttendanceIncidentService(HrmsDbContext dbContext) : IAttendanceIncidentService
+public sealed class AttendanceIncidentService(HrmsDbContext dbContext, IAuditService auditService) : IAttendanceIncidentService
 {
     public async Task<PagedResultDto<AttendanceIncidentDto>> GetPagedAsync(
         AttendanceIncidentQueryDto query,
@@ -99,6 +99,15 @@ public sealed class AttendanceIncidentService(HrmsDbContext dbContext) : IAttend
         incident.UpdatedBy = submittedByUserName;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await auditService.LogAsync(
+            null,
+            submittedByUserName,
+            "Justify",
+            "Incidents",
+            incident.Id.ToString(),
+            nameof(AttendanceIncident),
+            $"Incidencia {incident.IncidentType} justificada por {incident.Employee.EmployeeCode} - {incident.Employee.FirstName} {incident.Employee.LastName}",
+            cancellationToken: cancellationToken);
         return ToDto(incident);
     }
 
@@ -129,6 +138,15 @@ public sealed class AttendanceIncidentService(HrmsDbContext dbContext) : IAttend
         incident.UpdatedBy = reviewedByUserName;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await auditService.LogAsync(
+            reviewedByUserId,
+            reviewedByUserName,
+            "Approve",
+            "Incidents",
+            incident.Id.ToString(),
+            nameof(AttendanceIncident),
+            $"Incidencia {incident.IncidentType} aprobada para {incident.Employee.EmployeeCode} - {incident.Employee.FirstName} {incident.Employee.LastName}",
+            cancellationToken: cancellationToken);
         return ToDto(incident);
     }
 
@@ -156,6 +174,15 @@ public sealed class AttendanceIncidentService(HrmsDbContext dbContext) : IAttend
         incident.UpdatedBy = reviewedByUserName;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await auditService.LogAsync(
+            reviewedByUserId,
+            reviewedByUserName,
+            "Reject",
+            "Incidents",
+            incident.Id.ToString(),
+            nameof(AttendanceIncident),
+            $"Incidencia {incident.IncidentType} rechazada para {incident.Employee.EmployeeCode} - {incident.Employee.FirstName} {incident.Employee.LastName}",
+            cancellationToken: cancellationToken);
         return ToDto(incident);
     }
 
