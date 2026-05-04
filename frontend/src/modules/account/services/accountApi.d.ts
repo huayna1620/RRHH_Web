@@ -18,6 +18,22 @@ export type UpcomingEvent = {
     title: string;
     date: string;
 };
+export type PortalRequest = {
+    type: string;
+    status: string;
+    title: string;
+    detail: string;
+    startDate: string;
+    endDate: string | null;
+    createdAtUtc: string;
+};
+export type PortalNotice = {
+    type: string;
+    title: string;
+    detail: string;
+    status: string | null;
+    createdAtUtc: string;
+};
 export type EmployeeDashboard = {
     employeeCode: string;
     fullName: string;
@@ -36,7 +52,13 @@ export type EmployeeDashboard = {
     lastNetPay: number | null;
     lastPayrollYear: number | null;
     lastPayrollMonth: number | null;
+    lastPayrollPaidAtUtc: string | null;
+    branchName: string | null;
+    contractTypeName: string | null;
+    managerName: string | null;
     upcomingEvents: UpcomingEvent[];
+    recentRequests: PortalRequest[];
+    notices: PortalNotice[];
 };
 export type CalendarEvent = {
     type: string;

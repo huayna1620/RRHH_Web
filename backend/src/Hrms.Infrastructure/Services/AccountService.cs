@@ -46,6 +46,9 @@ public sealed class AccountService(HrmsDbContext dbContext) : IAccountService
             .AsNoTracking()
             .Include(u => u.Employee).ThenInclude(e => e!.Area)
             .Include(u => u.Employee).ThenInclude(e => e!.Position)
+            .Include(u => u.Employee).ThenInclude(e => e!.Branch)
+            .Include(u => u.Employee).ThenInclude(e => e!.ContractType)
+            .Include(u => u.Employee).ThenInclude(e => e!.Manager)
             .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted, cancellationToken);
 
         if (user?.Employee is null) return null;
@@ -103,7 +106,7 @@ public sealed class AccountService(HrmsDbContext dbContext) : IAccountService
             .AsNoTracking()
             .Where(p => !p.IsDeleted && p.EmployeeId == emp.Id)
             .OrderByDescending(p => p.Year).ThenByDescending(p => p.Month)
-            .Select(p => new { p.NetPay, p.Year, p.Month })
+            .Select(p => new { p.NetPay, p.Year, p.Month, p.PaidAtUtc })
             .FirstOrDefaultAsync(cancellationToken);
 
         // Upcoming events (next 30 days): holidays + approved vacations + approved leaves
@@ -141,6 +144,111 @@ public sealed class AccountService(HrmsDbContext dbContext) : IAccountService
             .OrderBy(e => e.Date)
             .ToList();
 
+        // Recent personal requests (vacations + leaves + incidents), newest first
+        var recentVacationsRaw = await dbContext.VacationRequests
+            .AsNoTracking()
+            .Where(v => !v.IsDeleted && v.EmployeeId == emp.Id)
+            .Select(v => new { v.Status, v.StartDate, v.EndDate, v.CreatedAtUtc })
+            .ToListAsync(cancellationToken);
+
+        var recentVacations = recentVacationsRaw
+            .Select(v => new PortalRequestDto(
+                "vacation",
+                v.Status,
+                "Vacaciones",
+                $"Del {v.StartDate:dd/MM/yyyy} al {v.EndDate:dd/MM/yyyy}",
+                v.StartDate,
+                v.EndDate,
+                v.CreatedAtUtc))
+            .ToList();
+
+        var recentLeavesRaw = await dbContext.LeaveRequests
+            .AsNoTracking()
+            .Where(l => !l.IsDeleted && l.EmployeeId == emp.Id)
+            .Select(l => new { l.Status, l.LeaveType, l.StartDate, l.EndDate, l.CreatedAtUtc })
+            .ToListAsync(cancellationToken);
+
+        var recentLeaves = recentLeavesRaw
+            .Select(l => new PortalRequestDto(
+                "leave",
+                l.Status,
+                "Permiso",
+                $"{l.LeaveType} ({l.StartDate:dd/MM/yyyy})",
+                l.StartDate,
+                l.EndDate,
+                l.CreatedAtUtc))
+            .ToList();
+
+        var recentIncidentsRaw = await dbContext.AttendanceIncidents
+            .AsNoTracking()
+            .Where(i => !i.IsDeleted && i.EmployeeId == emp.Id)
+            .Select(i => new { i.Status, i.IncidentType, i.IncidentDate, i.CreatedAtUtc })
+            .ToListAsync(cancellationToken);
+
+        var recentIncidents = recentIncidentsRaw
+            .Select(i => new PortalRequestDto(
+                "incident",
+                i.Status,
+                "Incidencia",
+                $"{i.IncidentType} ({i.IncidentDate:dd/MM/yyyy})",
+                i.IncidentDate,
+                i.IncidentDate,
+                i.CreatedAtUtc))
+            .ToList();
+
+        var recentRequests = recentVacations
+            .Concat(recentLeaves)
+            .Concat(recentIncidents)
+            .OrderByDescending(r => r.CreatedAtUtc)
+            .Take(4)
+            .ToList();
+
+        // Personal notices (notifications + pending documents + payroll ready)
+        var notifications = await dbContext.AppNotifications
+            .AsNoTracking()
+            .Where(n => n.UserId == userId)
+            .OrderByDescending(n => n.CreatedAtUtc)
+            .Select(n => new PortalNoticeDto(
+                n.Category ?? "notification",
+                n.Title,
+                n.Message,
+                n.IsRead ? "read" : "unread",
+                n.CreatedAtUtc))
+            .Take(3)
+            .ToListAsync(cancellationToken);
+
+        var pendingDocs = await dbContext.EmployeeDocuments
+            .AsNoTracking()
+            .Where(d => !d.IsDeleted && d.EmployeeId == emp.Id && d.Status == "pending_signature")
+            .OrderByDescending(d => d.CreatedAtUtc)
+            .Select(d => new PortalNoticeDto(
+                "document",
+                d.Title,
+                "Documento pendiente de firma",
+                d.Status,
+                d.CreatedAtUtc))
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        var payrollNotice = lastPayroll is null
+            ? []
+            : new List<PortalNoticeDto>
+            {
+                new(
+                    "payroll",
+                    "Boleta de pago disponible",
+                    $"Periodo {lastPayroll.Year}/{lastPayroll.Month:00}",
+                    lastPayroll.PaidAtUtc.HasValue ? "paid" : "approved",
+                    lastPayroll.PaidAtUtc ?? now)
+            };
+
+        var notices = payrollNotice
+            .Concat(pendingDocs)
+            .Concat(notifications)
+            .OrderByDescending(n => n.CreatedAtUtc)
+            .Take(3)
+            .ToList();
+
         return new EmployeeDashboardDto(
             emp.EmployeeCode,
             emp.FirstName + " " + emp.LastName,
@@ -159,7 +267,13 @@ public sealed class AccountService(HrmsDbContext dbContext) : IAccountService
             lastPayroll?.NetPay,
             lastPayroll?.Year,
             lastPayroll?.Month,
-            upcoming);
+            lastPayroll?.PaidAtUtc,
+            emp.Branch?.Name,
+            emp.ContractType?.Name,
+            emp.Manager is null ? null : $"{emp.Manager.FirstName} {emp.Manager.LastName}",
+            upcoming,
+            recentRequests,
+            notices);
     }
 
     public async Task<IReadOnlyList<CalendarEventDto>> GetCalendarEventsAsync(Guid userId, int year, int month, CancellationToken cancellationToken = default)

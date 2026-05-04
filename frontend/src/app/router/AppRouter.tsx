@@ -1,8 +1,28 @@
-import { Suspense, lazy, useEffect, type JSX } from "react";
+import { Component, Suspense, lazy, useEffect, type JSX, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppLayout, PlaceholderModule, RootRedirect } from "@/app/layouts/AppLayout";
 import { RutaProtegida } from "@/modules/auth/components/RutaProtegida";
 import { PaginaLogin } from "@/modules/auth/pages/PaginaLogin";
+
+class PageErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center">
+          <p className="font-semibold text-rose-700">Error al cargar el módulo</p>
+          <p className="mt-1 text-sm text-rose-500">{this.state.error.message}</p>
+          <button className="mt-3 text-sm text-brand-600 underline" onClick={() => this.setState({ error: null })}>Reintentar</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const PaginaDashboard = lazy(() => import("@/modules/dashboard/pages/PaginaDashboard").then((m) => ({ default: m.PaginaDashboard })));
 const PaginaEmpleados = lazy(() => import("@/modules/employees/pages/PaginaEmpleados").then((m) => ({ default: m.PaginaEmpleados })));
@@ -33,9 +53,11 @@ const PaginaIntegraciones = lazy(() => import("@/modules/integrations/pages/Pagi
 
 function withSuspense(element: JSX.Element): JSX.Element {
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-slate-500">Cargando modulo...</div>}>
-      {element}
-    </Suspense>
+    <PageErrorBoundary>
+      <Suspense fallback={<div className="p-6 text-sm text-slate-500">Cargando modulo...</div>}>
+        {element}
+      </Suspense>
+    </PageErrorBoundary>
   );
 }
 
