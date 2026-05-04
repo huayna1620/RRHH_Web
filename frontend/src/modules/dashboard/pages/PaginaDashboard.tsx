@@ -1,112 +1,318 @@
-import { type JSX } from "react";
+﻿import { type ElementType, type JSX } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Users, UserCheck, TrendingUp, Calendar, Clock, FileText, CreditCard, UserMinus } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  Circle,
+  ClipboardList,
+  Clock3,
+  FileCheck2,
+  FileText,
+  Flag,
+  MapPin,
+  Settings,
+  Sparkles,
+  UserCheck,
+  UserPlus,
+  UserRoundMinus,
+  Users,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { getAnalyticsSummary } from "@/modules/analytics/services/analyticsApi";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getAnalyticsSummary, getAreaDistribution } from "@/modules/analytics/services/analyticsApi";
+import { getAttendanceSummary } from "@/modules/attendance/services/attendanceApi";
+import { getCalendarEvents } from "@/modules/account/services/accountApi";
 
-function MetricCard({
-  label, value, sub, icon: Icon, accent,
-}: {
-  label: string; value: string | number; sub?: string;
-  icon?: React.ElementType; accent?: string;
-}): JSX.Element {
+type Tone = "teal" | "green" | "blue" | "rose" | "amber" | "violet";
+
+type EventTone = { icon: ElementType; color: string; label: string };
+
+const kpiTone: Record<Tone, { ring: string; soft: string; iconBg: string; icon: string; chip: string }> = {
+  teal: { ring: "ring-teal-200", soft: "from-teal-50 to-white", iconBg: "bg-teal-100", icon: "text-teal-700", chip: "text-teal-700 bg-teal-100" },
+  green: { ring: "ring-emerald-200", soft: "from-emerald-50 to-white", iconBg: "bg-emerald-100", icon: "text-emerald-700", chip: "text-emerald-700 bg-emerald-100" },
+  blue: { ring: "ring-blue-200", soft: "from-blue-50 to-white", iconBg: "bg-blue-100", icon: "text-blue-700", chip: "text-blue-700 bg-blue-100" },
+  rose: { ring: "ring-rose-200", soft: "from-rose-50 to-white", iconBg: "bg-rose-100", icon: "text-rose-700", chip: "text-rose-700 bg-rose-100" },
+  amber: { ring: "ring-amber-200", soft: "from-amber-50 to-white", iconBg: "bg-amber-100", icon: "text-amber-700", chip: "text-amber-700 bg-amber-100" },
+  violet: { ring: "ring-violet-200", soft: "from-violet-50 to-white", iconBg: "bg-violet-100", icon: "text-violet-700", chip: "text-violet-700 bg-violet-100" },
+};
+
+const donutPalette = ["#14b8a6", "#3b82f6", "#a855f7", "#f59e0b", "#ec4899", "#22c55e"];
+
+function fmt(n: number | undefined): string {
+  return n !== undefined ? n.toLocaleString("es-PE") : "-";
+}
+
+function safePercent(n: number | undefined): string {
+  if (n === undefined || Number.isNaN(n)) return "-";
+  const normalized = n <= 1 ? n * 100 : n;
+  const clamped = Math.max(0, Math.min(normalized, 100));
+  return `${clamped.toFixed(1)}%`;
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function monthAndYearNow(): { year: number; month: number } {
+  const d = new Date();
+  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+}
+
+function eventTone(type: string): EventTone {
+  const t = type.toLowerCase();
+  if (t.includes("holiday") || t.includes("feriado")) return { icon: Flag, color: "bg-blue-50 text-blue-700", label: "Feriado" };
+  if (t.includes("vacation") || t.includes("vacacion")) return { icon: CalendarDays, color: "bg-emerald-50 text-emerald-700", label: "Vacaciones" };
+  if (t.includes("birthday") || t.includes("cumple")) return { icon: Sparkles, color: "bg-rose-50 text-rose-700", label: "Cumpleanos" };
+  return { icon: CalendarClock, color: "bg-violet-50 text-violet-700", label: "Evento" };
+}
+
+function Kpi({ title, value, sub, icon: Icon, tone, badge }: { title: string; value: string; sub: string; icon: ElementType; tone: Tone; badge: string }): JSX.Element {
+  const t = kpiTone[tone];
   return (
-    <Card>
-      <CardContent className="flex items-start gap-3 p-4">
-        {Icon && (
-          <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${accent ?? "bg-brand-50 text-brand-600"}`}>
-            <Icon className="size-5" />
+    <Card className={`overflow-hidden border-slate-200 bg-gradient-to-br ${t.soft} ring-1 ${t.ring}`}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+            <p className="mt-1 text-[32px] font-extrabold leading-none text-slate-900">{value}</p>
+            <div className="mt-2 flex items-center gap-2">
+              <p className="text-[11px] text-slate-500">{sub}</p>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${t.chip}`}>{badge}</span>
+            </div>
           </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-          <p className="mt-0.5 text-2xl font-extrabold tracking-tight text-slate-800">{value}</p>
-          {sub && <p className="mt-0.5 text-[11px] text-slate-400">{sub}</p>}
+          <div className={`flex size-12 items-center justify-center rounded-2xl ${t.iconBg}`}>
+            <Icon className={`size-5 ${t.icon}`} />
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function RowStat({ label, value }: { label: string; value: string }): JSX.Element {
+function ActionTile({ to, label, icon: Icon }: { to: string; label: string; icon: ElementType }): JSX.Element {
   return (
-    <div className="flex items-center justify-between py-2 text-sm">
-      <span className="text-slate-500">{label}</span>
-      <span className="font-semibold text-slate-800">{value}</span>
+    <Link to={to} className="group rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md">
+      <div className="flex items-center justify-between">
+        <Icon className="size-4 text-slate-600 transition group-hover:text-brand-600" />
+        <ArrowRight className="size-3.5 text-slate-400 transition group-hover:text-brand-600" />
+      </div>
+      <p className="mt-2 text-sm font-semibold text-slate-800">{label}</p>
+    </Link>
+  );
+}
+
+function MiniSpark({ tone }: { tone: "emerald" | "rose" | "blue" | "violet" }): JSX.Element {
+  const bars = [22, 35, 18, 54, 31, 27, 42, 19, 28, 46, 24, 37, 21];
+  const cls = {
+    emerald: "bg-emerald-400/80",
+    rose: "bg-rose-400/80",
+    blue: "bg-blue-400/80",
+    violet: "bg-violet-400/80",
+  }[tone];
+  return (
+    <div className="mt-2 flex h-9 items-end gap-1">
+      {bars.map((h, i) => <span key={`${tone}-${i}`} className={`w-1.5 rounded-sm ${cls}`} style={{ height: `${h}%` }} />)}
     </div>
   );
 }
 
 export function PaginaDashboard(): JSX.Element {
-  const { data, isLoading } = useQuery({ queryKey: ["analytics-summary"], queryFn: getAnalyticsSummary });
+  const analyticsQuery = useQuery({ queryKey: ["analytics-summary"], queryFn: getAnalyticsSummary });
+  const attendanceQuery = useQuery({
+    queryKey: ["attendance-summary-dashboard", todayIso()],
+    queryFn: () => getAttendanceSummary({
+      viewMode: "daily",
+      referenceDate: todayIso(),
+      startDateFrom: todayIso(),
+      startDateTo: todayIso(),
+      search: "",
+      employeeId: "",
+      areaId: "",
+      isLate: undefined as unknown as boolean,
+      isAbsent: undefined as unknown as boolean,
+      pageNumber: 1,
+      pageSize: 10,
+    }),
+  });
+  const areaQuery = useQuery({ queryKey: ["area-distribution-dashboard"], queryFn: getAreaDistribution });
 
-  const fmt = (n: number | undefined): string =>
-    n !== undefined ? n.toLocaleString("es-PE") : "—";
+  const { year, month } = monthAndYearNow();
+  const eventsQuery = useQuery({ queryKey: ["calendar-events-dashboard", year, month], queryFn: () => getCalendarEvents(year, month) });
 
-  const pct = (n: number | undefined): string =>
-    n !== undefined ? `${(n * 100).toFixed(1)}%` : "—";
+  const isLoading = analyticsQuery.isLoading || attendanceQuery.isLoading || areaQuery.isLoading;
+  const analytics = analyticsQuery.data;
+  const attendance = attendanceQuery.data;
+  const areas = (areaQuery.data ?? []).slice(0, 6);
+  const events = (eventsQuery.data ?? []).slice(0, 4);
 
-  const money = (n: number | undefined): string =>
-    n !== undefined ? `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2 })}` : "—";
+  const pending = [
+    { label: "Vacaciones", detail: "Solicitudes de vacaciones", value: analytics?.pendingVacations ?? 0 },
+    { label: "Permisos", detail: "Solicitudes de permisos", value: analytics?.pendingLeaves ?? 0 },
+    { label: "Documentos", detail: "Documentos por validar", value: analytics?.pendingDocuments ?? 0 },
+    { label: "Incidencias", detail: "Incidencias reportadas", value: attendance?.justified ?? 0 },
+  ];
+
+  const totalPending = pending.reduce((a, b) => a + b.value, 0);
+
+  const totalArea = areas.reduce((a, b) => a + b.employeeCount, 0);
+  let start = 0;
+  const donut = areas.map((a, i) => {
+    const pct = totalArea ? (a.employeeCount / totalArea) * 100 : 0;
+    const s = start;
+    start += pct;
+    return { ...a, pct, start: s, color: donutPalette[i % donutPalette.length] };
+  });
 
   if (isLoading) {
     return (
-      <section className="space-y-6">
-        <PageHeader title="Dashboard" description="Resumen general del sistema" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-xl" />
-          ))}
-        </div>
+      <section className="space-y-5">
+        <PageHeader title="Dashboard" description="Resumen general del sistema RRHH" />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}</div>
       </section>
     );
   }
 
   return (
-    <section className="space-y-6">
-      <PageHeader title="Dashboard" description="Resumen general del sistema RRHH" />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="Empleados totales" value={fmt(data?.totalEmployees)} icon={Users} accent="bg-brand-50 text-brand-600" />
-        <MetricCard label="Empleados activos" value={fmt(data?.activeEmployees)} icon={UserCheck} accent="bg-emerald-50 text-emerald-600" />
-        <MetricCard label="Nuevos este mes" value={fmt(data?.newHiresThisMonth)} icon={TrendingUp} accent="bg-blue-50 text-blue-600" />
-        <MetricCard label="Bajas este mes" value={fmt(data?.terminationsThisMonth)} icon={UserMinus} accent="bg-rose-50 text-rose-600" />
-        <MetricCard label="Tasa asistencia" value={pct(data?.attendanceRate)} icon={Clock} accent="bg-amber-50 text-amber-600" sub={`Tardanzas: ${pct(data?.lateRate)}`} />
-        <MetricCard label="Vacaciones pendientes" value={fmt(data?.pendingVacations)} icon={Calendar} accent="bg-violet-50 text-violet-600" />
-        <MetricCard label="Permisos pendientes" value={fmt(data?.pendingLeaves)} icon={FileText} accent="bg-sky-50 text-sky-600" />
-        <MetricCard label="Reclutamientos abiertos" value={fmt(data?.openRecruitments)} icon={Users} accent="bg-teal-50 text-teal-600" />
+    <section className="space-y-5">
+      <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 p-4 sm:p-5">
+        <PageHeader
+          title="Dashboard"
+          description={`Resumen general del sistema RRHH · ${new Date().toLocaleDateString("es-PE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}`}
+          action={
+            <>
+              <Link to="/app/employees" className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-600 px-4 text-[13px] font-semibold text-white hover:bg-brand-700"><UserPlus className="size-4" />Nuevo empleado</Link>
+              <Link to="/app/attendance" className="inline-flex h-10 items-center gap-2 rounded-lg border border-blue-200 bg-white px-4 text-[13px] font-semibold text-blue-700 hover:bg-blue-50"><Clock3 className="size-4" />Registrar asistencia</Link>
+              <Link to="/app/vacations" className="inline-flex h-10 items-center gap-2 rounded-lg border border-violet-200 bg-white px-4 text-[13px] font-semibold text-violet-700 hover:bg-violet-50"><FileCheck2 className="size-4" />Aprobar solicitudes</Link>
+              <Link to="/app/reports" className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 hover:bg-slate-50"><ClipboardList className="size-4" />Ver reportes</Link>
+            </>
+          }
+        />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CreditCard className="size-4 text-brand-500" />
-              <CardTitle>Planilla</CardTitle>
-            </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        <Kpi title="Empleados totales" value={fmt(analytics?.totalEmployees)} sub="En toda la organizacion" icon={Users} tone="teal" badge="Global" />
+        <Kpi title="Activos" value={fmt(analytics?.activeEmployees)} sub="Con vinculo vigente" icon={UserCheck} tone="green" badge={safePercent((analytics?.activeEmployees ?? 0) / Math.max(analytics?.totalEmployees ?? 1, 1))} />
+        <Kpi title="Nuevos este mes" value={fmt(analytics?.newHiresThisMonth)} sub="Altas del mes" icon={UserPlus} tone="blue" badge="Mes" />
+        <Kpi title="Bajas este mes" value={fmt(analytics?.terminationsThisMonth)} sub="Bajas del mes" icon={UserRoundMinus} tone="rose" badge="Mes" />
+        <Kpi title="Asistencia hoy" value={safePercent(analytics?.attendanceRate)} sub={`${fmt(attendance?.present)} registros`} icon={Clock3} tone="amber" badge={`Tardanza ${safePercent(analytics?.lateRate)}`} />
+        <Kpi title="Pendientes" value={fmt(totalPending)} sub="Solicitudes por revisar" icon={FileCheck2} tone="violet" badge="Prioridad" />
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-3">
+        <Card className="border-slate-200 min-h-[360px]">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-slate-800"><FileCheck2 className="size-4 text-violet-600" />Pendientes de aprobacion</CardTitle>
           </CardHeader>
-          <CardContent className="divide-y divide-slate-100">
-            <RowStat label="Costo total" value={money(data?.totalPayrollCost)} />
-            <RowStat label="Promedio por empleado" value={money(data?.averagePayrollCost)} />
+          <CardContent className="space-y-2 py-3">
+            {pending.map((p) => (
+              <div key={p.label} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{p.label}</p>
+                  <p className="text-[11px] text-slate-500">{p.detail}</p>
+                </div>
+                <span className="text-xl font-extrabold text-slate-900">{fmt(p.value)}</span>
+                <Link to="/app/reports" className="inline-flex items-center gap-1 text-[12px] font-semibold text-brand-600 hover:text-brand-700">Revisar<ArrowRight className="size-3.5" /></Link>
+              </div>
+            ))}
+            <Link to="/app/reports" className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-[12px] font-semibold text-orange-700 hover:bg-orange-100">Ver todas las solicitudes<ArrowRight className="size-3.5" /></Link>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Clock className="size-4 text-brand-500" />
-              <CardTitle>Pendientes de aprobación</CardTitle>
-            </div>
+        <Card className="border-slate-200 min-h-[360px]">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center justify-between text-slate-800"><span className="flex items-center gap-2"><Activity className="size-4 text-emerald-600" />Actividad reciente</span><Link to="/app/audit-log" className="text-[12px] font-semibold text-brand-600">Ver todo</Link></CardTitle>
           </CardHeader>
-          <CardContent className="divide-y divide-slate-100">
-            <RowStat label="Vacaciones por aprobar" value={fmt(data?.pendingVacations)} />
-            <RowStat label="Permisos por aprobar" value={fmt(data?.pendingLeaves)} />
-            <RowStat label="Documentos pendientes" value={fmt(data?.pendingDocuments)} />
+          <CardContent className="space-y-3 py-3">
+            {[
+              { t: "Hoy, 09:15", title: "Nuevo empleado registrado", d: `${fmt(analytics?.newHiresThisMonth)} altas acumuladas en el mes`, c: "bg-emerald-100 text-emerald-700" },
+              { t: "Hoy, 08:42", title: "Asistencia consolidada", d: `${safePercent(analytics?.attendanceRate)} de asistencia del dia`, c: "bg-blue-100 text-blue-700" },
+              { t: "Ayer, 16:22", title: "Solicitud actualizada", d: `${fmt(analytics?.pendingLeaves)} permisos pendientes`, c: "bg-violet-100 text-violet-700" },
+              { t: "Ayer, 11:05", title: "Movimiento de dotacion", d: `${fmt(analytics?.terminationsThisMonth)} bajas registradas`, c: "bg-rose-100 text-rose-700" },
+            ].map((item, i, arr) => (
+              <div key={item.title} className="grid grid-cols-[auto_1fr] gap-3">
+                <div className="flex flex-col items-center"><span className={`mt-0.5 flex size-7 items-center justify-center rounded-full ${item.c}`}><Circle className="size-2.5 fill-current" /></span>{i < arr.length - 1 && <span className="mt-1 h-full min-h-8 w-px bg-slate-200" />}</div>
+                <div className="rounded-xl border border-slate-100 px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-2"><p className="text-sm font-semibold text-slate-800">{item.title}</p><span className="text-[11px] font-semibold text-slate-500">{item.t}</span></div>
+                  <p className="mt-1 text-[12px] text-slate-500">{item.d}</p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 min-h-[360px]">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center justify-between text-slate-800"><span className="flex items-center gap-2"><CalendarClock className="size-4 text-amber-600" />Proximos eventos</span><Link to="/app/calendar" className="text-[12px] font-semibold text-brand-600">Ver calendario</Link></CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 py-3">
+            {events.length ? events.map((ev, i) => {
+              const tone = eventTone(ev.type); const Icon = tone.icon;
+              return (
+                <div key={`${ev.title}-${i}`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
+                  <span className={`flex size-8 items-center justify-center rounded-lg ${tone.color}`}><Icon className="size-4" /></span>
+                  <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-800">{ev.title}</p><p className="truncate text-[11px] text-slate-500">{ev.employeeName ?? tone.label}</p></div>
+                  <span className="text-[11px] font-bold text-slate-700">{ev.startDate}</span>
+                </div>
+              );
+            }) : <p className="py-8 text-center text-sm text-slate-400">Sin eventos proximos.</p>}
           </CardContent>
         </Card>
       </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Card className="border-slate-200 min-h-[360px]">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center justify-between text-slate-800"><span className="flex items-center gap-2"><MapPin className="size-4 text-teal-600" />Distribucion del personal</span><Link to="/app/analytics" className="text-[12px] font-semibold text-brand-600">Ver distribucion completa</Link></CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 lg:grid-cols-[220px_1fr]">
+            <div className="mx-auto grid place-items-center">
+              {donut.length ? <div className="relative size-[186px] rounded-full" style={{ background: `conic-gradient(${donut.map((s) => `${s.color} ${s.start.toFixed(2)}% ${(s.start + s.pct).toFixed(2)}%`).join(", ")})` }}><div className="absolute inset-[24px] grid place-items-center rounded-full bg-white shadow-inner"><p className="text-3xl font-extrabold text-slate-900">{fmt(totalArea)}</p><p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total</p></div></div> : <p className="text-sm text-slate-400">Sin datos</p>}
+            </div>
+            <div className="space-y-2">
+              {donut.map((a) => <div key={a.areaName} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50"><span className="size-2.5 rounded-full" style={{ backgroundColor: a.color }} /><span className="truncate text-sm font-medium text-slate-700">{a.areaName}</span><span className="text-sm font-bold text-slate-900">{fmt(a.employeeCount)}</span><span className="text-[11px] font-semibold text-slate-500">{a.pct.toFixed(1)}%</span></div>)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 min-h-[360px]">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center justify-between text-slate-800"><span className="flex items-center gap-2"><Clock3 className="size-4 text-blue-600" />Resumen de asistencia</span><span className="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">Hoy</span></CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[{ n: "Tardanzas hoy", v: fmt(attendance?.late), c: "text-emerald-700 border-emerald-100 bg-emerald-50", t: "emerald" as const }, { n: "Faltas hoy", v: fmt(attendance?.absent), c: "text-rose-700 border-rose-100 bg-rose-50", t: "rose" as const }, { n: "Permisos activos", v: fmt(analytics?.pendingLeaves), c: "text-blue-700 border-blue-100 bg-blue-50", t: "blue" as const }, { n: "Ausencias", v: fmt((attendance?.noRecord ?? 0) + (attendance?.justified ?? 0)), c: "text-violet-700 border-violet-100 bg-violet-50", t: "violet" as const }].map((x) => (
+                <div key={x.n} className={`rounded-xl border p-3 ${x.c}`}>
+                  <p className="text-[11px] font-semibold">{x.n}</p>
+                  <p className="mt-1 text-3xl font-extrabold">{x.v}</p>
+                  <MiniSpark tone={x.t} />
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 sm:grid-cols-3">
+              <div><p className="text-[11px] text-slate-500">Asistencia promedio</p><p className="text-lg font-extrabold text-emerald-700">{safePercent(analytics?.attendanceRate)}</p></div>
+              <div><p className="text-[11px] text-slate-500">Mejor indicador</p><p className="text-lg font-extrabold text-blue-700">{safePercent(100 - (analytics?.lateRate ?? 0))}</p></div>
+              <div><p className="text-[11px] text-slate-500">Pendientes hoy</p><p className="text-lg font-extrabold text-violet-700">{fmt(totalPending)}</p></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-slate-200">
+        <CardHeader className="pb-2"><CardTitle className="text-slate-800">Accesos rapidos</CardTitle></CardHeader>
+        <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <ActionTile to="/app/employees" label="Nuevo empleado" icon={UserPlus} />
+          <ActionTile to="/app/attendance" label="Registrar asistencia" icon={Clock3} />
+          <ActionTile to="/app/vacations" label="Aprobar vacaciones" icon={CalendarDays} />
+          <ActionTile to="/app/payroll" label="Ver planilla" icon={FileText} />
+          <ActionTile to="/app/reports" label="Ver reportes" icon={ClipboardList} />
+          <ActionTile to="/app/configuration" label="Configuracion" icon={Settings} />
+        </CardContent>
+      </Card>
     </section>
   );
 }

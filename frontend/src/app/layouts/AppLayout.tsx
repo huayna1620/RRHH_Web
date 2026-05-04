@@ -45,7 +45,9 @@ export function AppLayout(): JSX.Element {
       <div className="flex min-w-0 flex-1 flex-col bg-gradient-to-br from-slate-50 via-white to-slate-50/40">
         <BarraSuperior onOpenMenu={() => setMobileMenuOpen(true)} />
         <main className="flex-1 p-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6">
-          <Outlet />
+          <div className="mx-auto w-full max-w-[1520px]">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
