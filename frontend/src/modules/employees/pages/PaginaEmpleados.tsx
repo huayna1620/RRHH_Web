@@ -1,14 +1,14 @@
 import { useMemo, useState, type JSX } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import * as XLSX from "xlsx";
 import {
   ArrowUpDown,
   Download,
   Eye,
   Info,
-  MoreHorizontal,
+  Loader2,
   Pencil,
   Plus,
-  RefreshCw,
   Search,
   UserCheck,
   UserX,
@@ -18,6 +18,7 @@ import {
 import { Alert } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ModalFormEmpleado } from "@/modules/employees/components/ModalFormEmpleado";
+import { ModalDetalleEmpleado } from "@/modules/employees/components/ModalDetalleEmpleado";
 import {
   createEmployee,
   getEmployeeById,
@@ -29,6 +30,7 @@ import {
 import type { EmployeePayload } from "@/modules/employees/types/employee.types";
 
 type ModalState = { mode: "create"; id: null } | { mode: "edit"; id: string } | null;
+type ConfirmState = { id: string; name: string; currentActive: boolean } | null;
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
@@ -113,7 +115,10 @@ export function PaginaEmpleados(): JSX.Element {
   const [searchInput, setSearchInput]   = useState("");
   const [areaFilter, setAreaFilter]     = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [feedback, setFeedback]     = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [exporting, setExporting]   = useState(false);
+  const [detailId, setDetailId]     = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
 
   const selectedEmployeeId = modalState?.mode === "edit" ? modalState.id : undefined;
 
@@ -144,6 +149,13 @@ export function PaginaEmpleados(): JSX.Element {
     queryKey: ["employee", selectedEmployeeId],
     queryFn: () => getEmployeeById(selectedEmployeeId!),
     enabled: Boolean(selectedEmployeeId),
+  });
+
+  // For the view-only detail modal
+  const viewDetailQuery = useQuery({
+    queryKey: ["employee", detailId],
+    queryFn: () => getEmployeeById(detailId!),
+    enabled: Boolean(detailId),
   });
 
   async function invalidateAll(): Promise<void> {
@@ -189,6 +201,50 @@ export function PaginaEmpleados(): JSX.Element {
     setSearchInput(""); setSearch(""); setAreaFilter(""); setStatusFilter("all"); setPageNumber(1);
   }
 
+  async function handleExport(): Promise<void> {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const result = await getEmployees({
+        search,
+        areaId: areaFilter,
+        branchId: "",
+        isActive: statusFilter === "all" ? undefined as unknown as boolean : statusFilter === "active",
+        pageNumber: 1,
+        pageSize: 5000,
+        sortBy: "fullName",
+        sortDirection: "asc",
+      });
+      if (!result.items.length) {
+        setFeedback({ type: "error", message: "No hay empleados que exportar con los filtros actuales." });
+        return;
+      }
+      const rows = result.items.map((r) => ({
+        "Código":           r.employeeCode,
+        "Nombres":          r.fullName.split(" ").slice(0, -2).join(" ") || r.fullName,
+        "Apellidos":        r.fullName.split(" ").slice(-2).join(" ") || "",
+        "Nombre completo":  r.fullName,
+        "Documento":        r.documentNumber,
+        "Área":             r.area,
+        "Cargo":            r.position,
+        "Sede":             r.branch,
+        "Estado":           r.isActive ? "Activo" : "Inactivo",
+        "Fecha ingreso":    r.hireDate,
+        "Sueldo base":      r.baseSalary,
+        "Tipo contrato":    r.contractType,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Empleados");
+      const today = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `Empleados_${today}.xlsx`);
+    } catch {
+      setFeedback({ type: "error", message: "Error al exportar. Intenta de nuevo." });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   // Pagination helpers
   const firstItem = total === 0 ? 0 : (pageNumber - 1) * pageSize + 1;
   const lastItem  = Math.min(pageNumber * pageSize, total);
@@ -211,9 +267,13 @@ export function PaginaEmpleados(): JSX.Element {
           <p className="mt-0.5 text-sm text-slate-500">Gestión de empleados</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300">
-            <Download className="size-4" />
-            Exportar
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 disabled:opacity-60 disabled:pointer-events-none"
+          >
+            {exporting ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+            {exporting ? "Exportando..." : "Exportar"}
           </button>
           <button
             onClick={() => setModalState({ mode: "create", id: null })}
@@ -428,7 +488,7 @@ export function PaginaEmpleados(): JSX.Element {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             title="Ver detalle"
-                            onClick={() => setModalState({ mode: "edit", id: r.id })}
+                            onClick={() => setDetailId(r.id)}
                             className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                           >
                             <Eye className="size-4" />
@@ -442,22 +502,15 @@ export function PaginaEmpleados(): JSX.Element {
                           </button>
                           <button
                             title={r.isActive ? "Desactivar" : "Activar"}
-                            disabled={statusMutation.isPending}
-                            onClick={() => statusMutation.mutate({ id: r.id, isActive: !r.isActive })}
+                            onClick={() => setConfirmState({ id: r.id, name: r.fullName, currentActive: r.isActive })}
                             className={[
-                              "flex size-8 items-center justify-center rounded-lg transition disabled:opacity-50",
+                              "flex size-8 items-center justify-center rounded-lg transition",
                               r.isActive
                                 ? "text-slate-400 hover:bg-rose-50 hover:text-rose-500"
                                 : "text-slate-400 hover:bg-emerald-50 hover:text-emerald-600",
                             ].join(" ")}
                           >
-                            {r.isActive ? <UserX className="size-4" /> : <RefreshCw className="size-4" />}
-                          </button>
-                          <button
-                            title="Más opciones"
-                            className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                          >
-                            <MoreHorizontal className="size-4" />
+                            {r.isActive ? <UserX className="size-4" /> : <UserCheck className="size-4" />}
                           </button>
                         </div>
                       </td>
@@ -545,6 +598,69 @@ export function PaginaEmpleados(): JSX.Element {
           </div>
         )}
       </div>
+
+      {/* ── Modal Ver detalle ── */}
+      <ModalDetalleEmpleado
+        open={Boolean(detailId)}
+        employee={viewDetailQuery.data ?? null}
+        loading={viewDetailQuery.isLoading || viewDetailQuery.isFetching}
+        onClose={() => setDetailId(null)}
+        onEdit={() => {
+          if (detailId) {
+            setModalState({ mode: "edit", id: detailId });
+            setDetailId(null);
+          }
+        }}
+      />
+
+      {/* ── Confirmación activar/desactivar ── */}
+      {confirmState && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="px-6 py-5">
+              <div className={`mb-4 flex size-12 items-center justify-center rounded-full ${confirmState.currentActive ? "bg-rose-100" : "bg-emerald-100"}`}>
+                {confirmState.currentActive
+                  ? <UserX className="size-6 text-rose-600" />
+                  : <UserCheck className="size-6 text-emerald-600" />}
+              </div>
+              <h3 className="text-[16px] font-bold text-slate-900">
+                {confirmState.currentActive ? "Desactivar empleado" : "Activar empleado"}
+              </h3>
+              <p className="mt-1.5 text-sm text-slate-500">
+                {confirmState.currentActive
+                  ? <>¿Confirmas desactivar a <strong>{confirmState.name}</strong>? No podrá acceder al sistema.</>
+                  : <>¿Confirmas activar a <strong>{confirmState.name}</strong>? Recuperará acceso al sistema.</>}
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+              <button
+                onClick={() => setConfirmState(null)}
+                className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={statusMutation.isPending}
+                onClick={() => {
+                  statusMutation.mutate(
+                    { id: confirmState.id, isActive: !confirmState.currentActive },
+                    { onSettled: () => setConfirmState(null) }
+                  );
+                }}
+                className={[
+                  "inline-flex h-9 items-center gap-2 rounded-lg px-4 text-[13px] font-semibold text-white shadow-sm transition disabled:opacity-60",
+                  confirmState.currentActive
+                    ? "bg-gradient-to-b from-rose-500 to-rose-600 shadow-rose-500/30 hover:from-rose-500 hover:to-rose-700"
+                    : "bg-gradient-to-b from-emerald-500 to-emerald-600 shadow-emerald-500/30 hover:from-emerald-500 hover:to-emerald-700",
+                ].join(" ")}
+              >
+                {statusMutation.isPending && <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
+                {confirmState.currentActive ? "Sí, desactivar" : "Sí, activar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ModalFormEmpleado
         open={Boolean(modalState)}

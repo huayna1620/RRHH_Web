@@ -15,7 +15,7 @@ export type OrgItem = {
 
 export type OrgQuery = {
   search: string;
-  isActive: boolean;
+  isActive?: boolean;
   pageNumber: number;
   pageSize: number;
   sortBy: string;
