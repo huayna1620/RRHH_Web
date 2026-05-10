@@ -371,6 +371,7 @@ export function PaginaAsistencia(): JSX.Element {
   const [histDateTo, setHistDateTo] = useState(() => todayIso());
   const [histSearchInput, setHistSearchInput] = useState("");
   const [histSearch, setHistSearch] = useState("");
+  const [histEmployeeId, setHistEmployeeId] = useState(""); // ID directo para Ver historial
   const [histAreaId, setHistAreaId] = useState("");
   const [histEstado, setHistEstado] = useState(""); // "" | "late" | "absent"
   const [histPage, setHistPage] = useState(1);
@@ -423,13 +424,16 @@ export function PaginaAsistencia(): JSX.Element {
   });
   const todayRecord = todayRecordQuery.data?.items[0] ?? null;
 
-  // History list
+  // History list — usa employeeId directo cuando viene de "Ver historial",
+  // o search de texto cuando el usuario escribe en el filtro manual.
   const histQuery = useQuery({
-    queryKey: ["attendance-hist", histSearch, histAreaId, histDateFrom, histDateTo, histEstado, histViewMode, histPage],
+    queryKey: ["attendance-hist", histSearch, histEmployeeId, histAreaId, histDateFrom, histDateTo, histEstado, histViewMode, histPage],
     queryFn: () => getAttendance({
       viewMode: histViewMode, referenceDate: histDateFrom,
       startDateFrom: histDateFrom, startDateTo: histDateTo,
-      search: histSearch, employeeId: "", areaId: histAreaId,
+      search: histSearch,
+      employeeId: histEmployeeId,
+      areaId: histAreaId,
       isLate: histIsLate as unknown as boolean,
       isAbsent: histIsAbsent as unknown as boolean,
       pageNumber: histPage, pageSize: PAGE_SIZE,
@@ -526,19 +530,23 @@ export function PaginaAsistencia(): JSX.Element {
 
   function applyFilters() {
     setHistSearch(histSearchInput);
+    setHistEmployeeId(""); // al buscar manualmente, quitar filtro por ID
     setHistPage(1);
   }
 
   function clearHistFilters() {
     setHistSearchInput(""); setHistSearch("");
+    setHistEmployeeId("");
     setHistAreaId(""); setHistEstado("");
     setHistDateFrom(todayIso(tz)); setHistDateTo(todayIso(tz));
     setHistViewMode("daily"); setHistPage(1);
   }
 
-  function handleViewHistory(emp: AttendanceEmployeeOption) {
-    setHistSearchInput(emp.fullName);
-    setHistSearch(emp.fullName);
+  // Ver historial: filtra por ID directo del empleado (más confiable que buscar por nombre)
+  function handleViewHistory(emp: { id: string; fullName: string }) {
+    setHistEmployeeId(emp.id);        // filtro por ID — esto es lo que realmente funciona
+    setHistSearchInput(emp.fullName); // solo para mostrar en el input
+    setHistSearch("");                // limpiar búsqueda de texto para no interferir
     setHistDateFrom(nDaysAgo(30, tz));
     setHistDateTo(todayIso(tz));
     setHistEstado(""); setHistPage(1);
@@ -980,14 +988,14 @@ export function PaginaAsistencia(): JSX.Element {
                           className="flex size-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600">
                           <Eye className="size-3.5" />
                         </button>
-                        <button type="button" onClick={() => handleViewHistory({ ...r, id: r.employeeId, label: r.employeeName, documentNumber: null, fullName: r.employeeName, areaId: "", position: "", shiftName: "", expectedSchedule: "" })}
+                        <button type="button" onClick={() => handleViewHistory({ id: r.employeeId, fullName: r.employeeName })}
                           className="flex size-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600">
                           <Clock3 className="size-3.5" />
                         </button>
                         <RowMenu row={r}
                           onDetail={() => setDetailRecord(r)}
                           onJustify={() => setJustifyTarget({ id: r.id, name: r.employeeName })}
-                          onHistory={() => handleViewHistory({ ...r, id: r.employeeId, label: r.employeeName, documentNumber: null, fullName: r.employeeName, areaId: "", position: "", shiftName: "", expectedSchedule: "" })}
+                          onHistory={() => handleViewHistory({ id: r.employeeId, fullName: r.employeeName })}
                         />
                       </div>
                     </td>
