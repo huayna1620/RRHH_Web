@@ -4,6 +4,7 @@ import type {
   OnboardingProcess,
   OnboardingTemplate,
   StartProcessPayload,
+  UpdateTemplatePayload,
 } from "@/modules/onboarding/types/onboarding.types";
 
 const BASE = "/api/v1/onboarding";
@@ -20,6 +21,20 @@ export async function createOnboardingTemplate(payload: CreateTemplatePayload): 
 
 export async function deleteOnboardingTemplate(id: string): Promise<void> {
   await httpClient.delete(`${BASE}/templates/${id}`);
+}
+
+export async function updateOnboardingTemplate(id: string, payload: UpdateTemplatePayload): Promise<OnboardingTemplate> {
+  const { data } = await httpClient.put<OnboardingTemplate>(`${BASE}/templates/${id}`, payload);
+  return data;
+}
+
+export async function duplicateOnboardingTemplate(id: string): Promise<OnboardingTemplate> {
+  const { data } = await httpClient.post<OnboardingTemplate>(`${BASE}/templates/${id}/duplicate`);
+  return data;
+}
+
+export async function updateOnboardingTemplateStatus(id: string, isActive: boolean): Promise<void> {
+  await httpClient.patch(`${BASE}/templates/${id}/status`, { isActive });
 }
 
 export async function getOnboardingProcesses(employeeId?: string): Promise<OnboardingProcess[]> {
@@ -40,4 +55,12 @@ export async function startOnboardingProcess(payload: StartProcessPayload): Prom
 
 export async function completeOnboardingTask(processId: string, taskId: string): Promise<void> {
   await httpClient.post(`${BASE}/processes/${processId}/tasks/${taskId}/complete`);
+}
+
+export async function completeOnboardingProcess(processId: string): Promise<void> {
+  await httpClient.post(`${BASE}/processes/${processId}/complete`);
+}
+
+export async function cancelOnboardingProcess(processId: string): Promise<void> {
+  await httpClient.post(`${BASE}/processes/${processId}/cancel`);
 }

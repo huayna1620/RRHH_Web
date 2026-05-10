@@ -9,6 +9,7 @@ export interface OnboardingTemplate {
     name: string;
     description: string | null;
     isActive: boolean;
+    createdAtUtc: string;
     tasks: OnboardingTemplateTask[];
 }
 export interface CreateTemplateTaskPayload {
@@ -21,6 +22,7 @@ export interface CreateTemplatePayload {
     description: string;
     tasks: CreateTemplateTaskPayload[];
 }
+export type UpdateTemplatePayload = CreateTemplatePayload;
 export interface OnboardingTaskItem {
     id: string;
     title: string;
@@ -38,6 +40,7 @@ export interface OnboardingProcess {
     templateName: string;
     startedAtUtc: string;
     completedAtUtc: string | null;
+    isActive: boolean;
     totalTasks: number;
     completedTasks: number;
     progressPercent: number;
