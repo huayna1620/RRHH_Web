@@ -77,7 +77,7 @@ function fmtDate(iso: string): string {
 function fmtDateShort(isoUtc: string): string {
   const d = new Date(isoUtc);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
+  return d.toLocaleDateString("es-PE", { timeZone: "America/Lima", day: "2-digit", month: "short", year: "numeric" });
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -840,7 +840,11 @@ export function PaginaPermisos(): JSX.Element {
       ok("Solicitud de permiso registrada correctamente.");
       setCreateOpen(false); setCreateError(null);
     },
-    onError: () => setCreateError("No se pudo registrar la solicitud. Verifica los datos e intenta nuevamente."),
+    onError: (error: unknown) => {
+      const e = error as { response?: { data?: { message?: string } } };
+      const msg = e?.response?.data?.message?.trim();
+      setCreateError(msg || "No se pudo registrar la solicitud. Verifica los datos e intenta nuevamente.");
+    },
   });
 
   const approveMut = useMutation({

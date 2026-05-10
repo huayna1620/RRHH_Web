@@ -48,7 +48,7 @@ function fmtDate(iso: string): string {
 function fmtDateShort(isoUtc: string): string {
   const d = new Date(isoUtc);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
+  return d.toLocaleDateString("es-PE", { timeZone: "America/Lima", day: "2-digit", month: "short", year: "numeric" });
 }
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
@@ -434,14 +434,18 @@ function CreateModal({
   const overBudget = diasRestantes !== null && diasRestantes < 0;
 
   // Errores
-  const empErr   = touched && !selectedEmp;
-  const startErr = touched && !startDate;
-  const endErr   = touched && (!endDate || (!!startDate && endDate < startDate));
+  const empErr       = touched && !selectedEmp;
+  const startErr     = touched && !startDate;
+  const crossYearErr = touched && !!startDate && !!endDate && startDate.slice(0, 4) !== endDate.slice(0, 4);
+  const endErr       = touched && (!endDate || (!!startDate && endDate < startDate) || crossYearErr);
 
   function handleSubmit(e: React.FormEvent): void {
     e.preventDefault();
     setTouched(true);
-    if (!selectedEmp || !startDate || !endDate || endDate < startDate) return;
+    if (
+      !selectedEmp || !startDate || !endDate || endDate < startDate ||
+      startDate.slice(0, 4) !== endDate.slice(0, 4)
+    ) return;
     onSubmit({ employeeId: selectedEmp.id, startDate, endDate, reason });
   }
 
@@ -584,7 +588,14 @@ function CreateModal({
                       endErr ? "border-rose-300 bg-rose-50" : "border-slate-200"
                     }`}
                   />
-                  {endErr && <p className="flex items-center gap-1 text-[12px] text-rose-600"><AlertCircle className="size-3" />Fecha inválida</p>}
+                  {endErr && (
+                    <p className="flex items-center gap-1 text-[12px] text-rose-600">
+                      <AlertCircle className="size-3" />
+                      {crossYearErr
+                        ? "El inicio y el fin deben ser del mismo año"
+                        : "Fecha inválida"}
+                    </p>
+                  )}
                 </label>
               </div>
               <label className="mt-3 block space-y-1.5">
@@ -793,7 +804,11 @@ export function PaginaVacaciones(): JSX.Element {
       ok("Solicitud de vacaciones creada correctamente.");
       setCreateOpen(false); setCreateError(null);
     },
-    onError: () => setCreateError("No se pudo crear la solicitud. Verifica los datos e intenta nuevamente."),
+    onError: (error: unknown) => {
+      const e = error as { response?: { data?: { message?: string } } };
+      const msg = e?.response?.data?.message?.trim();
+      setCreateError(msg || "No se pudo crear la solicitud. Verifica los datos e intenta nuevamente.");
+    },
   });
 
   const approveMut = useMutation({
