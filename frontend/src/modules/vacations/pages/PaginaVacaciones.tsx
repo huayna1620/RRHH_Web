@@ -2,30 +2,33 @@ import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight,
-  Clock, Eye, Loader2, Plus, Search, SlidersHorizontal, Umbrella, X, XCircle,
+  Clock, Eye, FileText, Loader2, Plus, RefreshCw, Search,
+  Umbrella, X, XCircle,
 } from "lucide-react";
 import {
   approveVacationRequest, cancelVacationRequest, createVacationRequest,
   getVacationCatalogs, getVacations, rejectVacationRequest,
 } from "@/modules/vacations/services/vacationsApi";
-import type { VacationItem, VacationEmployeeBalance } from "@/modules/vacations/types/vacation.types";
+import type {
+  VacationItem, VacationEmployeeBalance,
+} from "@/modules/vacations/types/vacation.types";
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Constantes ───────────────────────────────────────────────────────────────
 
-const PAGE_SIZE  = 10;
 const CUR_YEAR   = new Date().getFullYear();
 const YEARS      = [CUR_YEAR - 2, CUR_YEAR - 1, CUR_YEAR, CUR_YEAR + 1, CUR_YEAR + 2];
+const PAGE_SIZES = [10, 25, 50];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function avatarColor(name: string): string {
-  const COLORS = [
-    "bg-teal-500","bg-brand-500","bg-violet-500","bg-amber-500",
-    "bg-rose-500","bg-sky-500","bg-emerald-500","bg-pink-500",
+  const COLS = [
+    "bg-teal-500", "bg-brand-500", "bg-violet-500", "bg-amber-500",
+    "bg-rose-500", "bg-sky-500", "bg-emerald-500", "bg-pink-500",
   ];
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
-  return COLORS[Math.abs(h) % COLORS.length];
+  return COLS[Math.abs(h) % COLS.length];
 }
 
 function initials(name: string): string {
@@ -37,126 +40,209 @@ function initials(name: string): string {
 function fmtDate(iso: string): string {
   if (!iso) return "—";
   const [y, m, d] = iso.split("-");
-  const months = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-  return `${d} ${months[parseInt(m, 10) - 1]} ${y}`;
+  const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  return `${parseInt(d, 10)} ${MESES[parseInt(m, 10) - 1]} ${y}`;
 }
 
-// ─── Toast ───────────────────────────────────────────────────────────────────
+function fmtDateShort(isoUtc: string): string {
+  const d = new Date(isoUtc);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
+}
 
-type ToastProps = { message: string; variant: "success" | "error"; onClose: () => void };
-function Toast({ message, variant, onClose }: ToastProps): JSX.Element {
+// ─── Tipos internos ───────────────────────────────────────────────────────────
+
+type ToastState = { variant: "success" | "error"; message: string };
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+
+function Toast({ message, variant, onClose }: ToastState & { onClose: () => void }): JSX.Element {
   useEffect(() => { const t = setTimeout(onClose, 4500); return () => clearTimeout(t); }, [onClose]);
-  const colors = variant === "success"
-    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-    : "border-rose-200 bg-rose-50 text-rose-800";
+  const colors =
+    variant === "success"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : "border-rose-200 bg-rose-50 text-rose-800";
   const Icon = variant === "success" ? CheckCircle2 : AlertCircle;
   return (
-    <div className={`fixed right-5 top-5 z-[100] flex items-start gap-2.5 rounded-xl border px-4 py-3 shadow-lg ${colors} animate-in fade-in slide-in-from-top-2`}>
+    <div className={`fixed right-5 top-5 z-[100] flex max-w-sm items-start gap-3 rounded-2xl border px-4 py-3 shadow-xl ${colors}`}>
       <Icon className="mt-0.5 size-4 shrink-0" />
-      <span className="text-[13px] font-medium">{message}</span>
-      <button onClick={onClose} className="ml-1 opacity-60 hover:opacity-100"><X className="size-3.5" /></button>
+      <p className="flex-1 text-[13px] font-medium leading-snug">{message}</p>
+      <button onClick={onClose} className="shrink-0 opacity-50 hover:opacity-100 transition">
+        <X className="size-3.5" />
+      </button>
     </div>
   );
 }
 
-// ─── StatusBadge ─────────────────────────────────────────────────────────────
+// ─── StatusBadge ──────────────────────────────────────────────────────────────
 
-const STATUS_META: Record<string, { label: string; className: string; Icon: typeof Clock }> = {
-  pending:   { label: "Pendiente",  className: "bg-amber-50 text-amber-700 border-amber-200",   Icon: Clock },
-  approved:  { label: "Aprobado",   className: "bg-emerald-50 text-emerald-700 border-emerald-200", Icon: CheckCircle2 },
-  rejected:  { label: "Rechazado",  className: "bg-rose-50 text-rose-700 border-rose-200",      Icon: XCircle },
-  cancelled: { label: "Cancelado",  className: "bg-slate-100 text-slate-500 border-slate-200",  Icon: X },
+const STATUS_MAP: Record<string, { label: string; cls: string; Icon: typeof Clock }> = {
+  pending:   { label: "Pendiente",  cls: "bg-amber-50 text-amber-700 border-amber-200",     Icon: Clock },
+  approved:  { label: "Aprobado",   cls: "bg-emerald-50 text-emerald-700 border-emerald-200", Icon: CheckCircle2 },
+  rejected:  { label: "Rechazado",  cls: "bg-rose-50 text-rose-700 border-rose-200",         Icon: XCircle },
+  cancelled: { label: "Cancelado",  cls: "bg-slate-100 text-slate-500 border-slate-200",     Icon: X },
 };
 
 function StatusBadge({ status }: { status: string }): JSX.Element {
-  const meta = STATUS_META[status] ?? { label: status, className: "bg-slate-100 text-slate-500 border-slate-200", Icon: Clock };
+  const m = STATUS_MAP[status] ?? { label: status, cls: "bg-slate-100 text-slate-500 border-slate-200", Icon: Clock };
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${meta.className}`}>
-      <meta.Icon className="size-3" />
-      {meta.label}
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold leading-none ${m.cls}`}>
+      <m.Icon className="size-3" />
+      {m.label}
     </span>
   );
 }
 
-// ─── KpiCard ─────────────────────────────────────────────────────────────────
+// ─── KpiCard ──────────────────────────────────────────────────────────────────
 
-type KpiCardProps = {
-  label: string; value: number | string; loading?: boolean;
-  icon: JSX.Element; accent: string;
-};
-function KpiCard({ label, value, loading, icon, accent }: KpiCardProps): JSX.Element {
+function KpiCard({
+  label, value, sub, loading, iconBg, icon,
+}: {
+  label: string; value: number | string; sub?: string;
+  loading?: boolean; iconBg: string; icon: JSX.Element;
+}): JSX.Element {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-      <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${accent}`}>
+    <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm transition hover:shadow-md">
+      <div className={`flex size-11 shrink-0 items-center justify-center rounded-xl shadow-sm ${iconBg}`}>
         {icon}
       </div>
-      <div className="min-w-0">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">{label}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
         {loading
-          ? <div className="mt-1 h-6 w-10 animate-pulse rounded bg-slate-200" />
-          : <p className="text-[26px] font-extrabold leading-none text-slate-900">{value}</p>
+          ? <div className="mt-1.5 h-7 w-12 animate-pulse rounded-lg bg-slate-200" />
+          : <p className="mt-0.5 text-[28px] font-extrabold leading-none text-slate-900">{value}</p>
         }
+        {sub && <p className="mt-1 text-[11px] text-slate-400">{sub}</p>}
       </div>
+    </div>
+  );
+}
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+
+function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" }): JSX.Element {
+  const color = avatarColor(name);
+  const sz = size === "sm" ? "size-7 text-[10px]" : size === "lg" ? "size-12 text-[15px]" : "size-9 text-[12px]";
+  return (
+    <div className={`flex shrink-0 items-center justify-center rounded-full font-bold text-white ${color} ${sz}`}>
+      {initials(name)}
     </div>
   );
 }
 
 // ─── EmptyState ───────────────────────────────────────────────────────────────
 
-function EmptyState(): JSX.Element {
+function EmptyState({ onClear, onCreate }: { onClear: () => void; onCreate: () => void }): JSX.Element {
   return (
     <tr>
-      <td colSpan={6} className="py-14 text-center">
-        <div className="flex flex-col items-center gap-2 text-slate-400">
-          <Umbrella className="size-10 stroke-[1.5]" />
-          <p className="text-[14px] font-medium">Sin solicitudes</p>
-          <p className="text-[12px]">Prueba con otros filtros o crea una nueva solicitud.</p>
+      <td colSpan={7}>
+        <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
+          <div className="flex size-16 items-center justify-center rounded-2xl bg-slate-100">
+            <Umbrella className="size-8 stroke-[1.5] text-slate-400" />
+          </div>
+          <div>
+            <p className="text-[15px] font-bold text-slate-700">Sin solicitudes</p>
+            <p className="mt-1 text-[13px] text-slate-400">No hay registros que coincidan con los filtros actuales.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClear}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+            >
+              <X className="size-3.5" />Limpiar filtros
+            </button>
+            <button
+              onClick={onCreate}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-500 px-3 text-[12px] font-semibold text-white shadow-sm hover:bg-brand-600"
+            >
+              <Plus className="size-3.5" />Nueva solicitud
+            </button>
+          </div>
         </div>
       </td>
     </tr>
   );
 }
 
-// ─── DetailModal ──────────────────────────────────────────────────────────────
+// ─── ConfirmModal ─────────────────────────────────────────────────────────────
+
+function ConfirmModal({
+  title, message, confirmLabel, confirmCls, saving, onConfirm, onCancel,
+}: {
+  title: string; message: string; confirmLabel: string; confirmCls: string;
+  saving: boolean; onConfirm: () => void; onCancel: () => void;
+}): JSX.Element {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4">
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="flex items-start gap-3 px-5 py-5">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-rose-50">
+            <AlertCircle className="size-5 text-rose-500" />
+          </div>
+          <div>
+            <h3 className="text-[15px] font-bold text-slate-900">{title}</h3>
+            <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{message}</p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3.5">
+          <button
+            onClick={onCancel}
+            className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            No, mantener
+          </button>
+          <button
+            disabled={saving}
+            onClick={onConfirm}
+            className={`inline-flex h-9 items-center gap-2 rounded-lg px-4 text-[13px] font-semibold text-white shadow-sm disabled:opacity-60 ${confirmCls}`}
+          >
+            {saving && <Loader2 className="size-3.5 animate-spin" />}
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DetailModal ─────────────────────────────────────────────────────────────
 
 function DetailModal({ item, onClose }: { item: VacationItem; onClose: () => void }): JSX.Element {
-  const color = avatarColor(item.employeeName);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4">
       <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className={`flex size-10 items-center justify-center rounded-full text-[13px] font-bold text-white ${color}`}>
-              {initials(item.employeeName)}
-            </div>
-            <div>
-              <h3 className="text-[15px] font-bold text-slate-900">{item.employeeName}</h3>
-              <p className="text-[12px] text-slate-400">{item.employeeCode} · {item.area}</p>
-            </div>
+        <div className="flex items-center gap-3.5 border-b border-slate-100 px-5 py-4">
+          <Avatar name={item.employeeName} size="lg" />
+          <div className="flex-1 min-w-0">
+            <h3 className="truncate text-[16px] font-bold text-slate-900">{item.employeeName}</h3>
+            <p className="text-[12px] text-slate-400">{item.employeeCode} · {item.area}</p>
           </div>
-          <button onClick={onClose} className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"><X className="size-4" /></button>
+          <button onClick={onClose} className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition">
+            <X className="size-4" />
+          </button>
         </div>
-        {/* Body */}
-        <div className="space-y-4 px-5 py-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-slate-50 px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Inicio</p>
-              <p className="mt-0.5 text-[14px] font-semibold text-slate-800">{fmtDate(item.startDate)}</p>
-            </div>
-            <div className="rounded-xl bg-slate-50 px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Fin</p>
-              <p className="mt-0.5 text-[14px] font-semibold text-slate-800">{fmtDate(item.endDate)}</p>
-            </div>
-            <div className="rounded-xl bg-teal-50 px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600">Días solicitados</p>
-              <p className="mt-0.5 text-[22px] font-extrabold text-teal-700">{item.requestedDays}</p>
-            </div>
-            <div className="rounded-xl bg-slate-50 px-4 py-3 flex flex-col justify-center">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Estado</p>
-              <div className="mt-1"><StatusBadge status={item.status} /></div>
-            </div>
+        {/* Métricas */}
+        <div className="grid grid-cols-2 gap-3 p-5">
+          <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Inicio</p>
+            <p className="mt-1 text-[14px] font-semibold text-slate-800">{fmtDate(item.startDate)}</p>
           </div>
+          <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Fin</p>
+            <p className="mt-1 text-[14px] font-semibold text-slate-800">{fmtDate(item.endDate)}</p>
+          </div>
+          <div className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600">Días solicitados</p>
+            <p className="mt-1 text-[26px] font-extrabold leading-none text-teal-700">{item.requestedDays}</p>
+          </div>
+          <div className="flex flex-col justify-center rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Estado</p>
+            <div className="mt-1.5"><StatusBadge status={item.status} /></div>
+          </div>
+        </div>
+        {/* Detalles */}
+        <div className="space-y-3 px-5 pb-4">
           {item.reason && (
             <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Motivo</p>
@@ -164,19 +250,20 @@ function DetailModal({ item, onClose }: { item: VacationItem; onClose: () => voi
             </div>
           )}
           {item.reviewerComment && (
-            <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Comentario del revisor</p>
+            <div className="rounded-xl border border-brand-100 bg-brand-50 px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-brand-500">Comentario del revisor</p>
               <p className="mt-1 text-[13px] text-slate-700">{item.reviewerComment}</p>
             </div>
           )}
           {item.requestedAtUtc && (
-            <p className="text-[11px] text-slate-400">
-              Solicitado: {new Date(item.requestedAtUtc).toLocaleDateString("es-PE", { day:"2-digit", month:"short", year:"numeric" })}
-            </p>
+            <p className="text-[11px] text-slate-400">Solicitud registrada el {fmtDateShort(item.requestedAtUtc)}</p>
           )}
         </div>
         <div className="flex justify-end border-t border-slate-100 bg-slate-50/60 px-5 py-3.5">
-          <button onClick={onClose} className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+          <button
+            onClick={onClose}
+            className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-5 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
             Cerrar
           </button>
         </div>
@@ -187,66 +274,78 @@ function DetailModal({ item, onClose }: { item: VacationItem; onClose: () => voi
 
 // ─── ReviewModal ─────────────────────────────────────────────────────────────
 
-type ReviewModalProps = {
-  item: VacationItem;
+function ReviewModal({
+  item, saving, onClose, onApprove, onReject,
+}: {
+  item: VacationItem; saving: boolean;
   onClose: () => void;
   onApprove: (comment: string) => void;
   onReject: (comment: string) => void;
-  saving: boolean;
-};
-function ReviewModal({ item, onClose, onApprove, onReject, saving }: ReviewModalProps): JSX.Element {
-  const [comment, setComment] = useState("");
-  const [touched, setTouched] = useState(false);
+}): JSX.Element {
+  const [comment, setComment]   = useState("");
+  const [touched, setTouched]   = useState(false);
   const commentErr = touched && comment.trim().length < 2;
-  const color = avatarColor(item.employeeName);
 
   function handleReject(): void {
     setTouched(true);
     if (comment.trim().length < 2) return;
     onReject(comment.trim());
   }
-  function handleApprove(): void {
-    onApprove(comment.trim());
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4">
       <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <div>
             <h3 className="text-[15px] font-bold text-slate-900">Revisar solicitud</h3>
             <p className="mt-0.5 text-[12px] text-slate-400">Aprueba o rechaza esta solicitud de vacaciones</p>
           </div>
-          <button onClick={onClose} className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"><X className="size-4" /></button>
+          <button onClick={onClose} className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition">
+            <X className="size-4" />
+          </button>
         </div>
-        <div className="space-y-4 px-5 py-4">
-          {/* Employee info */}
+        {/* Info empleado */}
+        <div className="px-5 pt-4">
           <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-            <div className={`flex size-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white ${color}`}>
-              {initials(item.employeeName)}
-            </div>
+            <Avatar name={item.employeeName} />
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-slate-800">{item.employeeName}</p>
-              <p className="text-[11px] text-slate-500">{fmtDate(item.startDate)} → {fmtDate(item.endDate)} · <b>{item.requestedDays} días</b></p>
+              <p className="text-[14px] font-semibold text-slate-800">{item.employeeName}</p>
+              <p className="text-[11px] text-slate-500">
+                {fmtDate(item.startDate)} → {fmtDate(item.endDate)}
+                <span className="ml-1.5 font-bold text-teal-600">· {item.requestedDays} días</span>
+              </p>
+            </div>
+            <div className="ml-auto shrink-0">
+              <StatusBadge status={item.status} />
             </div>
           </div>
-          {/* Comment */}
+        </div>
+        {/* Comentario */}
+        <div className="space-y-2 px-5 py-4">
           <label className="block space-y-1.5">
             <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-              Comentario <span className="text-rose-500">*</span> <span className="font-normal normal-case text-slate-400">(requerido para rechazar)</span>
+              Comentario
+              <span className="ml-1 text-rose-500">*</span>
+              <span className="ml-1 text-[10px] font-normal normal-case text-slate-400">— requerido para rechazar</span>
             </span>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Escribe un comentario..."
               rows={3}
-              className={`w-full resize-none rounded-lg border px-3 py-2 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 ${commentErr ? "border-rose-300" : "border-slate-200"}`}
+              placeholder="Escribe un comentario de revisión..."
+              className={`w-full resize-none rounded-xl border px-3.5 py-2.5 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 ${
+                commentErr ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-white"
+              }`}
             />
             {commentErr && (
-              <p className="flex items-center gap-1 text-[12px] text-rose-600"><AlertCircle className="size-3" />Mínimo 2 caracteres para rechazar</p>
+              <p className="flex items-center gap-1 text-[12px] text-rose-600">
+                <AlertCircle className="size-3" />Mínimo 2 caracteres para rechazar
+              </p>
             )}
           </label>
         </div>
+        {/* Acciones */}
         <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3.5">
           <button onClick={onClose} className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
             Cancelar
@@ -254,53 +353,19 @@ function ReviewModal({ item, onClose, onApprove, onReject, saving }: ReviewModal
           <button
             disabled={saving}
             onClick={handleReject}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 text-[13px] font-semibold text-rose-700 shadow-sm hover:bg-rose-100 disabled:opacity-60"
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-rose-200 bg-white px-4 text-[13px] font-semibold text-rose-600 shadow-sm hover:bg-rose-50 disabled:opacity-60"
           >
-            {saving ? <Loader2 className="size-3.5 animate-spin" /> : null}
+            {saving && <Loader2 className="size-3.5 animate-spin" />}
             Rechazar
           </button>
           <button
             disabled={saving}
-            onClick={handleApprove}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-gradient-to-b from-brand-500 to-brand-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-brand-500/30 hover:from-brand-500 hover:to-brand-700 disabled:opacity-60"
+            onClick={() => onApprove(comment.trim())}
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-gradient-to-b from-emerald-500 to-emerald-600 px-4 text-[13px] font-semibold text-white shadow-sm hover:from-emerald-500 hover:to-emerald-700 disabled:opacity-60"
           >
-            {saving ? <Loader2 className="size-3.5 animate-spin" /> : null}
+            {saving && <Loader2 className="size-3.5 animate-spin" />}
+            <CheckCircle2 className="size-3.5" />
             Aprobar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── ConfirmModal ─────────────────────────────────────────────────────────────
-
-function ConfirmModal({ message, onConfirm, onCancel, saving }: {
-  message: string; onConfirm: () => void; onCancel: () => void; saving: boolean;
-}): JSX.Element {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-rose-50">
-            <AlertCircle className="size-5 text-rose-500" />
-          </div>
-          <h3 className="text-[15px] font-bold text-slate-900">Confirmar acción</h3>
-        </div>
-        <div className="px-5 py-4">
-          <p className="text-[13px] text-slate-600">{message}</p>
-        </div>
-        <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3.5">
-          <button onClick={onCancel} className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
-            No, mantener
-          </button>
-          <button
-            disabled={saving}
-            onClick={onConfirm}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-rose-600 px-4 text-[13px] font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-60"
-          >
-            {saving ? <Loader2 className="size-3.5 animate-spin" /> : null}
-            Sí, cancelar solicitud
           </button>
         </div>
       </div>
@@ -310,41 +375,45 @@ function ConfirmModal({ message, onConfirm, onCancel, saving }: {
 
 // ─── CreateModal ─────────────────────────────────────────────────────────────
 
-type CreateModalProps = {
+function CreateModal({
+  employees, saving, serverError, onClose, onSubmit,
+}: {
   employees: VacationEmployeeBalance[];
   saving: boolean;
-  error: string | null;
+  serverError: string | null;
   onClose: () => void;
-  onSubmit: (payload: { employeeId: string; startDate: string; endDate: string; reason: string }) => void;
-};
-
-function CreateModal({ employees, saving, error, onClose, onSubmit }: CreateModalProps): JSX.Element {
-  const [empSearch, setEmpSearch]   = useState("");
-  const [empOpen, setEmpOpen]       = useState(false);
+  onSubmit: (p: { employeeId: string; startDate: string; endDate: string; reason: string }) => void;
+}): JSX.Element {
+  const [empQuery, setEmpQuery]       = useState("");
+  const [empOpen, setEmpOpen]         = useState(false);
   const [selectedEmp, setSelectedEmp] = useState<VacationEmployeeBalance | null>(null);
-  const [startDate, setStartDate]   = useState("");
-  const [endDate, setEndDate]       = useState("");
-  const [reason, setReason]         = useState("");
-  const [touched, setTouched]       = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [startDate, setStartDate]     = useState("");
+  const [endDate, setEndDate]         = useState("");
+  const [reason, setReason]           = useState("");
+  const [touched, setTouched]         = useState(false);
+  const empInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredEmps = useMemo(() => {
-    const q = empSearch.toLowerCase();
+  // Autocomplete
+  const filtered = useMemo(() => {
+    const q = empQuery.toLowerCase();
+    if (!q) return employees.slice(0, 8);
     return employees.filter((e) => e.label.toLowerCase().includes(q)).slice(0, 8);
-  }, [employees, empSearch]);
+  }, [employees, empQuery]);
 
-  // Estimated days (calendar, not business days — backend calculates real business days)
-  const estDays = useMemo(() => {
+  // Cálculo de días (calendario — backend calcula los hábiles exactos)
+  const calDays = useMemo(() => {
     if (!startDate || !endDate || endDate < startDate) return null;
-    const diff = (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000 + 1;
-    return diff;
+    return Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1;
   }, [startDate, endDate]);
 
-  const overBudget = selectedEmp && estDays !== null && estDays > selectedEmp.availableDays;
+  const diasRestantes =
+    selectedEmp && calDays !== null ? selectedEmp.availableDays - calDays : null;
+  const overBudget = diasRestantes !== null && diasRestantes < 0;
 
-  const startErr  = touched && !startDate;
-  const endErr    = touched && (!endDate || endDate < startDate);
-  const empErr    = touched && !selectedEmp;
+  // Errores
+  const empErr   = touched && !selectedEmp;
+  const startErr = touched && !startDate;
+  const endErr   = touched && (!endDate || (!!startDate && endDate < startDate));
 
   function handleSubmit(e: React.FormEvent): void {
     e.preventDefault();
@@ -353,239 +422,342 @@ function CreateModal({ employees, saving, error, onClose, onSubmit }: CreateModa
     onSubmit({ employeeId: selectedEmp.id, startDate, endDate, reason });
   }
 
+  function selectEmployee(emp: VacationEmployeeBalance): void {
+    setSelectedEmp(emp);
+    setEmpQuery(emp.label);
+    setEmpOpen(false);
+    empInputRef.current?.blur();
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4">
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div>
-            <h3 className="text-[15px] font-bold text-slate-900">Nueva solicitud de vacaciones</h3>
-            <p className="mt-0.5 text-[12px] text-slate-400">Completa los datos para registrar la solicitud</p>
+      <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+
+        {/* ── Encabezado ── */}
+        <div className="flex items-center gap-3.5 border-b border-slate-100 px-5 py-4">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-500 shadow-sm shadow-teal-500/30">
+            <Umbrella className="size-5 text-white" />
           </div>
-          <button onClick={onClose} className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"><X className="size-4" /></button>
+          <div className="flex-1">
+            <h3 className="text-[15px] font-bold text-slate-900">Nueva solicitud de vacaciones</h3>
+            <p className="mt-0.5 text-[12px] text-slate-400">Registra el período de descanso del colaborador</p>
+          </div>
+          <button onClick={onClose} className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition">
+            <X className="size-4" />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="space-y-4 px-5 py-4">
+        {/* ── Cuerpo scroll ── */}
+        <div className="overflow-y-auto">
+          <form id="create-form" onSubmit={handleSubmit} noValidate>
 
-            {/* Employee autocomplete */}
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                Empleado <span className="text-rose-500">*</span>
-              </span>
+            {/* ── Bloque 1: Colaborador ── */}
+            <div className="border-b border-slate-100 px-5 py-4">
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                1 · Colaborador
+              </p>
+
+              {/* Autocomplete */}
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
                 <input
-                  ref={inputRef}
+                  ref={empInputRef}
                   type="text"
-                  value={empSearch}
+                  value={empQuery}
+                  placeholder="Buscar por nombre o código..."
                   onFocus={() => setEmpOpen(true)}
                   onBlur={() => setTimeout(() => setEmpOpen(false), 150)}
-                  onChange={(e) => { setEmpSearch(e.target.value); setSelectedEmp(null); setEmpOpen(true); }}
-                  placeholder="Buscar empleado..."
-                  className={`h-9 w-full rounded-lg border pl-9 pr-3 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 ${empErr ? "border-rose-300" : "border-slate-200"}`}
+                  onChange={(e) => { setEmpQuery(e.target.value); setSelectedEmp(null); setEmpOpen(true); }}
+                  className={`h-9 w-full rounded-xl border pl-9 pr-3 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 ${
+                    empErr ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-white"
+                  }`}
                 />
-                {empOpen && filteredEmps.length > 0 && (
-                  <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
-                    {filteredEmps.map((emp) => (
+                {empOpen && filtered.length > 0 && (
+                  <ul className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+                    {filtered.map((emp) => (
                       <li key={emp.id}>
                         <button
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => { setSelectedEmp(emp); setEmpSearch(emp.label); setEmpOpen(false); }}
-                          className="flex w-full items-center justify-between px-4 py-2.5 text-left hover:bg-slate-50"
+                          onClick={() => selectEmployee(emp)}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition"
                         >
-                          <div className="flex items-center gap-2.5">
-                            <div className={`flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(emp.label)}`}>
-                              {initials(emp.label)}
-                            </div>
-                            <span className="text-[13px] font-medium text-slate-800">{emp.label}</span>
-                          </div>
-                          <span className="text-[11px] font-semibold text-teal-600">{emp.availableDays} días disp.</span>
+                          <Avatar name={emp.label} size="sm" />
+                          <span className="flex-1 truncate text-[13px] font-medium text-slate-800">{emp.label}</span>
+                          <span className={`shrink-0 text-[11px] font-bold ${emp.availableDays > 0 ? "text-emerald-600" : "text-rose-500"}`}>
+                            {emp.availableDays} días disp.
+                          </span>
                         </button>
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
-              {empErr && <p className="flex items-center gap-1 text-[12px] text-rose-600"><AlertCircle className="size-3" />Selecciona un empleado</p>}
-            </div>
-
-            {/* Balance mini-card */}
-            {selectedEmp && (
-              <div className="grid grid-cols-4 gap-2 rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
-                <div className="text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-teal-600">Días/año</p>
-                  <p className="mt-0.5 text-[18px] font-extrabold text-teal-700">{selectedEmp.annualEntitlementDays}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Usados</p>
-                  <p className="mt-0.5 text-[18px] font-extrabold text-slate-700">{selectedEmp.usedDays}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">Pendientes</p>
-                  <p className="mt-0.5 text-[18px] font-extrabold text-amber-700">{selectedEmp.pendingDays}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-600">Disponibles</p>
-                  <p className="mt-0.5 text-[18px] font-extrabold text-emerald-700">{selectedEmp.availableDays}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Dates */}
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block space-y-1.5">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                  Inicio <span className="text-rose-500">*</span>
-                </span>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className={`h-9 w-full rounded-lg border px-3 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 ${startErr ? "border-rose-300" : "border-slate-200"}`}
-                />
-                {startErr && <p className="flex items-center gap-1 text-[12px] text-rose-600"><AlertCircle className="size-3" />Requerido</p>}
-              </label>
-              <label className="block space-y-1.5">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                  Fin <span className="text-rose-500">*</span>
-                </span>
-                <input
-                  type="date"
-                  value={endDate}
-                  min={startDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className={`h-9 w-full rounded-lg border px-3 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 ${endErr ? "border-rose-300" : "border-slate-200"}`}
-                />
-                {endErr && <p className="flex items-center gap-1 text-[12px] text-rose-600"><AlertCircle className="size-3" />Fecha inválida</p>}
-              </label>
-            </div>
-
-            {/* Day estimator */}
-            {estDays !== null && (
-              <div className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 ${overBudget ? "border-rose-200 bg-rose-50" : "border-teal-100 bg-teal-50"}`}>
-                <CalendarDays className={`size-4 shrink-0 ${overBudget ? "text-rose-500" : "text-teal-600"}`} />
-                <p className={`text-[12px] font-medium ${overBudget ? "text-rose-700" : "text-teal-700"}`}>
-                  ~{estDays} días calendario seleccionados
-                  {overBudget ? ` — excede los ${selectedEmp!.availableDays} días disponibles` : " · El sistema calculará los días hábiles exactos"}
+              {empErr && (
+                <p className="mt-1.5 flex items-center gap-1 text-[12px] text-rose-600">
+                  <AlertCircle className="size-3" />Selecciona un empleado
                 </p>
-              </div>
-            )}
+              )}
 
-            {/* Reason */}
-            <label className="block space-y-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Motivo (opcional)</span>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Describe brevemente el motivo..."
-                rows={2}
-                className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-              />
-            </label>
+              {/* Mini-card del empleado seleccionado */}
+              {selectedEmp && (
+                <div className="mt-3 overflow-hidden rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50 to-slate-50">
+                  {/* Fila nombre */}
+                  <div className="flex items-center gap-3 border-b border-teal-100/60 px-4 py-3">
+                    <Avatar name={selectedEmp.label} size="md" />
+                    <div className="min-w-0">
+                      <p className="truncate text-[14px] font-bold text-slate-900">{selectedEmp.label}</p>
+                      <p className="text-[11px] text-slate-500">Colaborador seleccionado</p>
+                    </div>
+                  </div>
+                  {/* Métricas de saldo */}
+                  <div className="grid grid-cols-4 divide-x divide-teal-100">
+                    {[
+                      { label: "Días/año",    value: selectedEmp.annualEntitlementDays, color: "text-teal-700" },
+                      { label: "Usados",       value: selectedEmp.usedDays,             color: "text-slate-700" },
+                      { label: "Pendientes",   value: selectedEmp.pendingDays,           color: "text-amber-600" },
+                      { label: "Disponibles",  value: selectedEmp.availableDays,         color: selectedEmp.availableDays > 0 ? "text-emerald-700" : "text-rose-600" },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="flex flex-col items-center py-3">
+                        <span className={`text-[20px] font-extrabold leading-none ${color}`}>{value}</span>
+                        <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
-            {/* Server error */}
-            {error && (
-              <p className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-medium text-rose-700">
-                <AlertCircle className="size-3.5 shrink-0" />{error}
+            {/* ── Bloque 2: Período ── */}
+            <div className="border-b border-slate-100 px-5 py-4">
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                2 · Período de vacaciones
               </p>
-            )}
-          </div>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block space-y-1.5">
+                  <span className="text-[11px] font-semibold text-slate-600">
+                    Inicio <span className="text-rose-500">*</span>
+                  </span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => { setStartDate(e.target.value); if (endDate && e.target.value > endDate) setEndDate(""); }}
+                    className={`h-9 w-full rounded-xl border px-3 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 ${
+                      startErr ? "border-rose-300 bg-rose-50" : "border-slate-200"
+                    }`}
+                  />
+                  {startErr && <p className="flex items-center gap-1 text-[12px] text-rose-600"><AlertCircle className="size-3" />Requerido</p>}
+                </label>
+                <label className="block space-y-1.5">
+                  <span className="text-[11px] font-semibold text-slate-600">
+                    Fin <span className="text-rose-500">*</span>
+                  </span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    min={startDate || undefined}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className={`h-9 w-full rounded-xl border px-3 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 ${
+                      endErr ? "border-rose-300 bg-rose-50" : "border-slate-200"
+                    }`}
+                  />
+                  {endErr && <p className="flex items-center gap-1 text-[12px] text-rose-600"><AlertCircle className="size-3" />Fecha inválida</p>}
+                </label>
+              </div>
+              <label className="mt-3 block space-y-1.5">
+                <span className="text-[11px] font-semibold text-slate-600">Motivo / Observación <span className="text-slate-400">(opcional)</span></span>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={2}
+                  maxLength={500}
+                  placeholder="Describe brevemente el motivo..."
+                  className="w-full resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+                />
+              </label>
+            </div>
 
-          <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3.5">
-            <button type="button" onClick={onClose} className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex h-9 items-center gap-2 rounded-lg bg-gradient-to-b from-brand-500 to-brand-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-brand-500/30 hover:from-brand-500 hover:to-brand-700 disabled:opacity-60"
-            >
-              {saving ? <Loader2 className="size-3.5 animate-spin" /> : null}
-              {saving ? "Guardando..." : "Crear solicitud"}
-            </button>
-          </div>
-        </form>
+            {/* ── Bloque 3: Resumen dinámico ── */}
+            <div className="px-5 py-4">
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                3 · Resumen
+              </p>
+              <div className={`rounded-xl border p-4 transition-colors ${overBudget ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-slate-50"}`}>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Saldo disponible</p>
+                    <p className={`mt-0.5 text-[18px] font-extrabold ${selectedEmp ? (selectedEmp.availableDays > 0 ? "text-emerald-700" : "text-rose-600") : "text-slate-300"}`}>
+                      {selectedEmp ? `${selectedEmp.availableDays} días` : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Días solicitados</p>
+                    <p className={`mt-0.5 text-[18px] font-extrabold ${calDays !== null ? "text-teal-700" : "text-slate-300"}`}>
+                      {calDays !== null ? `~${calDays} días` : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Días restantes</p>
+                    <p className={`mt-0.5 text-[18px] font-extrabold ${
+                      diasRestantes === null ? "text-slate-300" : diasRestantes >= 0 ? "text-slate-800" : "text-rose-600"
+                    }`}>
+                      {diasRestantes !== null ? `${diasRestantes} días` : "—"}
+                    </p>
+                  </div>
+                </div>
+                {/* Avisos */}
+                {calDays !== null && !overBudget && (
+                  <p className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500">
+                    <CalendarDays className="size-3.5 shrink-0 text-teal-500" />
+                    Período estimado de ~{calDays} días calendario. El sistema calculará los días hábiles exactos al guardar.
+                  </p>
+                )}
+                {overBudget && (
+                  <p className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-rose-700">
+                    <AlertCircle className="size-3.5 shrink-0" />
+                    Los días solicitados exceden el saldo disponible del empleado. Verifica antes de continuar.
+                  </p>
+                )}
+              </div>
+              {serverError && (
+                <div className="mt-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-rose-500" />
+                  <p className="text-[12px] font-medium text-rose-700">{serverError}</p>
+                </div>
+              )}
+            </div>
+          </form>
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            form="create-form"
+            disabled={saving}
+            className="inline-flex h-9 items-center gap-2 rounded-xl bg-gradient-to-b from-brand-500 to-brand-600 px-5 text-[13px] font-semibold text-white shadow-sm shadow-brand-500/30 hover:from-brand-500 hover:to-brand-700 disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+            {saving ? "Guardando..." : "Guardar solicitud"}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Página principal ─────────────────────────────────────────────────────────
 
 export function PaginaVacaciones(): JSX.Element {
   const qc = useQueryClient();
 
-  // ── Filters ──
-  const [search, setSearch]           = useState("");
+  // ── Filtros ──
   const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch]           = useState("");
   const [status, setStatus]           = useState("");
   const [year, setYear]               = useState(CUR_YEAR);
   const [page, setPage]               = useState(1);
+  const [pageSize, setPageSize]       = useState(10);
 
-  // ── UI state ──
-  const [toast, setToast]             = useState<{ variant: "success" | "error"; message: string } | null>(null);
+  // ── UI ──
+  const [toast, setToast]             = useState<ToastState | null>(null);
   const [detailItem, setDetailItem]   = useState<VacationItem | null>(null);
   const [reviewItem, setReviewItem]   = useState<VacationItem | null>(null);
   const [cancelItem, setCancelItem]   = useState<VacationItem | null>(null);
   const [createOpen, setCreateOpen]   = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // ── Helpers ──
-  const ok   = (msg: string): void => setToast({ variant: "success", message: msg });
-  const fail = (msg: string): void => setToast({ variant: "error", message: msg });
+  const ok   = (msg: string) => setToast({ variant: "success", message: msg });
+  const fail = (msg: string) => setToast({ variant: "error",   message: msg });
 
   async function refreshAll(): Promise<void> {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["vacations"] }),
-      qc.invalidateQueries({ queryKey: ["vacation-catalogs"] }),
       qc.invalidateQueries({ queryKey: ["vac-kpi"] }),
+      qc.invalidateQueries({ queryKey: ["vacation-catalogs"] }),
     ]);
   }
 
-  // ── KPI queries ──
-  const baseKpiQuery = { search: "", employeeId: "", startDateFrom: "", startDateTo: "", year, pageNumber: 1, pageSize: 1 };
-  const kpiPending  = useQuery({ queryKey: ["vac-kpi", "pending",  year], queryFn: () => getVacations({ ...baseKpiQuery, status: "pending"  }) });
-  const kpiApproved = useQuery({ queryKey: ["vac-kpi", "approved", year], queryFn: () => getVacations({ ...baseKpiQuery, status: "approved" }) });
-  const kpiRejected = useQuery({ queryKey: ["vac-kpi", "rejected", year], queryFn: () => getVacations({ ...baseKpiQuery, status: "rejected" }) });
+  async function handleManualRefresh(): Promise<void> {
+    setIsRefreshing(true);
+    await refreshAll();
+    setIsRefreshing(false);
+  }
 
-  // ── List query ──
+  function clearFilters(): void {
+    setSearchInput(""); setSearch(""); setStatus(""); setYear(CUR_YEAR); setPage(1);
+  }
+
+  function applyFilters(): void {
+    setSearch(searchInput); setPage(1);
+  }
+
+  const hasActiveFilters = !!(search || status || year !== CUR_YEAR);
+
+  // ── KPIs ──
+  const kpiBase = { search: "", employeeId: "", startDateFrom: "", startDateTo: "", pageNumber: 1, pageSize: 1 };
+  const kpiPending  = useQuery({ queryKey: ["vac-kpi", "pending",  year], queryFn: () => getVacations({ ...kpiBase, year, status: "pending"   }) });
+  const kpiApproved = useQuery({ queryKey: ["vac-kpi", "approved", year], queryFn: () => getVacations({ ...kpiBase, year, status: "approved"  }) });
+  const kpiRejected = useQuery({ queryKey: ["vac-kpi", "rejected", year], queryFn: () => getVacations({ ...kpiBase, year, status: "rejected"  }) });
+
+  // ── Lista ──
   const listQuery = useQuery({
-    queryKey: ["vacations", search, status, year, page],
+    queryKey: ["vacations", search, status, year, page, pageSize],
     queryFn: () => getVacations({
       search, employeeId: "", status: status as never,
-      startDateFrom: "", startDateTo: "",
-      year, pageNumber: page, pageSize: PAGE_SIZE,
+      startDateFrom: "", startDateTo: "", year,
+      pageNumber: page, pageSize,
     }),
   });
 
-  // ── Catalogs ──
+  // ── Catálogos ──
   const catalogsQuery = useQuery({
     queryKey: ["vacation-catalogs", year],
     queryFn: () => getVacationCatalogs(year),
   });
 
-  const employees = catalogsQuery.data?.employees ?? [];
-  const rows      = listQuery.data?.items ?? [];
-  const total     = listQuery.data?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const employees  = catalogsQuery.data?.employees ?? [];
+  const rows       = listQuery.data?.items ?? [];
+  const total      = listQuery.data?.totalCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  // ── Mutations ──
+  // Rango de resultados para mostrar
+  const rangeFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeTo   = Math.min(page * pageSize, total);
+
+  // Páginas numeradas (máx 7 visibles)
+  const pageNumbers = useMemo((): number[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const half = 3;
+    let start = Math.max(1, page - half);
+    const end = Math.min(totalPages, start + 6);
+    start = Math.max(1, end - 6);
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }, [totalPages, page]);
+
+  // ── Mutaciones ──
   const createMut = useMutation({
     mutationFn: createVacationRequest,
     onSuccess: async () => {
       await refreshAll();
-      ok("Solicitud creada correctamente.");
-      setCreateOpen(false);
-      setCreateError(null);
+      ok("Solicitud de vacaciones creada correctamente.");
+      setCreateOpen(false); setCreateError(null);
     },
-    onError: () => { setCreateError("No se pudo crear la solicitud. Verifica los datos."); },
+    onError: () => setCreateError("No se pudo crear la solicitud. Verifica los datos e intenta nuevamente."),
   });
 
   const approveMut = useMutation({
     mutationFn: ({ id, comment }: { id: string; comment: string }) => approveVacationRequest(id, comment),
-    onSuccess: async () => { await refreshAll(); ok("Solicitud aprobada."); setReviewItem(null); },
+    onSuccess: async () => { await refreshAll(); ok("Solicitud aprobada correctamente."); setReviewItem(null); },
     onError: () => fail("No se pudo aprobar la solicitud."),
   });
 
@@ -601,244 +773,329 @@ export function PaginaVacaciones(): JSX.Element {
     onError: () => { fail("No se pudo cancelar la solicitud."); setCancelItem(null); },
   });
 
-  function applySearch(): void { setSearch(searchInput); setPage(1); }
-
   return (
-    <section className="space-y-5 pb-8">
-      {/* Toast */}
-      {toast && <Toast message={toast.message} variant={toast.variant} onClose={() => setToast(null)} />}
+    <section className="space-y-5 pb-10">
 
-      {/* Header */}
+      {/* Toast */}
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+
+      {/* ── Encabezado ── */}
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-teal-500 shadow-sm shadow-teal-500/30">
-              <Umbrella className="size-5 text-white" />
-            </div>
-            <h1 className="text-[22px] font-extrabold tracking-tight text-slate-900">Vacaciones</h1>
+        <div className="flex items-start gap-3.5">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-500 shadow-sm shadow-teal-500/30">
+            <Umbrella className="size-5 text-white" />
           </div>
-          <p className="mt-1 text-[13px] text-slate-500 pl-[46px]">Gestión de solicitudes de vacaciones del personal</p>
+          <div>
+            <h1 className="text-[22px] font-extrabold tracking-tight text-slate-900">Vacaciones</h1>
+            <p className="mt-0.5 text-[13px] text-slate-500">Gestión de solicitudes de vacaciones del personal</p>
+          </div>
         </div>
-        <button
-          onClick={() => { setCreateOpen(true); setCreateError(null); }}
-          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-b from-brand-500 to-brand-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-brand-500/30 transition hover:from-brand-500 hover:to-brand-700"
-        >
-          <Plus className="size-4" />
-          Nueva solicitud
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={handleManualRefresh}
+            title="Recargar datos"
+            className="inline-flex size-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm hover:bg-slate-50 hover:text-slate-700 transition"
+          >
+            <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            onClick={() => { setCreateOpen(true); setCreateError(null); }}
+            className="inline-flex h-9 items-center gap-2 rounded-xl bg-gradient-to-b from-brand-500 to-brand-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-brand-500/30 hover:from-brand-500 hover:to-brand-700 transition"
+          >
+            <Plus className="size-4" />
+            Nueva solicitud
+          </button>
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* ── KPI Cards ── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
           label="Pendientes"
           value={kpiPending.data?.totalCount ?? 0}
+          sub={`año ${year}`}
           loading={kpiPending.isLoading}
-          accent="bg-amber-50 text-amber-500"
-          icon={<Clock className="size-5" />}
+          iconBg="bg-amber-50 shadow-amber-100"
+          icon={<Clock className="size-5 text-amber-500" />}
         />
         <KpiCard
           label="Aprobadas"
           value={kpiApproved.data?.totalCount ?? 0}
+          sub={`año ${year}`}
           loading={kpiApproved.isLoading}
-          accent="bg-emerald-50 text-emerald-600"
-          icon={<CheckCircle2 className="size-5" />}
+          iconBg="bg-emerald-50 shadow-emerald-100"
+          icon={<CheckCircle2 className="size-5 text-emerald-600" />}
         />
         <KpiCard
           label="Rechazadas"
           value={kpiRejected.data?.totalCount ?? 0}
+          sub={`año ${year}`}
           loading={kpiRejected.isLoading}
-          accent="bg-rose-50 text-rose-500"
-          icon={<XCircle className="size-5" />}
+          iconBg="bg-rose-50 shadow-rose-100"
+          icon={<XCircle className="size-5 text-rose-500" />}
+        />
+        <KpiCard
+          label="Días solicitados"
+          value="—"
+          sub="requiere endpoint de suma"
+          iconBg="bg-brand-50 shadow-brand-100"
+          icon={<CalendarDays className="size-5 text-brand-500" />}
         />
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <SlidersHorizontal className="size-4 shrink-0 text-slate-400" />
-        {/* Search */}
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && applySearch()}
-            placeholder="Buscar empleado..."
-            className="h-8 w-44 rounded-lg border border-slate-200 pl-8 pr-3 text-[12px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-          />
+      {/* ── Barra de filtros ── */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-end gap-3 px-4 py-4">
+          {/* Búsqueda */}
+          <div className="flex min-w-[200px] flex-1 flex-col gap-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Buscar</label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+                placeholder="Nombre, código..."
+                className="h-9 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+          </div>
+          {/* Estado */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Estado</label>
+            <select
+              value={status}
+              onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-700 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            >
+              <option value="">Todos los estados</option>
+              <option value="pending">Pendiente</option>
+              <option value="approved">Aprobado</option>
+              <option value="rejected">Rechazado</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </div>
+          {/* Año */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Año</label>
+            <select
+              value={year}
+              onChange={(e) => { setYear(Number(e.target.value)); setPage(1); }}
+              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-700 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            >
+              {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          {/* Botones */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={applyFilters}
+              className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-500 px-4 text-[13px] font-semibold text-white shadow-sm hover:bg-brand-600 transition"
+            >
+              <Search className="size-3.5" />Aplicar
+            </button>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 transition"
+              >
+                <X className="size-3.5" />Limpiar
+              </button>
+            )}
+          </div>
+          {/* Contador */}
+          {total > 0 && (
+            <p className="ml-auto self-end text-[12px] text-slate-400">
+              {rangeFrom}–{rangeTo} de <b className="text-slate-600">{total}</b> registros
+            </p>
+          )}
         </div>
-        <button
-          onClick={applySearch}
-          className="inline-flex h-8 items-center rounded-lg border border-brand-200 bg-brand-50 px-3 text-[12px] font-semibold text-brand-700 hover:bg-brand-100"
-        >
-          Buscar
-        </button>
-        {/* Status */}
-        <select
-          value={status}
-          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[12px] text-slate-700 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-        >
-          <option value="">Todos los estados</option>
-          <option value="pending">Pendiente</option>
-          <option value="approved">Aprobado</option>
-          <option value="rejected">Rechazado</option>
-          <option value="cancelled">Cancelado</option>
-        </select>
-        {/* Year */}
-        <select
-          value={year}
-          onChange={(e) => { setYear(Number(e.target.value)); setPage(1); }}
-          className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[12px] text-slate-700 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-        >
-          {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-        </select>
-        {/* Reset */}
-        {(search || status || year !== CUR_YEAR) && (
-          <button
-            onClick={() => { setSearch(""); setSearchInput(""); setStatus(""); setYear(CUR_YEAR); setPage(1); }}
-            className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[12px] text-slate-500 hover:text-slate-700"
-          >
-            <X className="size-3.5" />Limpiar
-          </button>
-        )}
-        <span className="ml-auto text-[12px] text-slate-400">{total} registros</span>
       </div>
 
-      {/* Table */}
+      {/* ── Tabla ── */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {listQuery.isLoading ? (
-          <div className="flex items-center justify-center py-16 text-slate-400">
-            <Loader2 className="size-6 animate-spin" />
+          <div className="flex items-center justify-center gap-2 py-20 text-slate-400">
+            <Loader2 className="size-5 animate-spin" />
+            <span className="text-[13px]">Cargando solicitudes...</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="min-w-full">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/80">
-                  <th className="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-slate-500">Empleado</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-slate-500">Período</th>
-                  <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-widest text-slate-500">Días</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-slate-500">Estado</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-slate-500">Solicitado</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-widest text-slate-500">Acciones</th>
+                  {["Empleado", "Período", "Días", "Tipo", "Estado", "Solicitado", "Acciones"].map((h) => (
+                    <th
+                      key={h}
+                      className={`px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-slate-400 ${h === "Días" || h === "Acciones" ? "text-center" : "text-left"}`}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.length === 0 ? <EmptyState /> : rows.map((r) => {
-                  const color = avatarColor(r.employeeName);
-                  return (
-                    <tr key={r.id} className="group transition hover:bg-slate-50/60">
-                      {/* Employee */}
-                      <td className="px-5 py-3">
+                {rows.length === 0
+                  ? <EmptyState onClear={clearFilters} onCreate={() => { setCreateOpen(true); setCreateError(null); }} />
+                  : rows.map((r) => (
+                    <tr key={r.id} className="group transition-colors hover:bg-slate-50/60">
+
+                      {/* Empleado */}
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className={`flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${color}`}>
-                            {initials(r.employeeName)}
-                          </div>
+                          <Avatar name={r.employeeName} />
                           <div className="min-w-0">
-                            <p className="text-[13px] font-semibold text-slate-800 truncate">{r.employeeName}</p>
+                            <p className="truncate text-[13px] font-semibold text-slate-800">{r.employeeName}</p>
                             <p className="text-[11px] text-slate-400">{r.employeeCode} · {r.area}</p>
                           </div>
                         </div>
                       </td>
-                      {/* Period */}
+
+                      {/* Período */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5 text-[12px] text-slate-700">
-                          <CalendarDays className="size-3.5 shrink-0 text-slate-400" />
+                          <CalendarDays className="size-3.5 shrink-0 text-slate-300" />
                           <span>{fmtDate(r.startDate)}</span>
                           <span className="text-slate-300">→</span>
                           <span>{fmtDate(r.endDate)}</span>
                         </div>
                       </td>
-                      {/* Days */}
+
+                      {/* Días */}
                       <td className="px-4 py-3 text-center">
-                        <span className="inline-flex size-7 items-center justify-center rounded-full bg-teal-50 text-[13px] font-bold text-teal-700">
+                        <span className="inline-flex size-8 items-center justify-center rounded-full bg-teal-50 text-[13px] font-extrabold text-teal-700">
                           {r.requestedDays}
                         </span>
                       </td>
-                      {/* Status */}
+
+                      {/* Tipo */}
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1.5 text-[12px] text-slate-500">
+                          <FileText className="size-3.5 shrink-0 text-slate-300" />
+                          Vacaciones
+                        </span>
+                      </td>
+
+                      {/* Estado */}
                       <td className="px-4 py-3">
                         <StatusBadge status={r.status} />
                       </td>
-                      {/* Requested at */}
+
+                      {/* Solicitado */}
                       <td className="px-4 py-3 text-[12px] text-slate-500">
-                        {r.requestedAtUtc
-                          ? new Date(r.requestedAtUtc).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })
-                          : "—"}
+                        {r.requestedAtUtc ? fmtDateShort(r.requestedAtUtc) : "—"}
                       </td>
-                      {/* Actions */}
+
+                      {/* Acciones */}
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {/* Ver — siempre */}
                           <button
                             onClick={() => setDetailItem(r)}
-                            className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+                            className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 transition"
                           >
                             <Eye className="size-3" />Ver
                           </button>
+                          {/* Revisar — solo pending */}
                           {r.status === "pending" && (
-                            <>
-                              <button
-                                onClick={() => setReviewItem(r)}
-                                className="inline-flex h-7 items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2.5 text-[11px] font-semibold text-brand-700 shadow-sm hover:bg-brand-100"
-                              >
-                                Revisar
-                              </button>
-                              <button
-                                onClick={() => setCancelItem(r)}
-                                className="inline-flex h-7 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-700 shadow-sm hover:bg-rose-100"
-                              >
-                                Cancelar
-                              </button>
-                            </>
+                            <button
+                              onClick={() => setReviewItem(r)}
+                              className="inline-flex h-7 items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2.5 text-[11px] font-semibold text-brand-700 shadow-sm hover:bg-brand-100 transition"
+                            >
+                              Revisar
+                            </button>
+                          )}
+                          {/* Cancelar — solo pending */}
+                          {r.status === "pending" && (
+                            <button
+                              onClick={() => setCancelItem(r)}
+                              className="inline-flex h-7 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 text-[11px] font-semibold text-rose-600 shadow-sm hover:bg-rose-100 transition"
+                            >
+                              Cancelar
+                            </button>
                           )}
                         </div>
                       </td>
                     </tr>
-                  );
-                })}
+                  ))
+                }
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <button
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 disabled:opacity-40"
-          >
-            <ChevronLeft className="size-3.5" />Anterior
-          </button>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-              const p = i + 1;
-              return (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`size-8 rounded-lg text-[12px] font-semibold transition ${p === page ? "bg-brand-500 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
-                >
-                  {p}
-                </button>
-              );
-            })}
+      {/* ── Paginación ── */}
+      {total > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Selector de tamaño */}
+          <div className="flex items-center gap-2 text-[12px] text-slate-500">
+            <span>Mostrar</span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[12px] text-slate-700 outline-none focus:border-brand-400"
+            >
+              {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <span>por página</span>
           </div>
-          <button
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 disabled:opacity-40"
-          >
-            Siguiente<ChevronRight className="size-3.5" />
-          </button>
+
+          {/* Páginas numeradas */}
+          <div className="flex items-center gap-1">
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm hover:bg-slate-50 disabled:opacity-40 transition"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            {pageNumbers[0] > 1 && (
+              <>
+                <button onClick={() => setPage(1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-[12px] font-semibold text-slate-600 hover:bg-slate-50">1</button>
+                {pageNumbers[0] > 2 && <span className="px-1 text-slate-300">…</span>}
+              </>
+            )}
+            {pageNumbers.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className={`inline-flex size-8 items-center justify-center rounded-lg text-[12px] font-semibold transition ${
+                  p === page
+                    ? "bg-brand-500 text-white shadow-sm shadow-brand-500/30"
+                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+            {pageNumbers[pageNumbers.length - 1] < totalPages && (
+              <>
+                {pageNumbers[pageNumbers.length - 1] < totalPages - 1 && <span className="px-1 text-slate-300">…</span>}
+                <button onClick={() => setPage(totalPages)} className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-[12px] font-semibold text-slate-600 hover:bg-slate-50">{totalPages}</button>
+              </>
+            )}
+            <button
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm hover:bg-slate-50 disabled:opacity-40 transition"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+
+          {/* Rango */}
+          <p className="text-[12px] text-slate-400">
+            Mostrando <b className="text-slate-600">{rangeFrom}–{rangeTo}</b> de <b className="text-slate-600">{total}</b>
+          </p>
         </div>
       )}
 
-      {/* Modals */}
-      {detailItem && <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />}
+      {/* ── Modales ── */}
+      {detailItem && (
+        <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />
+      )}
 
       {reviewItem && (
         <ReviewModal
@@ -852,7 +1109,10 @@ export function PaginaVacaciones(): JSX.Element {
 
       {cancelItem && (
         <ConfirmModal
-          message={`¿Seguro que deseas cancelar la solicitud de ${cancelItem.employeeName} (${fmtDate(cancelItem.startDate)} → ${fmtDate(cancelItem.endDate)})?`}
+          title="Cancelar solicitud"
+          message={`¿Seguro que deseas cancelar la solicitud de vacaciones de ${cancelItem.employeeName}? (${fmtDate(cancelItem.startDate)} → ${fmtDate(cancelItem.endDate)} · ${cancelItem.requestedDays} días)`}
+          confirmLabel="Sí, cancelar solicitud"
+          confirmCls="bg-rose-600 hover:bg-rose-700"
           saving={cancelMut.isPending}
           onConfirm={() => cancelMut.mutate(cancelItem.id)}
           onCancel={() => setCancelItem(null)}
@@ -863,7 +1123,7 @@ export function PaginaVacaciones(): JSX.Element {
         <CreateModal
           employees={employees}
           saving={createMut.isPending}
-          error={createError}
+          serverError={createError}
           onClose={() => { setCreateOpen(false); setCreateError(null); }}
           onSubmit={(payload) => createMut.mutate(payload)}
         />
