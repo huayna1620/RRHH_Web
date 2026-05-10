@@ -775,12 +775,12 @@ export function PaginaPermisos(): JSX.Element {
   const kpiApproved = useQuery({ queryKey: ["leaves-kpi", "approved", year], queryFn: () => getLeaves({ ...kpiBase, year, status: "approved" }) });
   const kpiRejected = useQuery({ queryKey: ["leaves-kpi", "rejected", year], queryFn: () => getLeaves({ ...kpiBase, year, status: "rejected" }) });
 
-  // ── Lista ──
+  // ── Lista (se traen todos para poder ordenar entre páginas) ──
   const listQuery = useQuery({
-    queryKey: ["leaves", search, status, leaveType, year, page, pageSize],
+    queryKey: ["leaves", search, status, leaveType, year],
     queryFn: () => getLeaves({
       search, employeeId: "", status: status as never, leaveType: leaveType as never,
-      startDateFrom: "", startDateTo: "", year, pageNumber: page, pageSize,
+      startDateFrom: "", startDateTo: "", year, pageNumber: 1, pageSize: 9999,
     }),
   });
 
@@ -789,13 +789,11 @@ export function PaginaPermisos(): JSX.Element {
   const employees  = catalogsQuery.data?.employees ?? [];
   const leaveTypes = catalogsQuery.data?.leaveTypes ?? [];
 
-  const rows       = listQuery.data?.items ?? [];
-  const total      = listQuery.data?.totalCount ?? 0;
+  const rows = listQuery.data?.items ?? [];
 
   const sortedRows = useMemo(() => {
     const arr = [...rows];
     if (!sortKey) {
-      // Sin orden activo → más reciente primero (requestedAtUtc desc)
       return arr.sort((a, b) =>
         String(b.requestedAtUtc ?? "").localeCompare(String(a.requestedAtUtc ?? ""))
       );
@@ -807,7 +805,14 @@ export function PaginaPermisos(): JSX.Element {
       return sortDir === "asc" ? cmp : -cmp;
     });
   }, [rows, sortKey, sortDir]);
+
+  // Paginación cliente
+  const total      = sortedRows.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pagedRows  = useMemo(
+    () => sortedRows.slice((page - 1) * pageSize, page * pageSize),
+    [sortedRows, page, pageSize]
+  );
   const rangeFrom  = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeTo    = Math.min(page * pageSize, total);
 
@@ -823,8 +828,8 @@ export function PaginaPermisos(): JSX.Element {
 
   // ── Exportar Excel ──
   function handleExport(): void {
-    if (rows.length === 0) return;
-    const data = rows.map((r) => ({
+    if (sortedRows.length === 0) return;
+    const data = sortedRows.map((r) => ({
       Empleado:       r.employeeName,
       Código:         r.employeeCode,
       Área:           r.area,
@@ -904,7 +909,7 @@ export function PaginaPermisos(): JSX.Element {
           </button>
           <button
             onClick={handleExport}
-            disabled={rows.length === 0}
+            disabled={sortedRows.length === 0}
             title="Exportar a Excel"
             className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-[13px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 disabled:opacity-40 transition"
           >
@@ -966,9 +971,9 @@ export function PaginaPermisos(): JSX.Element {
               <input
                 type="text"
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={(e) => { setSearchInput(e.target.value); if (!e.target.value) { setSearch(""); setPage(1); } }}
                 onKeyDown={(e) => e.key === "Enter" && applyFilters()}
-                placeholder="Nombre o código..."
+                placeholder="Nombre o código de empleado"
                 className="h-9 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
               />
             </div>
@@ -1074,9 +1079,9 @@ export function PaginaPermisos(): JSX.Element {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.length === 0
+                {sortedRows.length === 0
                   ? <EmptyState onClear={clearFilters} onCreate={() => { setCreateOpen(true); setCreateError(null); }} />
-                  : sortedRows.map((r) => (
+                  : pagedRows.map((r) => (
                     <tr key={r.id} className="group transition-colors hover:bg-slate-50/60">
 
                       {/* Empleado */}

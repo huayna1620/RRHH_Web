@@ -642,11 +642,11 @@ export function PaginaIncidencias(): JSX.Element {
   // ── Queries ──────────────────────────────────────────────────────────────
   const listParams = {
     employeeId: "", search: aSearch, status: aStatus, incidentType: aType,
-    fromDate: aFrom, toDate: aTo, pageNumber: page, pageSize: pgSize,
+    fromDate: aFrom, toDate: aTo, pageNumber: 1, pageSize: 9999,
   };
 
   const listQ = useQuery({
-    queryKey: ["incidents", listParams],
+    queryKey: ["incidents", "list", aSearch, aStatus, aType, aFrom, aTo],
     queryFn:  () => getIncidents(listParams),
   });
 
@@ -661,10 +661,8 @@ export function PaginaIncidencias(): JSX.Element {
     queryFn:  () => getIncidentStats(statsParams),
   });
 
-  const rows       = listQ.data?.items      ?? [];
-  const total      = listQ.data?.totalCount ?? 0;
-  const stats      = statsQ.data;
-  const totalPages = Math.max(1, Math.ceil(total / pgSize));
+  const rows  = listQ.data?.items ?? [];
+  const stats = statsQ.data;
 
   // ── Sort client-side ─────────────────────────────────────────────────────
   const sortedRows = useMemo(() => {
@@ -681,6 +679,14 @@ export function PaginaIncidencias(): JSX.Element {
       return sortDir === "asc" ? cmp : -cmp;
     });
   }, [rows, sortKey, sortDir]);
+
+  // Paginación cliente
+  const total      = sortedRows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pgSize));
+  const pagedRows  = useMemo(
+    () => sortedRows.slice((page - 1) * pgSize, page * pgSize),
+    [sortedRows, page, pgSize]
+  );
 
   // ── Refresh ──────────────────────────────────────────────────────────────
   const refreshAll = (): Promise<unknown> => Promise.all([
@@ -724,8 +730,8 @@ export function PaginaIncidencias(): JSX.Element {
 
   // ── Exportar ─────────────────────────────────────────────────────────────
   function handleExport(): void {
-    if (rows.length === 0) return;
-    const data = rows.map((r) => ({
+    if (sortedRows.length === 0) return;
+    const data = sortedRows.map((r) => ({
       Empleado:                r.employeeName,
       Código:                  r.employeeCode,
       Área:                    r.area,
@@ -803,7 +809,7 @@ export function PaginaIncidencias(): JSX.Element {
           )}
           <button
             onClick={handleExport}
-            disabled={rows.length === 0}
+            disabled={sortedRows.length === 0}
             className="flex items-center gap-1.5 rounded-xl bg-teal-600 px-3.5 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-40"
           >
             <Download className="size-3.5" />
@@ -886,9 +892,9 @@ export function PaginaIncidencias(): JSX.Element {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); if (!e.target.value) { setASearch(""); setPage(1); } }}
                 onKeyDown={(e) => e.key === "Enter" && applyFilters()}
-                placeholder="Empleado, código o área..."
+                placeholder="Nombre o código de empleado"
                 className="h-9 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-[13px] text-slate-800 outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
               />
             </div>
@@ -1049,7 +1055,7 @@ export function PaginaIncidencias(): JSX.Element {
               )}
 
               {/* Filas */}
-              {!listQ.isLoading && sortedRows.map((r) => {
+              {!listQ.isLoading && pagedRows.map((r) => {
                 const typeCls      = TYPE_COLOR[r.incidentType] ?? "bg-slate-100 text-slate-600 border-slate-200";
                 const typeLabel    = TYPE_LABEL[r.incidentType] ?? r.incidentType;
                 const statusInfo   = STATUS_MAP[r.status] ?? { label: r.status, cls: "bg-slate-100 text-slate-500 border-slate-200", dot: "bg-slate-400" };

@@ -755,14 +755,19 @@ export function PaginaVacaciones(): JSX.Element {
   const kpiPending  = useQuery({ queryKey: ["vac-kpi", "pending",  year], queryFn: () => getVacations({ ...kpiBase, year, status: "pending"   }) });
   const kpiApproved = useQuery({ queryKey: ["vac-kpi", "approved", year], queryFn: () => getVacations({ ...kpiBase, year, status: "approved"  }) });
   const kpiRejected = useQuery({ queryKey: ["vac-kpi", "rejected", year], queryFn: () => getVacations({ ...kpiBase, year, status: "rejected"  }) });
+  const kpiDaysQ    = useQuery({ queryKey: ["vac-kpi", "days",     year], queryFn: () => getVacations({ ...kpiBase, year, status: "approved"  as never, pageSize: 999 }) });
+  const totalDaysApproved = useMemo(
+    () => (kpiDaysQ.data?.items ?? []).reduce((sum, r) => sum + (r.requestedDays ?? 0), 0),
+    [kpiDaysQ.data]
+  );
 
-  // ── Lista ──
+  // ── Lista (se traen todos para poder ordenar entre páginas) ──
   const listQuery = useQuery({
-    queryKey: ["vacations", search, status, year, page, pageSize],
+    queryKey: ["vacations", search, status, year],
     queryFn: () => getVacations({
       search, employeeId: "", status: status as never,
       startDateFrom: "", startDateTo: "", year,
-      pageNumber: page, pageSize,
+      pageNumber: 1, pageSize: 9999,
     }),
   });
 
@@ -774,13 +779,10 @@ export function PaginaVacaciones(): JSX.Element {
 
   const employees  = catalogsQuery.data?.employees ?? [];
   const rows       = listQuery.data?.items ?? [];
-  const total      = listQuery.data?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const sortedRows = useMemo(() => {
     const arr = [...rows];
     if (!sortKey) {
-      // Sin orden activo → más reciente primero (requestedAtUtc desc)
       return arr.sort((a, b) =>
         String(b.requestedAtUtc ?? "").localeCompare(String(a.requestedAtUtc ?? ""))
       );
@@ -793,9 +795,15 @@ export function PaginaVacaciones(): JSX.Element {
     });
   }, [rows, sortKey, sortDir]);
 
-  // Rango de resultados para mostrar
-  const rangeFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const rangeTo   = Math.min(page * pageSize, total);
+  // Paginación cliente
+  const total      = sortedRows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pagedRows  = useMemo(
+    () => sortedRows.slice((page - 1) * pageSize, page * pageSize),
+    [sortedRows, page, pageSize]
+  );
+  const rangeFrom  = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeTo    = Math.min(page * pageSize, total);
 
   // Páginas numeradas (máx 7 visibles)
   const pageNumbers = useMemo((): number[] => {
@@ -903,9 +911,10 @@ export function PaginaVacaciones(): JSX.Element {
           icon={<XCircle className="size-5 text-rose-500" />}
         />
         <KpiCard
-          label="Días solicitados"
-          value="—"
-          sub="requiere endpoint de suma"
+          label="Días aprobados"
+          value={totalDaysApproved}
+          sub={`año ${year}`}
+          loading={kpiDaysQ.isLoading}
           iconBg="bg-brand-50 shadow-brand-100"
           icon={<CalendarDays className="size-5 text-brand-500" />}
         />
@@ -922,9 +931,9 @@ export function PaginaVacaciones(): JSX.Element {
               <input
                 type="text"
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={(e) => { setSearchInput(e.target.value); if (!e.target.value) { setSearch(""); setPage(1); } }}
                 onKeyDown={(e) => e.key === "Enter" && applyFilters()}
-                placeholder="Nombre, código..."
+                placeholder="Nombre o código de empleado"
                 className="h-9 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-[13px] text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
               />
             </div>
@@ -1003,9 +1012,9 @@ export function PaginaVacaciones(): JSX.Element {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.length === 0
+                {sortedRows.length === 0
                   ? <EmptyState onClear={clearFilters} onCreate={() => { setCreateOpen(true); setCreateError(null); }} />
-                  : sortedRows.map((r) => (
+                  : pagedRows.map((r) => (
                     <tr key={r.id} className="group transition-colors hover:bg-slate-50/60">
 
                       {/* Empleado */}
