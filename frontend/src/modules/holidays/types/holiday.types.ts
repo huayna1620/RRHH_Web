@@ -16,4 +16,5 @@ export type UpdateHolidayPayload = {
   date: string;
   name: string;
   isRecurring: boolean;
+  isActive: boolean;
 };

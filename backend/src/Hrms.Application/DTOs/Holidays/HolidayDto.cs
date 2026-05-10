@@ -19,4 +19,5 @@ public sealed class UpdateHolidayRequestDto
     public DateOnly Date { get; set; }
     public string Name { get; set; } = string.Empty;
     public bool IsRecurring { get; set; }
+    public bool IsActive { get; set; } = true;
 }

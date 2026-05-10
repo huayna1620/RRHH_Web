@@ -67,6 +67,7 @@ public sealed class HolidayService(HrmsDbContext dbContext) : IHolidayService
         holiday.Date = request.Date;
         holiday.Name = request.Name.Trim();
         holiday.IsRecurring = request.IsRecurring;
+        holiday.IsActive = request.IsActive;
         holiday.UpdatedAtUtc = DateTime.UtcNow;
         holiday.UpdatedBy = "system";
 
