@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ElementType, type JSX } from
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import {
-  AlertCircle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight,
+  AlertCircle, CalendarDays, CheckCircle2,
+  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown,
   Clock, Clock3, Download, Eye, Loader2, MoreHorizontal,
   Search, ShieldCheck, UserCheck, UserMinus, UserX, X, Zap,
 } from "lucide-react";
@@ -339,6 +340,28 @@ function RowMenu({ row, onDetail, onJustify, onHistory }: {
   );
 }
 
+// ─── SortableHeader ───────────────────────────────────────────────────────────
+
+function SortableHeader({ col, label, sortKey, sortDir, align = "left", first = false, onSort }: {
+  col: string; label: string; sortKey: string; sortDir: "asc" | "desc";
+  align?: "left" | "center" | "right"; first?: boolean;
+  onSort: (col: string) => void;
+}): JSX.Element {
+  const active = sortKey === col;
+  const Icon = active ? (sortDir === "asc" ? ChevronUp : ChevronDown) : ChevronsUpDown;
+  return (
+    <th
+      onClick={() => onSort(col)}
+      className={`cursor-pointer select-none py-3 text-[11px] font-bold uppercase tracking-wide transition group text-${align} ${first ? "pl-5 pr-4" : "px-4"} ${active ? "text-teal-600" : "text-slate-400 hover:text-slate-600"}`}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <Icon className={`size-3 shrink-0 ${active ? "text-teal-500" : "text-slate-300 group-hover:text-slate-400"}`} />
+      </span>
+    </th>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export function PaginaAsistencia(): JSX.Element {
@@ -375,6 +398,15 @@ export function PaginaAsistencia(): JSX.Element {
   const [histAreaId, setHistAreaId] = useState("");
   const [histEstado, setHistEstado] = useState(""); // "" | "late" | "absent"
   const [histPage, setHistPage] = useState(1);
+
+  // ── Ordenamiento del historial ──
+  const [histSortKey, setHistSortKey] = useState("attendanceDate");
+  const [histSortDir, setHistSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleHistSort(key: string): void {
+    if (histSortKey === key) setHistSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setHistSortKey(key); setHistSortDir("asc"); }
+  }
 
   // Derived filter booleans
   const histIsLate   = histEstado === "late"   ? true : undefined;
@@ -442,6 +474,15 @@ export function PaginaAsistencia(): JSX.Element {
   const rows = histQuery.data?.items ?? [];
   const total = histQuery.data?.totalCount ?? 0;
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);
+
+  const sortedHistRows = useMemo(() =>
+    [...rows].sort((a, b) => {
+      const av = String((a as Record<string, unknown>)[histSortKey] ?? "");
+      const bv = String((b as Record<string, unknown>)[histSortKey] ?? "");
+      const cmp = av.localeCompare(bv, "es", { numeric: true });
+      return histSortDir === "asc" ? cmp : -cmp;
+    }),
+  [rows, histSortKey, histSortDir]);
 
   // ── Summary percentages ──────────────────────────────────────────────────────
 
@@ -902,11 +943,13 @@ export function PaginaAsistencia(): JSX.Element {
           <table className="min-w-full text-[13px]">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/60">
-                {["Empleado", "Fecha", "Ingreso", "Salida", "Estado", "Tardanza", "Acción"].map((col) => (
-                  <th key={col} className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400 first:pl-5 last:pr-5">
-                    {col}
-                  </th>
-                ))}
+                <SortableHeader col="employeeName"    label="Empleado"  sortKey={histSortKey} sortDir={histSortDir} onSort={toggleHistSort} first />
+                <SortableHeader col="attendanceDate"  label="Fecha"     sortKey={histSortKey} sortDir={histSortDir} onSort={toggleHistSort} />
+                <SortableHeader col="checkInAtUtc"    label="Ingreso"   sortKey={histSortKey} sortDir={histSortDir} onSort={toggleHistSort} />
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">Salida</th>
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400">Estado</th>
+                <SortableHeader col="lateMinutes"     label="Tardanza"  sortKey={histSortKey} sortDir={histSortDir} onSort={toggleHistSort} />
+                <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-400 last:pr-5">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -936,7 +979,7 @@ export function PaginaAsistencia(): JSX.Element {
                     </div>
                   </td>
                 </tr>
-              ) : rows.map((r) => {
+              ) : sortedHistRows.map((r) => {
                 const status = resolveStatus(r);
                 return (
                   <tr key={r.id} className="group transition hover:bg-slate-50/80">

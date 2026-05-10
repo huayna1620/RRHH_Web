@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import {
   AlertCircle, BriefcaseMedical, CalendarDays, CheckCircle2,
-  ChevronLeft, ChevronRight, ClipboardList, Clock,
+  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, ClipboardList, Clock,
   Download, Eye, Loader2, Plus, RefreshCw, Search,
   Shield, X, XCircle,
 } from "lucide-react";
@@ -126,6 +126,28 @@ function LeaveTypeBadge({ code }: { code: string }): JSX.Element {
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${cls}`}>
       {icon}{leaveTypeLabel(code)}
     </span>
+  );
+}
+
+// ─── SortableHeader ───────────────────────────────────────────────────────────
+
+function SortableHeader({ col, label, sortKey, sortDir, align = "left", onSort }: {
+  col: string; label: string; sortKey: string; sortDir: "asc" | "desc";
+  align?: "left" | "center" | "right";
+  onSort: (col: string) => void;
+}): JSX.Element {
+  const active = sortKey === col;
+  const Icon = active ? (sortDir === "asc" ? ChevronUp : ChevronDown) : ChevronsUpDown;
+  return (
+    <th
+      onClick={() => onSort(col)}
+      className={`cursor-pointer select-none px-4 py-3 text-[11px] font-bold uppercase tracking-widest transition group text-${align} ${active ? "text-brand-500" : "text-slate-400 hover:text-slate-600"}`}
+    >
+      <span className={`inline-flex items-center gap-1 ${align === "center" ? "justify-center w-full" : ""}`}>
+        {label}
+        <Icon className={`size-3 shrink-0 ${active ? "text-brand-500" : "text-slate-300 group-hover:text-slate-400"}`} />
+      </span>
+    </th>
   );
 }
 
@@ -698,6 +720,15 @@ export function PaginaPermisos(): JSX.Element {
   const [page, setPage]               = useState(1);
   const [pageSize, setPageSize]       = useState(10);
 
+  // ── Ordenamiento ──
+  const [sortKey, setSortKey] = useState("requestedAtUtc");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(key: string): void {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
+  }
+
   // ── UI ──
   const [toast, setToast]             = useState<ToastState | null>(null);
   const [detailItem, setDetailItem]   = useState<LeaveItem | null>(null);
@@ -756,6 +787,15 @@ export function PaginaPermisos(): JSX.Element {
 
   const rows       = listQuery.data?.items ?? [];
   const total      = listQuery.data?.totalCount ?? 0;
+
+  const sortedRows = useMemo(() =>
+    [...rows].sort((a, b) => {
+      const av = String((a as Record<string, unknown>)[sortKey] ?? "");
+      const bv = String((b as Record<string, unknown>)[sortKey] ?? "");
+      const cmp = av.localeCompare(bv, "es", { numeric: true });
+      return sortDir === "asc" ? cmp : -cmp;
+    }),
+  [rows, sortKey, sortDir]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const rangeFrom  = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeTo    = Math.min(page * pageSize, total);
@@ -1007,26 +1047,20 @@ export function PaginaPermisos(): JSX.Element {
             <table className="min-w-full">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/80">
-                  {[
-                    { label: "Empleado",      align: "left"   },
-                    { label: "Tipo",          align: "left"   },
-                    { label: "Período",       align: "left"   },
-                    { label: "Días",          align: "center" },
-                    { label: "Remunerado",    align: "center" },
-                    { label: "Estado",        align: "left"   },
-                    { label: "Solicitado",    align: "left"   },
-                    { label: "Acciones",      align: "right"  },
-                  ].map(({ label, align }) => (
-                    <th key={label} className={`px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-${align}`}>
-                      {label}
-                    </th>
-                  ))}
+                  <SortableHeader col="employeeName"   label="Empleado"   sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableHeader col="leaveType"      label="Tipo"       sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableHeader col="startDate"      label="Período"    sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableHeader col="requestedDays"  label="Días"       sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} align="center" />
+                  <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-widest text-slate-400">Remunerado</th>
+                  <SortableHeader col="status"         label="Estado"     sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableHeader col="requestedAtUtc" label="Solicitado" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-widest text-slate-400">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.length === 0
                   ? <EmptyState onClear={clearFilters} onCreate={() => { setCreateOpen(true); setCreateError(null); }} />
-                  : rows.map((r) => (
+                  : sortedRows.map((r) => (
                     <tr key={r.id} className="group transition-colors hover:bg-slate-50/60">
 
                       {/* Empleado */}
