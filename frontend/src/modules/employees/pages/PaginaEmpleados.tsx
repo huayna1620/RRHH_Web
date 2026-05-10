@@ -190,6 +190,7 @@ export function PaginaEmpleados(): JSX.Element {
   const statsLoading  = totalStatQuery.isLoading || activeStatQuery.isLoading || inactiveStatQuery.isLoading;
 
   const hasFilters = Boolean(search || searchInput || areaFilter || statusFilter !== "all");
+  const exportFileName = makeFileName("Empleados", [statusFilter !== "all" ? statusFilter : null]);
 
   function handleSearch(): void {
     setSearch(searchInput);
@@ -232,7 +233,7 @@ export function PaginaEmpleados(): JSX.Element {
         "Sueldo base":      r.baseSalary,
         "Tipo contrato":    r.contractType,
       }));
-      exportRows(format, data, makeFileName("Empleados", [statusFilter !== "all" ? statusFilter : null]), "Empleados");
+      exportRows(format, data, exportFileName, "Empleados");
     } catch {
       setFeedback({ type: "error", message: "Error al exportar. Intenta de nuevo." });
     } finally {
@@ -262,7 +263,14 @@ export function PaginaEmpleados(): JSX.Element {
           <p className="mt-0.5 text-sm text-slate-500">Gestión de empleados</p>
         </div>
         <div className="flex items-center gap-2">
-          <ExportMenu loading={exporting} onExport={handleExport} />
+            <ExportMenu
+              fileName={exportFileName}
+              filtersActive={hasFilters}
+              loading={exporting}
+              resultCount={total}
+              updatedAtLabel="Actualizado hoy"
+              onExport={handleExport}
+            />
           <button
             onClick={() => setModalState({ mode: "create", id: null })}
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-to-b from-brand-500 to-brand-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-brand-500/30 transition hover:from-brand-500 hover:to-brand-700"

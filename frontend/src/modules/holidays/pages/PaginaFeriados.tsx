@@ -47,6 +47,7 @@ export function PaginaFeriados(): JSX.Element {
   function openEdit(h: HolidayItem): void { setForm({ date: h.date, name: h.name, isRecurring: h.isRecurring }); setIsNew(false); setSelected(h); setOpen(true); }
 
   const rows = listQuery.data ?? [];
+  const exportFileName = makeFileName("Feriados");
 
   function handleExport(format: ExportFormat): void {
     if (rows.length === 0) {
@@ -61,7 +62,7 @@ export function PaginaFeriados(): JSX.Element {
       Activo: r.isActive ? "Si" : "No",
     }));
 
-    exportRows(format, data, makeFileName("Feriados"), "Feriados");
+    exportRows(format, data, exportFileName, "Feriados");
   }
 
   return (
@@ -69,7 +70,13 @@ export function PaginaFeriados(): JSX.Element {
       <PageHeader title="Feriados" description="Gestión de días feriados" action={<Button onClick={openNew}>Nuevo feriado</Button>} />
 
       <div className="flex justify-end">
-        <ExportMenu onExport={handleExport} />
+        <ExportMenu
+          fileName={exportFileName}
+          filtersActive={false}
+          resultCount={rows.length}
+          updatedAtLabel="Actualizado hoy"
+          onExport={handleExport}
+        />
       </div>
 
       {feedback && <Alert variant={feedback.type} message={feedback.message} onClose={() => setFeedback(null)} />}

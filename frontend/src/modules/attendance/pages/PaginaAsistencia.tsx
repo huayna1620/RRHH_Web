@@ -479,6 +479,7 @@ export function PaginaAsistencia(): JSX.Element {
   const rows = histQuery.data?.items ?? [];
   const total = histQuery.data?.totalCount ?? 0;
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);
+  const exportFileName = makeFileName("Asistencia", [histDateFrom, histDateTo]);
 
   const sortedHistRows = useMemo(() => {
     const arr = [...rows];
@@ -635,7 +636,7 @@ export function PaginaAsistencia(): JSX.Element {
         "Tardanza (min)":  r.lateMinutes || 0,
         "Justificación":   r.justification ?? "",
       }));
-      exportRows(format, data, makeFileName("Asistencia", [histDateFrom, histDateTo]), "Asistencia");
+      exportRows(format, data, exportFileName, "Asistencia");
       showToast("success", `${result.items.length} registros exportados.`);
     } catch {
       showToast("error", "No se pudo exportar.");
@@ -938,7 +939,13 @@ export function PaginaAsistencia(): JSX.Element {
                 className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-600 hover:bg-slate-50">
                 Limpiar
               </button>
-              <ExportMenu onExport={handleExport} />
+              <ExportMenu
+                fileName={exportFileName}
+                filtersActive={Boolean(histDateFrom || histDateTo || histEmployeeId || histAreaId || histEstado || histSearch)}
+                resultCount={total}
+                updatedAtLabel="Actualizado hoy"
+                onExport={handleExport}
+              />
             </div>
           </div>
         </div>

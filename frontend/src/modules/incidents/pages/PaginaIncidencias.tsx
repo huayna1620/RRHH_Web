@@ -684,6 +684,7 @@ export function PaginaIncidencias(): JSX.Element {
   // Paginación cliente
   const total      = sortedRows.length;
   const totalPages = Math.max(1, Math.ceil(total / pgSize));
+  const exportFileName = makeFileName("Incidencias", [aStatus || null, aType || null, aFrom || null, aTo || null]);
   const pagedRows  = useMemo(
     () => sortedRows.slice((page - 1) * pgSize, page * pgSize),
     [sortedRows, page, pgSize]
@@ -749,7 +750,7 @@ export function PaginaIncidencias(): JSX.Element {
       "Enviado el":            r.justificationSubmittedAtUtc
         ? fmtDateShort(r.justificationSubmittedAtUtc) : "",
     }));
-    exportRows(format, data, makeFileName("Incidencias", [aStatus || null, aType || null, aFrom || null, aTo || null]), "Incidencias");
+    exportRows(format, data, exportFileName, "Incidencias");
   }
 
   // ── Paginación ───────────────────────────────────────────────────────────
@@ -805,7 +806,13 @@ export function PaginaIncidencias(): JSX.Element {
               )}
             </button>
           )}
-          <ExportMenu onExport={handleExport} />
+          <ExportMenu
+            fileName={exportFileName}
+            filtersActive={hasFilters}
+            resultCount={total}
+            updatedAtLabel="Actualizado hoy"
+            onExport={handleExport}
+          />
         </div>
       </div>
 

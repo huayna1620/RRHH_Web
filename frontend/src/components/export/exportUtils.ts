@@ -27,7 +27,12 @@ export function exportRows(format: ExportFormat, rows: ExportRow[], fileName: st
     return;
   }
 
-  exportPrintable(rows, title, fileName, format === "print" ? "print" : "pdf");
+  if (format === "pdf") {
+    exportPdf(rows, title, fileName);
+    return;
+  }
+
+  exportPrintable(rows, title, fileName);
 }
 
 function exportExcel(rows: ExportRow[], fileName: string, sheetName: string): void {
@@ -41,17 +46,35 @@ function exportCsv(rows: ExportRow[], fileName: string): void {
   const ws = XLSX.utils.json_to_sheet(rows);
   const csv = XLSX.utils.sheet_to_csv(ws);
   const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+  downloadBlob(blob, `${fileName}.csv`);
+}
+
+function exportPdf(rows: ExportRow[], title: string, fileName: string): void {
+  const columns = Object.keys(rows[0] ?? {});
+  const lines = [
+    title,
+    `Generado el ${todayStamp()} - ${rows.length} registros`,
+    "",
+    columns.join(" | "),
+    ...rows.map((row) => columns.map((column) => row[column] ?? "").join(" | ")),
+  ];
+  const pdf = buildSimplePdf(lines);
+  const blob = new Blob([pdf], { type: "application/pdf" });
+  downloadBlob(blob, `${fileName}.pdf`);
+}
+
+function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${fileName}.csv`;
+  link.download = fileName;
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
 }
 
-function exportPrintable(rows: ExportRow[], title: string, fileName: string, mode: "pdf" | "print"): void {
+function exportPrintable(rows: ExportRow[], title: string, fileName: string): void {
   const columns = Object.keys(rows[0] ?? {});
   const win = window.open("", "_blank", "noopener,noreferrer,width=1200,height=800");
   if (!win) return;
@@ -81,13 +104,101 @@ function exportPrintable(rows: ExportRow[], title: string, fileName: string, mod
       window.onload = () => {
         window.focus();
         window.print();
-        ${mode === "pdf" ? "" : "setTimeout(() => window.close(), 500);"}
+        setTimeout(() => window.close(), 500);
       };
     </script>
   `;
 
   win.document.write(`<!doctype html><html><head><title>${escapeHtml(fileName)}</title>${styles}</head><body>${body}</body></html>`);
   win.document.close();
+}
+
+function buildSimplePdf(lines: string[]): string {
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const marginX = 42;
+  const startY = 790;
+  const lineHeight = 15;
+  const maxChars = 92;
+  const linesPerPage = 48;
+  const wrapped = lines.flatMap((line) => wrapPdfLine(toPdfText(line), maxChars));
+  const pages: string[] = [];
+
+  for (let i = 0; i < wrapped.length; i += linesPerPage) {
+    const chunk = wrapped.slice(i, i + linesPerPage);
+    const text = chunk
+      .map((line, index) => `1 0 0 1 ${marginX} ${startY - index * lineHeight} Tm (${escapePdfText(line)}) Tj`)
+      .join("\n");
+    pages.push(`BT\n/F1 9 Tf\n${text}\nET`);
+  }
+
+  if (pages.length === 0) pages.push("BT\n/F1 9 Tf\nET");
+
+  const objects: string[] = [];
+  const pageObjectNumbers: number[] = [];
+  const catalogObject = addObject("<< /Type /Catalog /Pages 2 0 R >>");
+  void catalogObject;
+  addObject("<< /Type /Pages /Kids [] /Count 0 >>");
+  addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+
+  pages.forEach((content) => {
+    const contentObject = addObject(`<< /Length ${byteLength(content)} >>\nstream\n${content}\nendstream`);
+    const pageObject = addObject(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObject} 0 R >>`,
+    );
+    pageObjectNumbers.push(pageObject);
+  });
+
+  objects[1] = `2 0 obj\n<< /Type /Pages /Kids [${pageObjectNumbers.map((page) => `${page} 0 R`).join(" ")}] /Count ${pageObjectNumbers.length} >>\nendobj\n`;
+
+  function addObject(body: string): number {
+    const number = objects.length + 1;
+    objects.push(`${number} 0 obj\n${body}\nendobj\n`);
+    return number;
+  }
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(byteLength(pdf));
+    pdf += object;
+  }
+
+  const xrefOffset = byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  pdf += offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("");
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return pdf;
+}
+
+function wrapPdfLine(line: string, maxChars: number): string[] {
+  if (!line) return [""];
+  const chunks: string[] = [];
+  let remaining = line;
+  while (remaining.length > maxChars) {
+    const index = remaining.lastIndexOf(" ", maxChars);
+    const cut = index > 20 ? index : maxChars;
+    chunks.push(remaining.slice(0, cut));
+    remaining = remaining.slice(cut).trimStart();
+  }
+  chunks.push(remaining);
+  return chunks;
+}
+
+function toPdfText(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "?");
+}
+
+function escapePdfText(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function byteLength(value: string): number {
+  return new TextEncoder().encode(value).length;
 }
 
 function escapeHtml(value: unknown): string {

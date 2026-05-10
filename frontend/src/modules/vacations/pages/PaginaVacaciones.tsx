@@ -759,6 +759,7 @@ export function PaginaVacaciones(): JSX.Element {
   // ── Helpers ──
   const ok   = (msg: string) => setToast({ variant: "success", message: msg });
   const fail = (msg: string) => setToast({ variant: "error",   message: msg });
+  const exportFileName = makeFileName("Vacaciones", [year, status || null]);
 
   async function refreshAll(): Promise<void> {
     await Promise.all([
@@ -802,7 +803,7 @@ export function PaginaVacaciones(): JSX.Element {
       "Comentario revisor": r.reviewerComment ?? "",
     }));
 
-    exportRows(format, data, makeFileName("Vacaciones", [year, status || null]), "Vacaciones");
+    exportRows(format, data, exportFileName, "Vacaciones");
   }
 
   const hasActiveFilters = !!(search || status || year !== CUR_YEAR);
@@ -910,7 +911,13 @@ export function PaginaVacaciones(): JSX.Element {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ExportMenu onExport={handleExport} />
+          <ExportMenu
+            fileName={exportFileName}
+            filtersActive={hasActiveFilters}
+            resultCount={total}
+            updatedAtLabel="Actualizado hoy"
+            onExport={handleExport}
+          />
           <button
             onClick={handleManualRefresh}
             title="Recargar datos"

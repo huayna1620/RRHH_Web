@@ -834,6 +834,7 @@ export function PaginaPermisos(): JSX.Element {
   );
   const rangeFrom  = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeTo    = Math.min(page * pageSize, total);
+  const exportFileName = makeFileName("Permisos", [year, status || null, leaveType || null]);
 
   // Páginas numeradas con ventana deslizante
   const pageNumbers = useMemo((): number[] => {
@@ -864,7 +865,7 @@ export function PaginaPermisos(): JSX.Element {
       "Solicitado el": r.requestedAtUtc ? fmtDateShort(r.requestedAtUtc) : "",
       Motivo:         r.reason ?? "",
     }));
-    exportRows(format, data, makeFileName("Permisos", [year, status || null, leaveType || null]), "Permisos");
+    exportRows(format, data, exportFileName, "Permisos");
   }
 
   // ── Mutaciones ──
@@ -926,7 +927,13 @@ export function PaginaPermisos(): JSX.Element {
           >
             <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
-          <ExportMenu onExport={handleExport} />
+          <ExportMenu
+            fileName={exportFileName}
+            filtersActive={hasActiveFilters}
+            resultCount={total}
+            updatedAtLabel="Actualizado hoy"
+            onExport={handleExport}
+          />
           <button
             onClick={() => { setCreateOpen(true); setCreateError(null); }}
             className="inline-flex h-9 items-center gap-2 rounded-xl bg-gradient-to-b from-brand-500 to-brand-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-brand-500/30 hover:from-brand-500 hover:to-brand-700 transition"
