@@ -343,7 +343,7 @@ function RowMenu({ row, onDetail, onJustify, onHistory }: {
 // ─── SortableHeader ───────────────────────────────────────────────────────────
 
 function SortableHeader({ col, label, sortKey, sortDir, align = "left", first = false, onSort }: {
-  col: string; label: string; sortKey: string; sortDir: "asc" | "desc";
+  col: string; label: string; sortKey: string | null; sortDir: "asc" | "desc";
   align?: "left" | "center" | "right"; first?: boolean;
   onSort: (col: string) => void;
 }): JSX.Element {
@@ -400,12 +400,16 @@ export function PaginaAsistencia(): JSX.Element {
   const [histPage, setHistPage] = useState(1);
 
   // ── Ordenamiento del historial ──
-  const [histSortKey, setHistSortKey] = useState("attendanceDate");
+  const [histSortKey, setHistSortKey] = useState<string | null>(null);
   const [histSortDir, setHistSortDir] = useState<"asc" | "desc">("desc");
 
   function toggleHistSort(key: string): void {
-    if (histSortKey === key) setHistSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setHistSortKey(key); setHistSortDir("asc"); }
+    if (histSortKey === key) {
+      if (histSortDir === "asc") setHistSortDir("desc");
+      else { setHistSortKey(null); setHistSortDir("desc"); }
+    } else {
+      setHistSortKey(key); setHistSortDir("asc");
+    }
   }
 
   // Derived filter booleans
@@ -475,14 +479,20 @@ export function PaginaAsistencia(): JSX.Element {
   const total = histQuery.data?.totalCount ?? 0;
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);
 
-  const sortedHistRows = useMemo(() =>
-    [...rows].sort((a, b) => {
+  const sortedHistRows = useMemo(() => {
+    const arr = [...rows];
+    if (!histSortKey) {
+      return arr.sort((a, b) =>
+        String(b.attendanceDate ?? "").localeCompare(String(a.attendanceDate ?? ""))
+      );
+    }
+    return arr.sort((a, b) => {
       const av = String((a as Record<string, unknown>)[histSortKey] ?? "");
       const bv = String((b as Record<string, unknown>)[histSortKey] ?? "");
       const cmp = av.localeCompare(bv, "es", { numeric: true });
       return histSortDir === "asc" ? cmp : -cmp;
-    }),
-  [rows, histSortKey, histSortDir]);
+    });
+  }, [rows, histSortKey, histSortDir]);
 
   // ── Summary percentages ──────────────────────────────────────────────────────
 

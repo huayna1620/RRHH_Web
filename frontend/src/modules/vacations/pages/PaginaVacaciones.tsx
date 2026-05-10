@@ -97,7 +97,7 @@ function StatusBadge({ status }: { status: string }): JSX.Element {
 // ─── SortableHeader ───────────────────────────────────────────────────────────
 
 function SortableHeader({ col, label, sortKey, sortDir, align = "left", onSort }: {
-  col: string; label: string; sortKey: string; sortDir: "asc" | "desc";
+  col: string; label: string; sortKey: string | null; sortDir: "asc" | "desc";
   align?: "left" | "center" | "right";
   onSort: (col: string) => void;
 }): JSX.Element {
@@ -701,12 +701,16 @@ export function PaginaVacaciones(): JSX.Element {
   const [pageSize, setPageSize]       = useState(10);
 
   // ── Ordenamiento ──
-  const [sortKey, setSortKey] = useState("requestedAtUtc");
+  const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   function toggleSort(key: string): void {
-    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(key); setSortDir("asc"); }
+    if (sortKey === key) {
+      if (sortDir === "asc") setSortDir("desc");
+      else { setSortKey(null); setSortDir("desc"); } // desc → quitar orden (vuelve a más reciente)
+    } else {
+      setSortKey(key); setSortDir("asc");
+    }
   }
 
   // ── UI ──
@@ -773,14 +777,21 @@ export function PaginaVacaciones(): JSX.Element {
   const total      = listQuery.data?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const sortedRows = useMemo(() =>
-    [...rows].sort((a, b) => {
+  const sortedRows = useMemo(() => {
+    const arr = [...rows];
+    if (!sortKey) {
+      // Sin orden activo → más reciente primero (requestedAtUtc desc)
+      return arr.sort((a, b) =>
+        String(b.requestedAtUtc ?? "").localeCompare(String(a.requestedAtUtc ?? ""))
+      );
+    }
+    return arr.sort((a, b) => {
       const av = String((a as Record<string, unknown>)[sortKey] ?? "");
       const bv = String((b as Record<string, unknown>)[sortKey] ?? "");
       const cmp = av.localeCompare(bv, "es", { numeric: true });
       return sortDir === "asc" ? cmp : -cmp;
-    }),
-  [rows, sortKey, sortDir]);
+    });
+  }, [rows, sortKey, sortDir]);
 
   // Rango de resultados para mostrar
   const rangeFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -801,6 +812,7 @@ export function PaginaVacaciones(): JSX.Element {
     mutationFn: createVacationRequest,
     onSuccess: async () => {
       await refreshAll();
+      setSortKey(null); setSortDir("desc"); // volver al orden por defecto: más reciente primero
       ok("Solicitud de vacaciones creada correctamente.");
       setCreateOpen(false); setCreateError(null);
     },
@@ -922,7 +934,7 @@ export function PaginaVacaciones(): JSX.Element {
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Estado</label>
             <select
               value={status}
-              onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+              onChange={(e) => { setStatus(e.target.value); setSearch(searchInput); setPage(1); }}
               className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-700 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
             >
               <option value="">Todos los estados</option>
@@ -937,7 +949,7 @@ export function PaginaVacaciones(): JSX.Element {
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Año</label>
             <select
               value={year}
-              onChange={(e) => { setYear(Number(e.target.value)); setPage(1); }}
+              onChange={(e) => { setYear(Number(e.target.value)); setSearch(searchInput); setPage(1); }}
               className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-700 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
             >
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}

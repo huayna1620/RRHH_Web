@@ -144,7 +144,7 @@ function Avatar({ name }: { name: string }): JSX.Element {
 // ─── SortableHeader ───────────────────────────────────────────────────────────
 
 function SortableHeader({ col, label, sortKey, sortDir, align = "left", onSort }: {
-  col: string; label: string; sortKey: string; sortDir: "asc" | "desc";
+  col: string; label: string; sortKey: string | null; sortDir: "asc" | "desc";
   align?: "left" | "center" | "right";
   onSort: (col: string) => void;
 }): JSX.Element {
@@ -597,7 +597,7 @@ export function PaginaIncidencias(): JSX.Element {
   // ── Paginación y orden ───────────────────────────────────────────────────
   const [page,    setPage]    = useState(1);
   const [pgSize,  setPgSize]  = useState(10);
-  const [sortKey, setSortKey] = useState("createdAtUtc");
+  const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // ── UI ───────────────────────────────────────────────────────────────────
@@ -612,8 +612,12 @@ export function PaginaIncidencias(): JSX.Element {
 
   // ── Sort ─────────────────────────────────────────────────────────────────
   function toggleSort(col: string): void {
-    if (sortKey === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(col); setSortDir("asc"); }
+    if (sortKey === col) {
+      if (sortDir === "asc") setSortDir("desc");
+      else { setSortKey(null); setSortDir("desc"); }
+    } else {
+      setSortKey(col); setSortDir("asc");
+    }
   }
 
   // ── Filtros helpers ──────────────────────────────────────────────────────
@@ -663,14 +667,20 @@ export function PaginaIncidencias(): JSX.Element {
   const totalPages = Math.max(1, Math.ceil(total / pgSize));
 
   // ── Sort client-side ─────────────────────────────────────────────────────
-  const sortedRows = useMemo(() =>
-    [...rows].sort((a, b) => {
+  const sortedRows = useMemo(() => {
+    const arr = [...rows];
+    if (!sortKey) {
+      return arr.sort((a, b) =>
+        String(b.createdAtUtc ?? "").localeCompare(String(a.createdAtUtc ?? ""))
+      );
+    }
+    return arr.sort((a, b) => {
       const av = String((a as Record<string, unknown>)[sortKey] ?? "");
       const bv = String((b as Record<string, unknown>)[sortKey] ?? "");
       const cmp = av.localeCompare(bv, "es", { numeric: true });
       return sortDir === "asc" ? cmp : -cmp;
-    }),
-  [rows, sortKey, sortDir]);
+    });
+  }, [rows, sortKey, sortDir]);
 
   // ── Refresh ──────────────────────────────────────────────────────────────
   const refreshAll = (): Promise<unknown> => Promise.all([
