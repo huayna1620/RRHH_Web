@@ -10,6 +10,8 @@ import {
   approveVacationRequest, cancelVacationRequest, createVacationRequest,
   getVacationCatalogs, getVacations, rejectVacationRequest,
 } from "@/modules/vacations/services/vacationsApi";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import type {
   VacationItem, VacationEmployeeBalance,
 } from "@/modules/vacations/types/vacation.types";
@@ -54,6 +56,34 @@ function fmtDateShort(isoUtc: string): string {
 // ─── Tipos internos ───────────────────────────────────────────────────────────
 
 type ToastState = { variant: "success" | "error"; message: string };
+
+async function getAllVacations(query: Parameters<typeof getVacations>[0]): Promise<VacationItem[]> {
+  const pageSize = 100;
+  const firstPage = await getVacations({ ...query, pageNumber: 1, pageSize });
+  const rows = [...firstPage.items];
+  const totalPages = Math.ceil(firstPage.totalCount / pageSize);
+
+  for (let pageNumber = 2; pageNumber <= totalPages; pageNumber++) {
+    const nextPage = await getVacations({ ...query, pageNumber, pageSize });
+    rows.push(...nextPage.items);
+  }
+
+  return rows;
+}
+
+function sortVacationRows(rows: VacationItem[], sortKey: string | null, sortDir: "asc" | "desc"): VacationItem[] {
+  const arr = [...rows];
+  if (!sortKey) {
+    return arr.sort((a, b) => String(b.requestedAtUtc ?? "").localeCompare(String(a.requestedAtUtc ?? "")));
+  }
+
+  return arr.sort((a, b) => {
+    const av = String((a as Record<string, unknown>)[sortKey] ?? "");
+    const bv = String((b as Record<string, unknown>)[sortKey] ?? "");
+    const cmp = av.localeCompare(bv, "es", { numeric: true });
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+}
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
@@ -706,11 +736,15 @@ export function PaginaVacaciones(): JSX.Element {
 
   function toggleSort(key: string): void {
     if (sortKey === key) {
-      if (sortDir === "asc") setSortDir("desc");
+      if (key === "requestedAtUtc") {
+        if (sortDir === "desc") setSortDir("asc");
+        else { setSortKey(null); setSortDir("desc"); }
+      } else if (sortDir === "asc") setSortDir("desc");
       else { setSortKey(null); setSortDir("desc"); } // desc → quitar orden (vuelve a más reciente)
     } else {
-      setSortKey(key); setSortDir("asc");
+      setSortKey(key); setSortDir(key === "requestedAtUtc" ? "desc" : "asc");
     }
+    setPage(1);
   }
 
   // ── UI ──
@@ -748,6 +782,29 @@ export function PaginaVacaciones(): JSX.Element {
     setSearch(searchInput); setPage(1);
   }
 
+  function handleExport(format: ExportFormat): void {
+    if (sortedRows.length === 0) {
+      fail("No hay datos para exportar con los filtros actuales.");
+      return;
+    }
+
+    const data = sortedRows.map((r) => ({
+      Empleado: r.employeeName,
+      Codigo: r.employeeCode,
+      Area: r.area,
+      Inicio: r.startDate,
+      Fin: r.endDate,
+      Dias: r.requestedDays,
+      Tipo: "Vacaciones",
+      Estado: STATUS_MAP[r.status]?.label ?? r.status,
+      "Solicitado el": r.requestedAtUtc ? fmtDateShort(r.requestedAtUtc) : "",
+      Motivo: r.reason ?? "",
+      "Comentario revisor": r.reviewerComment ?? "",
+    }));
+
+    exportRows(format, data, makeFileName("Vacaciones", [year, status || null]), "Vacaciones");
+  }
+
   const hasActiveFilters = !!(search || status || year !== CUR_YEAR);
 
   // ── KPIs ──
@@ -761,13 +818,13 @@ export function PaginaVacaciones(): JSX.Element {
     [kpiDaysQ.data]
   );
 
-  // ── Lista (se traen todos para poder ordenar entre páginas) ──
+  // ── Lista completa para ordenar antes de paginar ──
   const listQuery = useQuery({
     queryKey: ["vacations", search, status, year],
-    queryFn: () => getVacations({
+    queryFn: () => getAllVacations({
       search, employeeId: "", status: status as never,
       startDateFrom: "", startDateTo: "", year,
-      pageNumber: 1, pageSize: 9999,
+      pageNumber: 1, pageSize: 100,
     }),
   });
 
@@ -778,24 +835,10 @@ export function PaginaVacaciones(): JSX.Element {
   });
 
   const employees  = catalogsQuery.data?.employees ?? [];
-  const rows       = listQuery.data?.items ?? [];
+  const rows       = listQuery.data ?? [];
+  const sortedRows = useMemo(() => sortVacationRows(rows, sortKey, sortDir), [rows, sortKey, sortDir]);
 
-  const sortedRows = useMemo(() => {
-    const arr = [...rows];
-    if (!sortKey) {
-      return arr.sort((a, b) =>
-        String(b.requestedAtUtc ?? "").localeCompare(String(a.requestedAtUtc ?? ""))
-      );
-    }
-    return arr.sort((a, b) => {
-      const av = String((a as Record<string, unknown>)[sortKey] ?? "");
-      const bv = String((b as Record<string, unknown>)[sortKey] ?? "");
-      const cmp = av.localeCompare(bv, "es", { numeric: true });
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-  }, [rows, sortKey, sortDir]);
-
-  // Paginación cliente
+  // Paginación cliente sobre todo el conjunto ordenado
   const total      = sortedRows.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const pagedRows  = useMemo(
@@ -867,6 +910,7 @@ export function PaginaVacaciones(): JSX.Element {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <ExportMenu onExport={handleExport} />
           <button
             onClick={handleManualRefresh}
             title="Recargar datos"

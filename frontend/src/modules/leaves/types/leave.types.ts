@@ -36,6 +36,8 @@ export type LeaveQuery = {
   year: number;
   pageNumber: number;
   pageSize: number;
+  sortBy?: string;
+  sortDirection?: "asc" | "desc";
 };
 
 export type LeaveTypeOption = {

@@ -1,12 +1,9 @@
 import { useMemo, useState, type JSX } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as XLSX from "xlsx";
 import {
   ArrowUpDown,
-  Download,
   Eye,
   Info,
-  Loader2,
   Pencil,
   Plus,
   Search,
@@ -17,6 +14,8 @@ import {
 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import { ModalFormEmpleado } from "@/modules/employees/components/ModalFormEmpleado";
 import { ModalDetalleEmpleado } from "@/modules/employees/components/ModalDetalleEmpleado";
 import {
@@ -201,7 +200,7 @@ export function PaginaEmpleados(): JSX.Element {
     setSearchInput(""); setSearch(""); setAreaFilter(""); setStatusFilter("all"); setPageNumber(1);
   }
 
-  async function handleExport(): Promise<void> {
+  async function handleExport(format: ExportFormat): Promise<void> {
     if (exporting) return;
     setExporting(true);
     try {
@@ -219,7 +218,7 @@ export function PaginaEmpleados(): JSX.Element {
         setFeedback({ type: "error", message: "No hay empleados que exportar con los filtros actuales." });
         return;
       }
-      const rows = result.items.map((r) => ({
+      const data = result.items.map((r) => ({
         "Código":           r.employeeCode,
         "Nombres":          r.fullName.split(" ").slice(0, -2).join(" ") || r.fullName,
         "Apellidos":        r.fullName.split(" ").slice(-2).join(" ") || "",
@@ -233,11 +232,7 @@ export function PaginaEmpleados(): JSX.Element {
         "Sueldo base":      r.baseSalary,
         "Tipo contrato":    r.contractType,
       }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Empleados");
-      const today = new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(wb, `Empleados_${today}.xlsx`);
+      exportRows(format, data, makeFileName("Empleados", [statusFilter !== "all" ? statusFilter : null]), "Empleados");
     } catch {
       setFeedback({ type: "error", message: "Error al exportar. Intenta de nuevo." });
     } finally {
@@ -267,14 +262,7 @@ export function PaginaEmpleados(): JSX.Element {
           <p className="mt-0.5 text-sm text-slate-500">Gestión de empleados</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 disabled:opacity-60 disabled:pointer-events-none"
-          >
-            {exporting ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-            {exporting ? "Exportando..." : "Exportar"}
-          </button>
+          <ExportMenu loading={exporting} onExport={handleExport} />
           <button
             onClick={() => setModalState({ mode: "create", id: null })}
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-to-b from-brand-500 to-brand-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-brand-500/30 transition hover:from-brand-500 hover:to-brand-700"

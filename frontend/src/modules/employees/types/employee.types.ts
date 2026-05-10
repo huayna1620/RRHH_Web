@@ -72,7 +72,7 @@ export type EmployeeQuery = {
   search: string;
   areaId: string;
   branchId: string;
-  isActive: boolean;
+  isActive?: boolean;
   pageNumber: number;
   pageSize: number;
   sortBy: string;

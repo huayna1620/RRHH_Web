@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ElementType, type JSX } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as XLSX from "xlsx";
 import {
   AlertCircle, CalendarDays, CheckCircle2,
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown,
-  Clock, Clock3, Download, Eye, Loader2, MoreHorizontal,
+  Clock, Clock3, Eye, Loader2, MoreHorizontal,
   Search, ShieldCheck, UserCheck, UserMinus, UserX, X, Zap,
 } from "lucide-react";
 import {
@@ -12,6 +11,8 @@ import {
   getAttendanceSummary, justifyAttendance, markAbsent,
 } from "@/modules/attendance/services/attendanceApi";
 import type { AttendanceEmployeeOption, AttendanceItem } from "@/modules/attendance/types/attendance.types";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -612,7 +613,7 @@ export function PaginaAsistencia(): JSX.Element {
 
   // ── Export ────────────────────────────────────────────────────────────────────
 
-  async function handleExport() {
+  async function handleExport(format: ExportFormat) {
     try {
       const result = await getAttendance({
         viewMode: histViewMode, referenceDate: histDateFrom,
@@ -634,10 +635,7 @@ export function PaginaAsistencia(): JSX.Element {
         "Tardanza (min)":  r.lateMinutes || 0,
         "Justificación":   r.justification ?? "",
       }));
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Asistencia");
-      XLSX.writeFile(wb, `Asistencia_${histDateFrom}_${histDateTo}.xlsx`);
+      exportRows(format, data, makeFileName("Asistencia", [histDateFrom, histDateTo]), "Asistencia");
       showToast("success", `${result.items.length} registros exportados.`);
     } catch {
       showToast("error", "No se pudo exportar.");
@@ -940,10 +938,7 @@ export function PaginaAsistencia(): JSX.Element {
                 className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-600 hover:bg-slate-50">
                 Limpiar
               </button>
-              <button type="button" onClick={handleExport}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-600 hover:bg-slate-50">
-                <Download className="size-3.5" /> Exportar
-              </button>
+              <ExportMenu onExport={handleExport} />
             </div>
           </div>
         </div>

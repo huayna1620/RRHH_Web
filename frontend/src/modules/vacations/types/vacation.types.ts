@@ -32,6 +32,8 @@ export type VacationQuery = {
   year: number;
   pageNumber: number;
   pageSize: number;
+  sortBy?: string;
+  sortDirection?: "asc" | "desc";
 };
 
 export type VacationEmployeeBalance = {

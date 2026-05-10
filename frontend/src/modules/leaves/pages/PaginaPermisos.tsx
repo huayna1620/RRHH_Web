@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as XLSX from "xlsx";
 import {
   AlertCircle, BriefcaseMedical, CalendarDays, CheckCircle2,
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, ClipboardList, Clock,
-  Download, Eye, Loader2, Plus, RefreshCw, Search,
+  Eye, Loader2, Plus, RefreshCw, Search,
   Shield, X, XCircle,
 } from "lucide-react";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import {
   approveLeaveRequest, cancelLeaveRequest, createLeaveRequest,
   getLeaveCatalogs, getLeaves, rejectLeaveRequest,
@@ -83,6 +84,34 @@ function fmtDateShort(isoUtc: string): string {
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
 type ToastState = { variant: "success" | "error"; message: string };
+
+async function getAllLeaves(query: Parameters<typeof getLeaves>[0]): Promise<LeaveItem[]> {
+  const pageSize = 100;
+  const firstPage = await getLeaves({ ...query, pageNumber: 1, pageSize });
+  const rows = [...firstPage.items];
+  const totalPages = Math.ceil(firstPage.totalCount / pageSize);
+
+  for (let pageNumber = 2; pageNumber <= totalPages; pageNumber++) {
+    const nextPage = await getLeaves({ ...query, pageNumber, pageSize });
+    rows.push(...nextPage.items);
+  }
+
+  return rows;
+}
+
+function sortLeaveRows(rows: LeaveItem[], sortKey: string | null, sortDir: "asc" | "desc"): LeaveItem[] {
+  const arr = [...rows];
+  if (!sortKey) {
+    return arr.sort((a, b) => String(b.requestedAtUtc ?? "").localeCompare(String(a.requestedAtUtc ?? "")));
+  }
+
+  return arr.sort((a, b) => {
+    const av = String((a as Record<string, unknown>)[sortKey] ?? "");
+    const bv = String((b as Record<string, unknown>)[sortKey] ?? "");
+    const cmp = av.localeCompare(bv, "es", { numeric: true });
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+}
 
 function Toast({ message, variant, onClose }: ToastState & { onClose: () => void }): JSX.Element {
   useEffect(() => { const t = setTimeout(onClose, 4500); return () => clearTimeout(t); }, [onClose]);
@@ -726,11 +755,15 @@ export function PaginaPermisos(): JSX.Element {
 
   function toggleSort(key: string): void {
     if (sortKey === key) {
-      if (sortDir === "asc") setSortDir("desc");
+      if (key === "requestedAtUtc") {
+        if (sortDir === "desc") setSortDir("asc");
+        else { setSortKey(null); setSortDir("desc"); }
+      } else if (sortDir === "asc") setSortDir("desc");
       else { setSortKey(null); setSortDir("desc"); } // desc → quitar orden
     } else {
-      setSortKey(key); setSortDir("asc");
+      setSortKey(key); setSortDir(key === "requestedAtUtc" ? "desc" : "asc");
     }
+    setPage(1);
   }
 
   // ── UI ──
@@ -775,12 +808,12 @@ export function PaginaPermisos(): JSX.Element {
   const kpiApproved = useQuery({ queryKey: ["leaves-kpi", "approved", year], queryFn: () => getLeaves({ ...kpiBase, year, status: "approved" }) });
   const kpiRejected = useQuery({ queryKey: ["leaves-kpi", "rejected", year], queryFn: () => getLeaves({ ...kpiBase, year, status: "rejected" }) });
 
-  // ── Lista (se traen todos para poder ordenar entre páginas) ──
+  // ── Lista completa para ordenar antes de paginar ──
   const listQuery = useQuery({
     queryKey: ["leaves", search, status, leaveType, year],
-    queryFn: () => getLeaves({
+    queryFn: () => getAllLeaves({
       search, employeeId: "", status: status as never, leaveType: leaveType as never,
-      startDateFrom: "", startDateTo: "", year, pageNumber: 1, pageSize: 9999,
+      startDateFrom: "", startDateTo: "", year, pageNumber: 1, pageSize: 100,
     }),
   });
 
@@ -789,24 +822,10 @@ export function PaginaPermisos(): JSX.Element {
   const employees  = catalogsQuery.data?.employees ?? [];
   const leaveTypes = catalogsQuery.data?.leaveTypes ?? [];
 
-  const rows = listQuery.data?.items ?? [];
+  const rows = listQuery.data ?? [];
+  const sortedRows = useMemo(() => sortLeaveRows(rows, sortKey, sortDir), [rows, sortKey, sortDir]);
 
-  const sortedRows = useMemo(() => {
-    const arr = [...rows];
-    if (!sortKey) {
-      return arr.sort((a, b) =>
-        String(b.requestedAtUtc ?? "").localeCompare(String(a.requestedAtUtc ?? ""))
-      );
-    }
-    return arr.sort((a, b) => {
-      const av = String((a as Record<string, unknown>)[sortKey] ?? "");
-      const bv = String((b as Record<string, unknown>)[sortKey] ?? "");
-      const cmp = av.localeCompare(bv, "es", { numeric: true });
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-  }, [rows, sortKey, sortDir]);
-
-  // Paginación cliente
+  // Paginación cliente sobre todo el conjunto ordenado
   const total      = sortedRows.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const pagedRows  = useMemo(
@@ -827,8 +846,11 @@ export function PaginaPermisos(): JSX.Element {
   }, [totalPages, page]);
 
   // ── Exportar Excel ──
-  function handleExport(): void {
-    if (sortedRows.length === 0) return;
+  function handleExport(format: ExportFormat): void {
+    if (sortedRows.length === 0) {
+      fail("No hay datos para exportar con los filtros actuales.");
+      return;
+    }
     const data = sortedRows.map((r) => ({
       Empleado:       r.employeeName,
       Código:         r.employeeCode,
@@ -842,10 +864,7 @@ export function PaginaPermisos(): JSX.Element {
       "Solicitado el": r.requestedAtUtc ? fmtDateShort(r.requestedAtUtc) : "",
       Motivo:         r.reason ?? "",
     }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Permisos");
-    XLSX.writeFile(wb, `permisos_${year}${status ? `_${status}` : ""}.xlsx`);
+    exportRows(format, data, makeFileName("Permisos", [year, status || null, leaveType || null]), "Permisos");
   }
 
   // ── Mutaciones ──
@@ -907,14 +926,7 @@ export function PaginaPermisos(): JSX.Element {
           >
             <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
-          <button
-            onClick={handleExport}
-            disabled={sortedRows.length === 0}
-            title="Exportar a Excel"
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-[13px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 disabled:opacity-40 transition"
-          >
-            <Download className="size-4" />Exportar
-          </button>
+          <ExportMenu onExport={handleExport} />
           <button
             onClick={() => { setCreateOpen(true); setCreateError(null); }}
             className="inline-flex h-9 items-center gap-2 rounded-xl bg-gradient-to-b from-brand-500 to-brand-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-brand-500/30 hover:from-brand-500 hover:to-brand-700 transition"

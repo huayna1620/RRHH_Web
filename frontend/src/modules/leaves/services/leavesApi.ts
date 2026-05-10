@@ -11,6 +11,8 @@ function queryToString(query: LeaveQuery): string {
   if (query.startDateFrom) params.set("startDateFrom", query.startDateFrom);
   if (query.startDateTo) params.set("startDateTo", query.startDateTo);
   if (typeof query.year === "number") params.set("year", String(query.year));
+  if (query.sortBy) params.set("sortBy", query.sortBy);
+  if (query.sortDirection) params.set("sortDirection", query.sortDirection);
 
   params.set("pageNumber", String(query.pageNumber));
   params.set("pageSize", String(query.pageSize));

@@ -67,9 +67,7 @@ public sealed class VacationService(HrmsDbContext dbContext, IAuditService audit
 
         var totalCount = await vacationQuery.CountAsync(cancellationToken);
 
-        var items = await vacationQuery
-            .OrderByDescending(x => x.StartDate)
-            .ThenBy(x => x.Employee.LastName)
+        var items = await ApplySort(vacationQuery, query.SortBy, query.SortDirection)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .Select(x => new VacationListItemDto(
@@ -91,6 +89,32 @@ public sealed class VacationService(HrmsDbContext dbContext, IAuditService audit
             .ToListAsync(cancellationToken);
 
         return new PagedResultDto<VacationListItemDto>(items, pageNumber, pageSize, totalCount);
+    }
+
+    private static IOrderedQueryable<VacationRequest> ApplySort(IQueryable<VacationRequest> query, string? sortBy, string? sortDirection)
+    {
+        var desc = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+        var key = sortBy?.Trim().ToLowerInvariant();
+
+        return key switch
+        {
+            "employeename" => desc
+                ? query.OrderByDescending(x => x.Employee.FirstName).ThenByDescending(x => x.Employee.LastName).ThenByDescending(x => x.RequestedAtUtc)
+                : query.OrderBy(x => x.Employee.FirstName).ThenBy(x => x.Employee.LastName).ThenByDescending(x => x.RequestedAtUtc),
+            "startdate" => desc
+                ? query.OrderByDescending(x => x.StartDate).ThenByDescending(x => x.RequestedAtUtc)
+                : query.OrderBy(x => x.StartDate).ThenByDescending(x => x.RequestedAtUtc),
+            "requesteddays" => desc
+                ? query.OrderByDescending(x => x.RequestedDays).ThenByDescending(x => x.RequestedAtUtc)
+                : query.OrderBy(x => x.RequestedDays).ThenByDescending(x => x.RequestedAtUtc),
+            "status" => desc
+                ? query.OrderByDescending(x => x.Status).ThenByDescending(x => x.RequestedAtUtc)
+                : query.OrderBy(x => x.Status).ThenByDescending(x => x.RequestedAtUtc),
+            "requestedatutc" => desc
+                ? query.OrderByDescending(x => x.RequestedAtUtc).ThenByDescending(x => x.StartDate)
+                : query.OrderBy(x => x.RequestedAtUtc).ThenBy(x => x.StartDate),
+            _ => query.OrderByDescending(x => x.RequestedAtUtc).ThenByDescending(x => x.StartDate)
+        };
     }
 
     public async Task<VacationCatalogsDto> GetCatalogsAsync(int? year = null, CancellationToken cancellationToken = default)

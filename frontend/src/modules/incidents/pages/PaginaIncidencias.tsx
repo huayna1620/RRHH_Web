@@ -3,11 +3,10 @@ import {
   type ChangeEvent, type FormEvent, type JSX,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as XLSX from "xlsx";
 import {
   AlertCircle, AlertTriangle, CalendarDays, CheckCircle2,
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown,
-  ClipboardCheck, Clock, Download, Eye, FileText, FileWarning,
+  ClipboardCheck, Clock, Eye, FileText, FileWarning,
   Loader2, RefreshCw, Search, ShieldCheck, Timer, X, XCircle,
 } from "lucide-react";
 import {
@@ -18,6 +17,8 @@ import {
   submitJustification,
 } from "@/modules/incidents/services/incidentsApi";
 import type { AttendanceIncident } from "@/modules/incidents/types/incident.types";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -165,7 +166,7 @@ function SortableHeader({ col, label, sortKey, sortDir, align = "left", onSort }
 
 // ─── KpiCard ─────────────────────────────────────────────────────────────────
 
-type IconFC = (props: { className?: string }) => JSX.Element | null;
+type IconFC = typeof CalendarDays;
 
 function KpiCard({ label, value, icon: Icon, iconCls, sub }: {
   label: string; value: number | "—"; icon: IconFC; iconCls: string; sub?: string;
@@ -729,8 +730,11 @@ export function PaginaIncidencias(): JSX.Element {
   });
 
   // ── Exportar ─────────────────────────────────────────────────────────────
-  function handleExport(): void {
-    if (sortedRows.length === 0) return;
+  function handleExport(format: ExportFormat): void {
+    if (sortedRows.length === 0) {
+      setToast({ variant: "error", message: "No hay datos para exportar con los filtros actuales." });
+      return;
+    }
     const data = sortedRows.map((r) => ({
       Empleado:                r.employeeName,
       Código:                  r.employeeCode,
@@ -745,13 +749,7 @@ export function PaginaIncidencias(): JSX.Element {
       "Enviado el":            r.justificationSubmittedAtUtc
         ? fmtDateShort(r.justificationSubmittedAtUtc) : "",
     }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Incidencias");
-    XLSX.writeFile(
-      wb,
-      `incidencias${aStatus ? `_${aStatus}` : ""}${aType ? `_${aType}` : ""}.xlsx`,
-    );
+    exportRows(format, data, makeFileName("Incidencias", [aStatus || null, aType || null, aFrom || null, aTo || null]), "Incidencias");
   }
 
   // ── Paginación ───────────────────────────────────────────────────────────
@@ -807,14 +805,7 @@ export function PaginaIncidencias(): JSX.Element {
               )}
             </button>
           )}
-          <button
-            onClick={handleExport}
-            disabled={sortedRows.length === 0}
-            className="flex items-center gap-1.5 rounded-xl bg-teal-600 px-3.5 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-40"
-          >
-            <Download className="size-3.5" />
-            Exportar
-          </button>
+          <ExportMenu onExport={handleExport} />
         </div>
       </div>
 

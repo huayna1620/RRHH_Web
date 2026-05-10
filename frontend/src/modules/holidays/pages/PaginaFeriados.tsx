@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import { createHoliday, deleteHoliday, getHolidays, updateHoliday } from "@/modules/holidays/services/holidaysApi";
 import type { HolidayItem } from "@/modules/holidays/types/holiday.types";
 
@@ -46,9 +48,29 @@ export function PaginaFeriados(): JSX.Element {
 
   const rows = listQuery.data ?? [];
 
+  function handleExport(format: ExportFormat): void {
+    if (rows.length === 0) {
+      fail("No hay datos para exportar con los filtros actuales.");
+      return;
+    }
+
+    const data = rows.map((r) => ({
+      Fecha: r.date,
+      Nombre: r.name,
+      Recurrente: r.isRecurring ? "Si" : "No",
+      Activo: r.isActive ? "Si" : "No",
+    }));
+
+    exportRows(format, data, makeFileName("Feriados"), "Feriados");
+  }
+
   return (
     <section className="space-y-4">
       <PageHeader title="Feriados" description="Gestión de días feriados" action={<Button onClick={openNew}>Nuevo feriado</Button>} />
+
+      <div className="flex justify-end">
+        <ExportMenu onExport={handleExport} />
+      </div>
 
       {feedback && <Alert variant={feedback.type} message={feedback.message} onClose={() => setFeedback(null)} />}
 
