@@ -5,5 +5,11 @@ public sealed record PositionDto(
     string Code,
     string Name,
     bool IsActive,
-    int EmployeesCount);
+    int EmployeesCount,
+    string? Description,
+    string? Level,
+    Guid? AreaId,
+    string? AreaName,
+    Guid? ReportsToEmployeeId,
+    string? ReportsToName);
 

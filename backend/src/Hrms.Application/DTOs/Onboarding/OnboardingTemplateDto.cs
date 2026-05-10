@@ -5,6 +5,7 @@ public sealed record OnboardingTemplateDto(
     string Name,
     string? Description,
     bool IsActive,
+    DateTime CreatedAtUtc,
     IReadOnlyList<OnboardingTemplateTaskDto> Tasks);
 
 public sealed record OnboardingTemplateTaskDto(
@@ -17,6 +18,14 @@ public sealed record CreateOnboardingTemplateRequestDto(
     string Name,
     string? Description,
     IReadOnlyList<CreateTemplateTaskItemDto> Tasks);
+
+public sealed record UpdateOnboardingTemplateRequestDto(
+    string Name,
+    string? Description,
+    IReadOnlyList<CreateTemplateTaskItemDto> Tasks);
+
+public sealed record UpdateOnboardingTemplateStatusRequestDto(
+    bool IsActive);
 
 public sealed record CreateTemplateTaskItemDto(
     string Title,
@@ -31,6 +40,7 @@ public sealed record OnboardingProcessDto(
     string TemplateName,
     DateTime StartedAtUtc,
     DateTime? CompletedAtUtc,
+    bool IsActive,
     int TotalTasks,
     int CompletedTasks,
     double ProgressPercent,

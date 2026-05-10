@@ -8,6 +8,8 @@ import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import {
   approvePayroll,
   downloadBulkPayslips,
@@ -100,10 +102,46 @@ export function PaginaPlanilla(): JSX.Element {
     }).catch(() => fail("No se pudo descargar."));
   }
 
+  async function handleExport(format: ExportFormat): Promise<void> {
+    try {
+      const result = await getPayroll({ ...query, pageNumber: 1, pageSize: 5000 });
+      if (!result.items.length) { fail("No hay registros para exportar con los filtros actuales."); return; }
+      const data = result.items.map((r) => ({
+        Empleado: r.employeeName,
+        Codigo: r.employeeCode,
+        Area: r.area,
+        "Salario base": r.baseSalary,
+        Bonificaciones: r.bonuses,
+        Descuentos: r.deductions,
+        Neto: r.netPay,
+        Estado: statusLabels[r.status] ?? r.status,
+      }));
+      exportRows(format, data, makeFileName("Planilla", [year, month]), "Planilla", {
+        subtitle: "Resumen de nomina mensual con importes principales por colaborador.",
+        period: `${String(month).padStart(2, "0")}/${year}`,
+        filters: [
+          { label: "Ano", value: year },
+          { label: "Mes", value: month },
+          { label: "Busqueda", value: search },
+          { label: "Area", value: catalogsQuery.data?.areas?.find((area) => area.id === areaId)?.name },
+        ],
+        metrics: [
+          { label: "Registros", value: result.items.length },
+          { label: "Total neto", value: `S/ ${result.items.reduce((sum, item) => sum + item.netPay, 0).toLocaleString("es-PE")}` },
+          { label: "Bonificaciones", value: `S/ ${result.items.reduce((sum, item) => sum + item.bonuses, 0).toLocaleString("es-PE")}` },
+          { label: "Descuentos", value: `S/ ${result.items.reduce((sum, item) => sum + item.deductions, 0).toLocaleString("es-PE")}` },
+        ],
+      });
+    } catch {
+      fail("No se pudo exportar la planilla.");
+    }
+  }
+
   return (
     <section className="space-y-4">
       <PageHeader title="Planilla" description="Gestión de nómina mensual" action={
         <div className="flex gap-2">
+          <ExportMenu fileName={makeFileName("Planilla", [year, month])} filtersActive={Boolean(search || areaId)} resultCount={total} onExport={handleExport} />
           <Button variant="secondary" onClick={handleBulkDownload}>Descargar boletas</Button>
           <Button onClick={() => setGenerateOpen(true)}>Generar planilla</Button>
         </div>

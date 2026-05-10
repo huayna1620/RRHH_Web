@@ -41,7 +41,13 @@ public sealed class PositionService(HrmsDbContext dbContext) : IPositionService
                 x.Code,
                 x.Name,
                 x.IsActive,
-                dbContext.Employees.Count(e => e.PositionId == x.Id && !e.IsDeleted)))
+                dbContext.Employees.Count(e => e.PositionId == x.Id && !e.IsDeleted),
+                x.Description,
+                x.Level,
+                x.AreaId,
+                x.Area == null ? null : x.Area.Name,
+                x.ReportsToEmployeeId,
+                x.ReportsToEmployee == null ? null : x.ReportsToEmployee.FirstName + " " + x.ReportsToEmployee.LastName))
             .ToListAsync(cancellationToken);
 
         return new PagedResultDto<PositionDto>(items, pageNumber, pageSize, totalCount);
@@ -49,14 +55,20 @@ public sealed class PositionService(HrmsDbContext dbContext) : IPositionService
 
     public async Task<PositionDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var position = await dbContext.Positions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+        var position = await dbContext.Positions.AsNoTracking()
+            .Include(x => x.Area)
+            .Include(x => x.ReportsToEmployee)
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
         if (position is null)
         {
             return null;
         }
 
         var employeesCount = await dbContext.Employees.CountAsync(x => x.PositionId == position.Id && !x.IsDeleted, cancellationToken);
-        return new PositionDto(position.Id, position.Code, position.Name, position.IsActive, employeesCount);
+        var reportsToName = position.ReportsToEmployee is null
+            ? null
+            : $"{position.ReportsToEmployee.FirstName} {position.ReportsToEmployee.LastName}";
+        return new PositionDto(position.Id, position.Code, position.Name, position.IsActive, employeesCount, position.Description, position.Level, position.AreaId, position.Area?.Name, position.ReportsToEmployeeId, reportsToName);
     }
 
     public async Task<PositionDto> CreateAsync(CreatePositionRequestDto request, CancellationToken cancellationToken = default)
@@ -68,6 +80,10 @@ public sealed class PositionService(HrmsDbContext dbContext) : IPositionService
         {
             Code = request.Code.Trim().ToUpperInvariant(),
             Name = request.Name.Trim(),
+            Description = NormalizeOptional(request.Description),
+            Level = NormalizeOptional(request.Level),
+            AreaId = request.AreaId,
+            ReportsToEmployeeId = request.ReportsToEmployeeId,
             CreatedBy = "system",
             UpdatedBy = "system"
         };
@@ -75,7 +91,16 @@ public sealed class PositionService(HrmsDbContext dbContext) : IPositionService
         await dbContext.Positions.AddAsync(position, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new PositionDto(position.Id, position.Code, position.Name, position.IsActive, 0);
+        var areaName = position.AreaId.HasValue
+            ? await dbContext.Areas.Where(x => x.Id == position.AreaId.Value).Select(x => x.Name).FirstOrDefaultAsync(cancellationToken)
+            : null;
+        var reportsToName = position.ReportsToEmployeeId.HasValue
+            ? await dbContext.Employees
+                .Where(x => x.Id == position.ReportsToEmployeeId.Value && !x.IsDeleted)
+                .Select(x => x.FirstName + " " + x.LastName)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+        return new PositionDto(position.Id, position.Code, position.Name, position.IsActive, 0, position.Description, position.Level, position.AreaId, areaName, position.ReportsToEmployeeId, reportsToName);
     }
 
     public async Task<PositionDto?> UpdateAsync(Guid id, UpdatePositionRequestDto request, CancellationToken cancellationToken = default)
@@ -92,13 +117,26 @@ public sealed class PositionService(HrmsDbContext dbContext) : IPositionService
 
         position.Code = request.Code.Trim().ToUpperInvariant();
         position.Name = request.Name.Trim();
+        position.Description = NormalizeOptional(request.Description);
+        position.Level = NormalizeOptional(request.Level);
+        position.AreaId = request.AreaId;
+        position.ReportsToEmployeeId = request.ReportsToEmployeeId;
         position.UpdatedAtUtc = DateTime.UtcNow;
         position.UpdatedBy = "system";
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var employeesCount = await dbContext.Employees.CountAsync(x => x.PositionId == position.Id && !x.IsDeleted, cancellationToken);
-        return new PositionDto(position.Id, position.Code, position.Name, position.IsActive, employeesCount);
+        var updatedAreaName = position.AreaId.HasValue
+            ? await dbContext.Areas.Where(x => x.Id == position.AreaId.Value).Select(x => x.Name).FirstOrDefaultAsync(cancellationToken)
+            : null;
+        var updatedReportsToName = position.ReportsToEmployeeId.HasValue
+            ? await dbContext.Employees
+                .Where(x => x.Id == position.ReportsToEmployeeId.Value && !x.IsDeleted)
+                .Select(x => x.FirstName + " " + x.LastName)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+        return new PositionDto(position.Id, position.Code, position.Name, position.IsActive, employeesCount, position.Description, position.Level, position.AreaId, updatedAreaName, position.ReportsToEmployeeId, updatedReportsToName);
     }
 
     public async Task<bool> UpdateStatusAsync(Guid id, bool isActive, CancellationToken cancellationToken = default)
@@ -163,6 +201,11 @@ public sealed class PositionService(HrmsDbContext dbContext) : IPositionService
         {
             throw new InvalidOperationException("El nombre del cargo es obligatorio.");
         }
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private async Task EnsureUniquenessAsync(string code, string name, Guid? currentId, CancellationToken cancellationToken)

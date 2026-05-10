@@ -750,7 +750,22 @@ export function PaginaIncidencias(): JSX.Element {
       "Enviado el":            r.justificationSubmittedAtUtc
         ? fmtDateShort(r.justificationSubmittedAtUtc) : "",
     }));
-    exportRows(format, data, exportFileName, "Incidencias");
+    exportRows(format, data, exportFileName, "Incidencias", {
+      subtitle: "Incidencias de asistencia revisadas segun filtros actuales.",
+      period: `${aFrom || "Inicio no definido"} - ${aTo || "Fin no definido"}`,
+      filters: [
+        { label: "Busqueda", value: aSearch },
+        { label: "Estado", value: aStatus || "Todos" },
+        { label: "Tipo", value: aType || "Todos" },
+        { label: "Rango", value: `${aFrom || "-"} a ${aTo || "-"}` },
+      ],
+      metrics: [
+        { label: "Total incidencias", value: sortedRows.length },
+        { label: "Abiertas", value: sortedRows.filter((item) => item.status === "open").length },
+        { label: "Justificadas", value: sortedRows.filter((item) => item.status === "justified").length },
+        { label: "Rechazadas", value: sortedRows.filter((item) => item.status === "rejected").length },
+      ],
+    });
   }
 
   // ── Paginación ───────────────────────────────────────────────────────────

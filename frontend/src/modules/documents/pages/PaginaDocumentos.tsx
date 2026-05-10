@@ -8,6 +8,8 @@ import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import {
   createDocument,
   createDocumentTemplate,
@@ -92,11 +94,46 @@ export function PaginaDocumentos(): JSX.Element {
   const docs = docsQuery.data ?? [];
   const tpls = tplsQuery.data ?? [];
 
+  function handleExport(format: ExportFormat): void {
+    const sourceRows = tab === "documents" ? docs : tpls;
+    if (!sourceRows.length) { fail("No hay datos para exportar con los filtros actuales."); return; }
+    const data = tab === "documents"
+      ? docs.map((d) => ({
+          Empleado: d.employeeName,
+          Codigo: d.employeeCode,
+          Titulo: d.title,
+          Tipo: d.type,
+          Estado: statusLabels[d.status] ?? d.status,
+          Fecha: new Date(d.createdAtUtc).toLocaleDateString("es-PE"),
+        }))
+      : tpls.map((t) => ({
+          Nombre: t.name,
+          Tipo: t.type,
+          Descripcion: t.description ?? "",
+          Activo: t.isActive ? "Si" : "No",
+        }));
+    exportRows(format, data, makeFileName(tab === "documents" ? "Documentos" : "Plantillas", [statusFilter || null]), tab === "documents" ? "Documentos" : "Plantillas de documentos", {
+      subtitle: tab === "documents" ? "Documentos laborales por empleado y estado de firma." : "Plantillas disponibles para generacion documental.",
+      period: "Repositorio documental",
+      filters: [
+        { label: "Vista", value: tab === "documents" ? "Documentos" : "Plantillas" },
+        { label: "Estado", value: statusFilter ? statusLabels[statusFilter] ?? statusFilter : "Todos" },
+      ],
+      metrics: [
+        { label: "Total", value: sourceRows.length },
+        { label: "Firmados", value: docs.filter((item) => item.status === "signed").length },
+        { label: "Pendientes", value: docs.filter((item) => item.status === "pending_signature").length },
+        { label: "Plantillas", value: tpls.length },
+      ],
+    });
+  }
+
   return (
     <section className="space-y-4">
       <PageHeader title="Documentos" description="Gestión de documentos de empleados" action={
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setCreateTplOpen(true)}>Nueva plantilla</Button>
+          <ExportMenu fileName={makeFileName(tab === "documents" ? "Documentos" : "Plantillas", [statusFilter || null])} filtersActive={Boolean(statusFilter || tab !== "documents")} resultCount={tab === "documents" ? docs.length : tpls.length} onExport={handleExport} />
           <Button onClick={() => setCreateDocOpen(true)}>Nuevo documento</Button>
         </div>
       } />

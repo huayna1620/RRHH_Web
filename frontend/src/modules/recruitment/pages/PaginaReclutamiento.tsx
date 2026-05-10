@@ -8,6 +8,8 @@ import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import {
   createRecruitmentCandidate,
   deleteRecruitmentCandidate,
@@ -75,9 +77,40 @@ export function PaginaReclutamiento(): JSX.Element {
   const total = listQuery.data?.totalCount ?? 0;
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
+  async function handleExport(format: ExportFormat): Promise<void> {
+    try {
+      const result = await getRecruitmentCandidates({ ...query, pageNumber: 1, pageSize: 5000 });
+      if (!result.items.length) { fail("No hay candidatos para exportar con los filtros actuales."); return; }
+      const data = result.items.map((r) => ({
+        Candidato: r.fullName,
+        Email: r.email,
+        Telefono: r.phoneNumber,
+        Puesto: r.positionApplied,
+        Fecha: r.applicationDate,
+        Estado: statusLabels[r.currentStatus] ?? r.currentStatus,
+      }));
+      exportRows(format, data, makeFileName("Candidatos", [status || null]), "Candidatos", {
+        subtitle: "Pipeline de candidatos segun estado y busqueda aplicada.",
+        period: "Proceso de reclutamiento vigente",
+        filters: [
+          { label: "Busqueda", value: search },
+          { label: "Estado", value: status ? statusLabels[status] ?? status : "Todos" },
+        ],
+        metrics: [
+          { label: "Total candidatos", value: result.items.length },
+          { label: "Nuevos", value: result.items.filter((item) => item.currentStatus === "new").length },
+          { label: "Entrevista", value: result.items.filter((item) => item.currentStatus === "interview").length },
+          { label: "Contratados", value: result.items.filter((item) => item.currentStatus === "hired").length },
+        ],
+      });
+    } catch {
+      fail("No se pudo exportar candidatos.");
+    }
+  }
+
   return (
     <section className="space-y-4">
-      <PageHeader title="Reclutamiento" description="Gestión de candidatos" action={<Button onClick={() => setCreateOpen(true)}>Nuevo candidato</Button>} />
+      <PageHeader title="Reclutamiento" description="Gestión de candidatos" action={<div className="flex gap-2"><ExportMenu fileName={makeFileName("Candidatos", [status || null])} filtersActive={Boolean(search || status)} resultCount={total} onExport={handleExport} /><Button onClick={() => setCreateOpen(true)}>Nuevo candidato</Button></div>} />
 
       {feedback && <Alert variant={feedback.type} message={feedback.message} onClose={() => setFeedback(null)} />}
 

@@ -7,6 +7,8 @@ import { Alert } from "@/components/ui/alert";
 import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ui/page-header";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import { cancelPayrollLoan, createPayrollLoan, getPayrollLoans } from "@/modules/payroll/services/payrollLoansApi";
 import { getPayrollCatalogs } from "@/modules/payroll/services/payrollApi";
 import type { PayrollLoan } from "@/modules/payroll/types/payroll.types";
@@ -57,9 +59,43 @@ export function PaginaPrestamos(): JSX.Element {
   const total = listQuery.data?.totalCount ?? 0;
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
+  async function handleExport(format: ExportFormat): Promise<void> {
+    try {
+      const result = await getPayrollLoans({ employeeId, activeOnly, pageNumber: 1, pageSize: 5000 });
+      if (!result.items.length) { fail("No hay prestamos para exportar con los filtros actuales."); return; }
+      const data = result.items.map((r) => ({
+        Empleado: r.employeeName,
+        Codigo: r.employeeCode,
+        Tipo: r.loanType === "loan" ? "Prestamo" : "Adelanto",
+        "Monto total": r.totalAmount,
+        "Cuota mensual": r.monthlyInstallment,
+        Pagadas: r.paidInstallments,
+        Pendientes: r.remainingInstallments,
+        Saldo: r.remainingAmount,
+        Estado: r.isActive ? "Activo" : "Inactivo",
+      }));
+      exportRows(format, data, makeFileName("Prestamos", [activeOnly ? "Activos" : null]), "Prestamos", {
+        subtitle: "Prestamos y adelantos de planilla con saldo y avance de cuotas.",
+        period: "Cartera vigente",
+        filters: [
+          { label: "Empleado", value: catalogsQuery.data?.employees?.find((item) => item.id === employeeId)?.label },
+          { label: "Solo activos", value: activeOnly ? "Si" : "No" },
+        ],
+        metrics: [
+          { label: "Total registros", value: result.items.length },
+          { label: "Activos", value: result.items.filter((item) => item.isActive).length },
+          { label: "Saldo total", value: `S/ ${result.items.reduce((sum, item) => sum + item.remainingAmount, 0).toLocaleString("es-PE")}` },
+          { label: "Monto original", value: `S/ ${result.items.reduce((sum, item) => sum + item.totalAmount, 0).toLocaleString("es-PE")}` },
+        ],
+      });
+    } catch {
+      fail("No se pudo exportar prestamos.");
+    }
+  }
+
   return (
     <section className="space-y-4">
-      <PageHeader title="Préstamos" description="Gestión de préstamos y adelantos de planilla" action={<Button onClick={() => setCreateOpen(true)}>Nuevo préstamo</Button>} />
+      <PageHeader title="Préstamos" description="Gestión de préstamos y adelantos de planilla" action={<div className="flex gap-2"><ExportMenu fileName={makeFileName("Prestamos", [activeOnly ? "Activos" : null])} filtersActive={Boolean(employeeId || activeOnly)} resultCount={total} onExport={handleExport} /><Button onClick={() => setCreateOpen(true)}>Nuevo préstamo</Button></div>} />
 
       {feedback && <Alert variant={feedback.type} message={feedback.message} onClose={() => setFeedback(null)} />}
 

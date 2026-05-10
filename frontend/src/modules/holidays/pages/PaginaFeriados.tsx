@@ -6,7 +6,7 @@ import { Alert } from "@/components/ui/alert";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/ui/page-header";
 import { ExportMenu } from "@/components/export/ExportMenu";
-import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
+import { exportRows, makeFileName, todayStamp, type ExportFormat } from "@/components/export/exportUtils";
 import { createHoliday, deleteHoliday, getHolidays, updateHoliday } from "@/modules/holidays/services/holidaysApi";
 import type { HolidayItem } from "@/modules/holidays/types/holiday.types";
 
@@ -62,7 +62,16 @@ export function PaginaFeriados(): JSX.Element {
       Activo: r.isActive ? "Si" : "No",
     }));
 
-    exportRows(format, data, exportFileName, "Feriados");
+    exportRows(format, data, exportFileName, "Feriados", {
+      subtitle: "Calendario de feriados configurados para la organizacion.",
+      period: "Calendario vigente",
+      metrics: [
+        { label: "Total feriados", value: rows.length },
+        { label: "Recurrentes", value: rows.filter((item) => item.isRecurring).length },
+        { label: "Unicos", value: rows.filter((item) => !item.isRecurring).length },
+        { label: "Proximos", value: rows.filter((item) => item.date >= todayStamp()).length },
+      ],
+    });
   }
 
   return (

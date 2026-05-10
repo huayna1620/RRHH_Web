@@ -865,7 +865,22 @@ export function PaginaPermisos(): JSX.Element {
       "Solicitado el": r.requestedAtUtc ? fmtDateShort(r.requestedAtUtc) : "",
       Motivo:         r.reason ?? "",
     }));
-    exportRows(format, data, exportFileName, "Permisos");
+    exportRows(format, data, exportFileName, "Permisos", {
+      subtitle: "Solicitudes de permisos con duracion, remuneracion y estado de revision.",
+      period: `Ano ${year}`,
+      filters: [
+        { label: "Ano", value: year },
+        { label: "Estado", value: status ? STATUS_MAP[status]?.label ?? status : "Todos" },
+        { label: "Tipo", value: leaveType || "Todos" },
+        { label: "Busqueda", value: search },
+      ],
+      metrics: [
+        { label: "Total permisos", value: sortedRows.length },
+        { label: "Aprobados", value: sortedRows.filter((item) => item.status === "approved").length },
+        { label: "Pendientes", value: sortedRows.filter((item) => item.status === "pending").length },
+        { label: "Dias solicitados", value: sortedRows.reduce((sum, item) => sum + (item.requestedDays ?? 0), 0) },
+      ],
+    });
   }
 
   // ── Mutaciones ──

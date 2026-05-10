@@ -7,6 +7,8 @@ import { Alert } from "@/components/ui/alert";
 import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ui/page-header";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import {
   closeJobPosting,
   createJobPosting,
@@ -84,9 +86,41 @@ export function PaginaConvocatorias(): JSX.Element {
   const total = listQuery.data?.totalCount ?? 0;
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total]);
 
+  async function handleExport(format: ExportFormat): Promise<void> {
+    try {
+      const result = await getJobPostings({ ...params, pageNumber: 1, pageSize: 5000 });
+      if (!result.items.length) { fail("No hay convocatorias para exportar con los filtros actuales."); return; }
+      const data = result.items.map((r) => ({
+        Titulo: r.title,
+        Area: r.areaName,
+        Puesto: r.positionName,
+        Apertura: r.openedDate,
+        Vacantes: r.requiredCount,
+        Candidatos: r.candidateCount,
+        Estado: statusLabels[r.status] ?? r.status,
+      }));
+      exportRows(format, data, makeFileName("Convocatorias", [statusFilter || null]), "Convocatorias", {
+        subtitle: "Convocatorias y puestos vacantes con avance de candidatos.",
+        period: "Procesos vigentes",
+        filters: [
+          { label: "Busqueda", value: search },
+          { label: "Estado", value: statusFilter ? statusLabels[statusFilter] ?? statusFilter : "Todos" },
+        ],
+        metrics: [
+          { label: "Total convocatorias", value: result.items.length },
+          { label: "Abiertas", value: result.items.filter((item) => item.status === "open").length },
+          { label: "Vacantes", value: result.items.reduce((sum, item) => sum + item.requiredCount, 0) },
+          { label: "Candidatos", value: result.items.reduce((sum, item) => sum + item.candidateCount, 0) },
+        ],
+      });
+    } catch {
+      fail("No se pudo exportar convocatorias.");
+    }
+  }
+
   return (
     <section className="space-y-4">
-      <PageHeader title="Convocatorias" description="Gestión de puestos vacantes" action={<Button onClick={openNew}>Nueva convocatoria</Button>} />
+      <PageHeader title="Convocatorias" description="Gestión de puestos vacantes" action={<div className="flex gap-2"><ExportMenu fileName={makeFileName("Convocatorias", [statusFilter || null])} filtersActive={Boolean(search || statusFilter)} resultCount={total} onExport={handleExport} /><Button onClick={openNew}>Nueva convocatoria</Button></div>} />
 
       {feedback && <Alert variant={feedback.type} message={feedback.message} onClose={() => setFeedback(null)} />}
 

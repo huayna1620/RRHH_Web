@@ -6,6 +6,8 @@ import { Alert } from "@/components/ui/alert";
 import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ui/page-header";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import {
   activateCycle, closeCycle, createCycle,
   getAssignments, getCycles,
@@ -53,9 +55,31 @@ export function PaginaEvaluaciones(): JSX.Element {
   const cycles = cyclesQuery.data ?? [];
   const assignments = assignmentsQuery.data ?? [];
 
+  function handleExport(format: ExportFormat): void {
+    if (!cycles.length) { fail("No hay ciclos para exportar."); return; }
+    const data = cycles.map((c) => ({
+      Nombre: c.name,
+      Periodo: c.period,
+      Inicio: c.startDate,
+      Fin: c.endDate,
+      Asignaciones: `${c.finalizedAssignments}/${c.totalAssignments}`,
+      Estado: statusLabels[c.status] ?? c.status,
+    }));
+    exportRows(format, data, makeFileName("Evaluaciones"), "Evaluaciones", {
+      subtitle: "Ciclos de evaluacion de desempeno y avance de asignaciones.",
+      period: "Ciclos registrados",
+      metrics: [
+        { label: "Total ciclos", value: cycles.length },
+        { label: "Activos", value: cycles.filter((item) => item.status === "active").length },
+        { label: "Cerrados", value: cycles.filter((item) => item.status === "closed").length },
+        { label: "Asignaciones", value: cycles.reduce((sum, item) => sum + item.totalAssignments, 0) },
+      ],
+    });
+  }
+
   return (
     <section className="space-y-4">
-      <PageHeader title="Evaluaciones" description="Ciclos de evaluación de desempeño" action={<Button onClick={() => setCreateOpen(true)}>Nuevo ciclo</Button>} />
+      <PageHeader title="Evaluaciones" description="Ciclos de evaluación de desempeño" action={<div className="flex gap-2"><ExportMenu fileName={makeFileName("Evaluaciones")} filtersActive={false} resultCount={cycles.length} onExport={handleExport} /><Button onClick={() => setCreateOpen(true)}>Nuevo ciclo</Button></div>} />
 
       {feedback && <Alert variant={feedback.type} message={feedback.message} onClose={() => setFeedback(null)} />}
 

@@ -233,7 +233,21 @@ export function PaginaEmpleados(): JSX.Element {
         "Sueldo base":      r.baseSalary,
         "Tipo contrato":    r.contractType,
       }));
-      exportRows(format, data, exportFileName, "Empleados");
+      exportRows(format, data, exportFileName, "Empleados", {
+        subtitle: "Listado de colaboradores segun los filtros vigentes de la pantalla.",
+        period: "Nomina actual",
+        filters: [
+          { label: "Busqueda", value: search },
+          { label: "Area", value: catalogsQuery.data?.areas?.find((area) => area.id === areaFilter)?.name },
+          { label: "Estado", value: statusFilter === "all" ? "Todos" : statusFilter === "active" ? "Activos" : "Inactivos" },
+        ],
+        metrics: [
+          { label: "Total filtrado", value: result.totalCount },
+          { label: "Activos", value: result.items.filter((item) => item.isActive).length },
+          { label: "Inactivos", value: result.items.filter((item) => !item.isActive).length },
+          { label: "Areas", value: new Set(result.items.map((item) => item.area).filter(Boolean)).size },
+        ],
+      });
     } catch {
       setFeedback({ type: "error", message: "Error al exportar. Intenta de nuevo." });
     } finally {

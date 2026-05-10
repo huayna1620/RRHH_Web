@@ -41,7 +41,11 @@ public sealed class AreaService(HrmsDbContext dbContext) : IAreaService
                 x.Code,
                 x.Name,
                 x.IsActive,
-                dbContext.Employees.Count(e => e.AreaId == x.Id && !e.IsDeleted)))
+                dbContext.Employees.Count(e => e.AreaId == x.Id && !e.IsDeleted),
+                x.Description,
+                x.ResponsibleEmployeeId,
+                x.ResponsibleEmployee == null ? null : x.ResponsibleEmployee.FirstName + " " + x.ResponsibleEmployee.LastName,
+                x.ResponsibleEmployee == null ? null : x.ResponsibleEmployee.Position.Name))
             .ToListAsync(cancellationToken);
 
         return new PagedResultDto<AreaDto>(items, pageNumber, pageSize, totalCount);
@@ -49,14 +53,27 @@ public sealed class AreaService(HrmsDbContext dbContext) : IAreaService
 
     public async Task<AreaDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var area = await dbContext.Areas.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+        var area = await dbContext.Areas
+            .AsNoTracking()
+            .Include(x => x.ResponsibleEmployee)
+            .ThenInclude(x => x!.Position)
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
         if (area is null)
         {
             return null;
         }
 
         var employeesCount = await dbContext.Employees.CountAsync(x => x.AreaId == area.Id && !x.IsDeleted, cancellationToken);
-        return new AreaDto(area.Id, area.Code, area.Name, area.IsActive, employeesCount);
+        return new AreaDto(
+            area.Id,
+            area.Code,
+            area.Name,
+            area.IsActive,
+            employeesCount,
+            area.Description,
+            area.ResponsibleEmployeeId,
+            area.ResponsibleEmployee is null ? null : $"{area.ResponsibleEmployee.FirstName} {area.ResponsibleEmployee.LastName}",
+            area.ResponsibleEmployee?.Position.Name);
     }
 
     public async Task<AreaDto> CreateAsync(CreateAreaRequestDto request, CancellationToken cancellationToken = default)
@@ -68,6 +85,8 @@ public sealed class AreaService(HrmsDbContext dbContext) : IAreaService
         {
             Code = request.Code.Trim().ToUpperInvariant(),
             Name = request.Name.Trim(),
+            Description = NormalizeOptional(request.Description),
+            ResponsibleEmployeeId = request.ResponsibleEmployeeId,
             CreatedBy = "system",
             UpdatedBy = "system"
         };
@@ -75,7 +94,7 @@ public sealed class AreaService(HrmsDbContext dbContext) : IAreaService
         await dbContext.Areas.AddAsync(area, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new AreaDto(area.Id, area.Code, area.Name, area.IsActive, 0);
+        return new AreaDto(area.Id, area.Code, area.Name, area.IsActive, 0, area.Description, area.ResponsibleEmployeeId, null, null);
     }
 
     public async Task<AreaDto?> UpdateAsync(Guid id, UpdateAreaRequestDto request, CancellationToken cancellationToken = default)
@@ -92,13 +111,27 @@ public sealed class AreaService(HrmsDbContext dbContext) : IAreaService
 
         area.Code = request.Code.Trim().ToUpperInvariant();
         area.Name = request.Name.Trim();
+        area.Description = NormalizeOptional(request.Description);
+        area.ResponsibleEmployeeId = request.ResponsibleEmployeeId;
         area.UpdatedAtUtc = DateTime.UtcNow;
         area.UpdatedBy = "system";
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var employeesCount = await dbContext.Employees.CountAsync(x => x.AreaId == area.Id && !x.IsDeleted, cancellationToken);
-        return new AreaDto(area.Id, area.Code, area.Name, area.IsActive, employeesCount);
+        var responsible = area.ResponsibleEmployeeId.HasValue
+            ? await dbContext.Employees.AsNoTracking().Include(x => x.Position).FirstOrDefaultAsync(x => x.Id == area.ResponsibleEmployeeId.Value && !x.IsDeleted, cancellationToken)
+            : null;
+        return new AreaDto(
+            area.Id,
+            area.Code,
+            area.Name,
+            area.IsActive,
+            employeesCount,
+            area.Description,
+            area.ResponsibleEmployeeId,
+            responsible is null ? null : $"{responsible.FirstName} {responsible.LastName}",
+            responsible?.Position.Name);
     }
 
     public async Task<bool> UpdateStatusAsync(Guid id, bool isActive, CancellationToken cancellationToken = default)
@@ -163,6 +196,11 @@ public sealed class AreaService(HrmsDbContext dbContext) : IAreaService
         {
             throw new InvalidOperationException("El nombre del area es obligatorio.");
         }
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private async Task EnsureUniquenessAsync(string code, string name, Guid? currentId, CancellationToken cancellationToken)

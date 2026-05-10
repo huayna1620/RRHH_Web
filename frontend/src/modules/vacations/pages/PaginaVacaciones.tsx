@@ -803,7 +803,21 @@ export function PaginaVacaciones(): JSX.Element {
       "Comentario revisor": r.reviewerComment ?? "",
     }));
 
-    exportRows(format, data, exportFileName, "Vacaciones");
+    exportRows(format, data, exportFileName, "Vacaciones", {
+      subtitle: "Solicitudes de vacaciones segun estado, ano y filtros actuales.",
+      period: `Ano ${year}`,
+      filters: [
+        { label: "Ano", value: year },
+        { label: "Estado", value: status ? STATUS_MAP[status]?.label ?? status : "Todos" },
+        { label: "Busqueda", value: search },
+      ],
+      metrics: [
+        { label: "Total solicitudes", value: sortedRows.length },
+        { label: "Aprobadas", value: sortedRows.filter((item) => item.status === "approved").length },
+        { label: "Pendientes", value: sortedRows.filter((item) => item.status === "pending").length },
+        { label: "Dias solicitados", value: sortedRows.reduce((sum, item) => sum + (item.requestedDays ?? 0), 0) },
+      ],
+    });
   }
 
   const hasActiveFilters = !!(search || status || year !== CUR_YEAR);

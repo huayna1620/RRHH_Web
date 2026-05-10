@@ -1,5 +1,5 @@
 import { httpClient } from "@/services/api/httpClient";
-import type { OrgItem, OrgPayload, OrgQuery, PagedResult } from "@/modules/org-structure/types/orgStructure.types";
+import type { OrgItem, OrgPayload, OrgQuery, OrgStructureActivityItem, PagedResult } from "@/modules/org-structure/types/orgStructure.types";
 
 function queryToString(query: OrgQuery): string {
   const params = new URLSearchParams();
@@ -58,4 +58,9 @@ export async function updatePositionStatus(id: string, isActive: boolean): Promi
 
 export async function deletePosition(id: string): Promise<void> {
   await httpClient.delete(`/api/v1/positions/${id}`);
+}
+
+export async function getOrgStructureActivity(pageSize = 5): Promise<OrgStructureActivityItem[]> {
+  const { data } = await httpClient.get<OrgStructureActivityItem[]>(`/api/v1/org-structure/activity?pageSize=${pageSize}`);
+  return data;
 }

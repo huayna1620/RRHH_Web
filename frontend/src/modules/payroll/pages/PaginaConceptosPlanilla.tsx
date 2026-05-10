@@ -7,6 +7,8 @@ import { Alert } from "@/components/ui/alert";
 import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/ui/page-header";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import {
   createPayrollConcept,
   deletePayrollConcept,
@@ -53,9 +55,33 @@ export function PaginaConceptosPlanilla(): JSX.Element {
 
   const rows = listQuery.data ?? [];
 
+  function handleExport(format: ExportFormat): void {
+    if (!rows.length) { fail("No hay conceptos para exportar."); return; }
+    const data = rows.map((r) => ({
+      Codigo: r.code,
+      Nombre: r.name,
+      Tipo: r.type === "earning" ? "Ingreso" : "Descuento",
+      "Monto fijo": r.fixedAmount ?? "",
+      Porcentaje: r.percentage != null ? `${r.percentage}%` : "",
+      Automatico: r.isAutomatic ? "Si" : "No",
+      Activo: r.isActive ? "Si" : "No",
+      Descripcion: r.description ?? "",
+    }));
+    exportRows(format, data, makeFileName("Conceptos"), "Conceptos de planilla", {
+      subtitle: "Catalogo de ingresos, descuentos y conceptos automaticos de planilla.",
+      period: "Configuracion vigente",
+      metrics: [
+        { label: "Total conceptos", value: rows.length },
+        { label: "Ingresos", value: rows.filter((item) => item.type === "earning").length },
+        { label: "Descuentos", value: rows.filter((item) => item.type === "deduction").length },
+        { label: "Automaticos", value: rows.filter((item) => item.isAutomatic).length },
+      ],
+    });
+  }
+
   return (
     <section className="space-y-4">
-      <PageHeader title="Conceptos de planilla" description="Configuración de bonificaciones y descuentos" action={<Button onClick={openNew}>Nuevo concepto</Button>} />
+      <PageHeader title="Conceptos de planilla" description="Configuración de bonificaciones y descuentos" action={<div className="flex gap-2"><ExportMenu fileName={makeFileName("Conceptos")} filtersActive={false} resultCount={rows.length} onExport={handleExport} /><Button onClick={openNew}>Nuevo concepto</Button></div>} />
 
       {feedback && <Alert variant={feedback.type} message={feedback.message} onClose={() => setFeedback(null)} />}
 

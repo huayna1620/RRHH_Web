@@ -4,6 +4,7 @@ using Hrms.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Hrms.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(HrmsDbContext))]
-    partial class HrmsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260508030649_AddOrgStructureDetails")]
+    partial class AddOrgStructureDetails
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -403,9 +406,6 @@ namespace Hrms.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
-
-                    b.Property<Guid?>("ReportsToEmployeeId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
@@ -1933,8 +1933,6 @@ namespace Hrms.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AreaId");
 
-                    b.HasIndex("ReportsToEmployeeId");
-
                     b.HasIndex("Code")
                         .IsUnique();
 
@@ -2722,14 +2720,7 @@ namespace Hrms.Infrastructure.Persistence.Migrations
                         .HasForeignKey("AreaId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("Hrms.Domain.Entities.Employee", "ReportsToEmployee")
-                        .WithMany()
-                        .HasForeignKey("ReportsToEmployeeId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Area");
-
-                    b.Navigation("ReportsToEmployee");
                 });
 
             modelBuilder.Entity("Hrms.Domain.Entities.RecruitmentCandidate", b =>

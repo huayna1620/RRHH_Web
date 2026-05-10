@@ -636,7 +636,23 @@ export function PaginaAsistencia(): JSX.Element {
         "Tardanza (min)":  r.lateMinutes || 0,
         "Justificación":   r.justification ?? "",
       }));
-      exportRows(format, data, exportFileName, "Asistencia");
+      exportRows(format, data, exportFileName, "Asistencia", {
+        subtitle: "Reporte de asistencia generado para el periodo y filtros seleccionados.",
+        period: `${histDateFrom || "Inicio no definido"} - ${histDateTo || "Fin no definido"}`,
+        filters: [
+          { label: "Vista", value: histViewMode },
+          { label: "Busqueda", value: histSearch },
+          { label: "Area", value: catalogsQuery.data?.areas?.find((area) => area.id === histAreaId)?.name },
+          { label: "Estado", value: histEstado || "Todos" },
+          { label: "Rango", value: `${histDateFrom || "-"} a ${histDateTo || "-"}` },
+        ],
+        metrics: [
+          { label: "Total registros", value: result.items.length },
+          { label: "Tardanzas", value: result.items.filter((item) => resolveStatus(item) === "late").length },
+          { label: "Faltas", value: result.items.filter((item) => resolveStatus(item) === "absent").length },
+          { label: "Pendientes salida", value: result.items.filter((item) => resolveStatus(item) === "pending_out").length },
+        ],
+      });
       showToast("success", `${result.items.length} registros exportados.`);
     } catch {
       showToast("error", "No se pudo exportar.");

@@ -5,5 +5,9 @@ public sealed record AreaDto(
     string Code,
     string Name,
     bool IsActive,
-    int EmployeesCount);
+    int EmployeesCount,
+    string? Description,
+    Guid? ResponsibleEmployeeId,
+    string? ResponsibleName,
+    string? ResponsiblePosition);
 
