@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type JSX } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import * as XLSX from "xlsx";
+import { ExportMenu } from "@/components/export/ExportMenu";
+import { exportRows, makeFileName, type ExportFormat } from "@/components/export/exportUtils";
 import {
   AlertCircle, CalendarDays, CalendarRange, CheckCircle2,
   ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown,
-  Clock, Download, Loader2, Plus, RefreshCw, RotateCcw,
+  Clock, Loader2, Plus, RefreshCw, RotateCcw,
   Search, Trash2, X,
 } from "lucide-react";
 import {
@@ -664,7 +665,7 @@ export function PaginaFeriados(): JSX.Element {
     setFormOpen(true);
   }
 
-  function handleExport(): void {
+  function handleExport(format: ExportFormat): void {
     if (sortedRows.length === 0) { fail("No hay datos para exportar."); return; }
     const data = sortedRows.map((r) => {
       const p = fmtDate(r.date);
@@ -676,10 +677,7 @@ export function PaginaFeriados(): JSX.Element {
         Estado:       r.isActive ? "Activo" : "Inactivo",
       };
     });
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Feriados");
-    XLSX.writeFile(wb, `feriados${yearFilter ? `_${yearFilter}` : ""}.xlsx`);
+    exportRows(format, data, makeFileName("Feriados", [yearFilter ? String(yearFilter) : null]), "Feriados del año");
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -710,14 +708,12 @@ export function PaginaFeriados(): JSX.Element {
           >
             <RefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
-          <button
-            onClick={handleExport}
-            title="Exportar a Excel"
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 transition"
-          >
-            <Download className="size-4 text-emerald-500" />
-            Excel
-          </button>
+          <ExportMenu
+            fileName={makeFileName("Feriados", [yearFilter ? String(yearFilter) : null])}
+            resultCount={sortedRows.length}
+            filtersActive={Boolean(yearFilter || search)}
+            onExport={handleExport}
+          />
           <button
             onClick={openCreate}
             className="inline-flex h-9 items-center gap-2 rounded-xl bg-gradient-to-b from-teal-500 to-teal-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-teal-500/30 hover:from-teal-500 hover:to-teal-700 transition"
@@ -1014,7 +1010,9 @@ export function PaginaFeriados(): JSX.Element {
                         </p>
                       </div>
                       {h.isRecurring && (
-                        <RotateCcw className="size-3 shrink-0 text-teal-400" title="Recurrente" />
+                        <span title="Recurrente">
+                          <RotateCcw className="size-3 shrink-0 text-teal-400" />
+                        </span>
                       )}
                     </div>
                   );
