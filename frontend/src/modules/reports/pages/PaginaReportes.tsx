@@ -51,7 +51,7 @@ const MONTHS = [
 ];
 
 const CHART_COLORS = [
-  "#14b8a6","#6366f1","#f59e0b","#f43f5e",
+  "#14b8a6","#0f766e","#f59e0b","#f43f5e",
   "#10b981","#8b5cf6","#0ea5e9","#ec4899","#84cc16","#fb923c",
 ];
 
@@ -391,7 +391,7 @@ function ChartCard({ title, sub, loading, children }: {
 function SectionTitle({ icon, title, sub }: { icon: JSX.Element; title: string; sub?: string }): JSX.Element {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">{icon}</div>
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-600">{icon}</div>
       <div>
         <h2 className="text-[15px] font-bold text-slate-900">{title}</h2>
         {sub && <p className="text-[12px] text-slate-400">{sub}</p>}
@@ -470,10 +470,10 @@ function DownloadHistoryPanel({ items, onClear }: { items: HistoryItem[]; onClea
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
         <div className="flex items-center gap-2">
-          <Download className="size-4 text-indigo-500" />
+          <Download className="size-4 text-brand-500" />
           <h3 className="text-[13px] font-bold text-slate-700">Historial de exportaciones</h3>
           {items.length > 0 && (
-            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-600">{items.length}</span>
+            <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-600">{items.length}</span>
           )}
         </div>
         {items.length > 0 && (
@@ -511,10 +511,10 @@ function DownloadHistoryPanel({ items, onClear }: { items: HistoryItem[]; onClea
 
 function PowerBIConfigurationReference(): JSX.Element {
   return (
-    <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white shadow-sm">
+    <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50 to-white shadow-sm">
       <div className="px-5 py-5">
         <div className="flex items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 shadow-sm">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 shadow-sm">
             <BarChart2 className="size-5 text-white" />
           </div>
           <div>
@@ -530,12 +530,12 @@ function PowerBIConfigurationReference(): JSX.Element {
         <ul className="mt-4 space-y-1.5">
           {["Dashboards interactivos en tiempo real", "Exportación de datasets para análisis", "Reportes ejecutivos automáticos", "Integración con Microsoft 365"].map((f) => (
             <li key={f} className="flex items-center gap-2 text-[11px] text-slate-500">
-              <CheckCircle2 className="size-3 shrink-0 text-indigo-400" />{f}
+              <CheckCircle2 className="size-3 shrink-0 text-brand-400" />{f}
             </li>
           ))}
         </ul>
         <button disabled
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-[12px] font-semibold text-indigo-400 shadow-sm cursor-not-allowed"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-brand-200 bg-white px-4 py-2.5 text-[12px] font-semibold text-brand-400 shadow-sm cursor-not-allowed"
         >
           <ExternalLink className="size-3.5" />Conectar con Power BI
         </button>
@@ -554,10 +554,10 @@ function PowerBIPanel(): JSX.Element {
   const isConfigured = Boolean(powerBiUrl);
 
   return (
-    <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white shadow-sm">
+    <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50 to-white shadow-sm">
       <div className="px-5 py-5">
         <div className="flex items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 shadow-sm">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 shadow-sm">
             <BarChart2 className="size-5 text-white" />
           </div>
           <div>
@@ -582,7 +582,7 @@ function PowerBIPanel(): JSX.Element {
             "Usuarios autorizados antes de abrir informacion sensible",
           ].map((item) => (
             <li key={item} className="flex items-center gap-2 text-[11px] text-slate-500">
-              <CheckCircle2 className="size-3 shrink-0 text-indigo-400" />{item}
+              <CheckCircle2 className="size-3 shrink-0 text-brand-400" />{item}
             </li>
           ))}
         </ul>
@@ -591,8 +591,8 @@ function PowerBIPanel(): JSX.Element {
           onClick={() => { if (powerBiUrl) window.open(powerBiUrl, "_blank", "noopener,noreferrer"); }}
           className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-[12px] font-semibold shadow-sm transition ${
             isConfigured
-              ? "border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
-              : "border-indigo-200 bg-white text-indigo-400 cursor-not-allowed"
+              ? "border-brand-200 bg-white text-brand-700 hover:bg-brand-50"
+              : "border-brand-200 bg-white text-brand-400 cursor-not-allowed"
           }`}
         >
           <ExternalLink className="size-3.5" />{isConfigured ? "Abrir dashboard Power BI" : "Power BI pendiente de configuracion"}
@@ -614,7 +614,7 @@ function ReportCard({ report, selected, onSelect, onExcel, onCsv, onPdf }: {
   const isAvailable = report.status === "available";
 
   return (
-    <div className={`group relative flex min-h-[208px] flex-col rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? "border-indigo-300 ring-2 ring-indigo-100" : "border-slate-200"} ${!isAvailable ? "opacity-80" : ""}`}>
+    <div className={`group relative flex min-h-[208px] flex-col rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? "border-brand-300 ring-2 ring-brand-100" : "border-slate-200"} ${!isAvailable ? "opacity-80" : ""}`}>
       {isAvailable && (
         <span className="absolute right-3 top-3 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase text-emerald-600">Disponible</span>
       )}
@@ -623,8 +623,8 @@ function ReportCard({ report, selected, onSelect, onExcel, onCsv, onPdf }: {
       )}
 
       <div className="flex items-center gap-3 pr-20">
-        <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl shadow-sm ${isAvailable ? "bg-indigo-50 shadow-indigo-100" : "bg-slate-100"}`}>
-          <Icon className={`size-4 ${isAvailable ? "text-indigo-600" : "text-slate-400"}`} />
+        <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl shadow-sm ${isAvailable ? "bg-brand-50 shadow-brand-100" : "bg-slate-100"}`}>
+          <Icon className={`size-4 ${isAvailable ? "text-brand-600" : "text-slate-400"}`} />
         </div>
         <p className="text-[13px] font-bold text-slate-800 leading-tight">{report.name}</p>
       </div>
@@ -638,7 +638,7 @@ function ReportCard({ report, selected, onSelect, onExcel, onCsv, onPdf }: {
         <div className="mt-auto space-y-2 border-t border-slate-100 pt-3">
           <button
             onClick={() => onSelect(report.id)}
-            className={`inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg border text-[11px] font-semibold transition ${selected ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+            className={`inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg border text-[11px] font-semibold transition ${selected ? "border-brand-300 bg-brand-50 text-brand-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
           >
             <ChevronRight className="size-3" />Vista previa
           </button>
@@ -661,8 +661,8 @@ function PreviewWrapper({ title, period, count, summary, metrics, onExcel, onCsv
   children: JSX.Element;
 }): JSX.Element {
   return (
-    <div className="overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-indigo-50/50 px-5 py-3.5">
+    <div className="overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-brand-50/50 px-5 py-3.5">
         <div>
           <p className="text-[14px] font-bold text-slate-900">{title}</p>
           <p className="text-[11px] text-slate-400">{period} · {count} filas</p>
@@ -873,7 +873,7 @@ function PreviewSection({ reportId, year, month,
                 <td className="px-4 py-2 text-[12px] text-slate-400 font-medium">{i + 1}</td>
                 <td className="px-4 py-2 text-[12px] text-slate-500">{r.employeeCode}</td>
                 <td className="px-4 py-2 text-[12px] font-medium text-slate-700">{r.employeeName}</td>
-                <td className="px-4 py-2 text-[12px] font-bold text-indigo-700">{fmtCurrency(r.netPay)}</td>
+                <td className="px-4 py-2 text-[12px] font-bold text-brand-700">{fmtCurrency(r.netPay)}</td>
               </tr>
             ))}
             {rows.length === 0 && <EmptyTableRow cols={4} />}
@@ -881,7 +881,7 @@ function PreviewSection({ reportId, year, month,
           {rows.length > 0 && (
             <tfoot><tr className="border-t-2 border-slate-200 bg-slate-50">
               <td colSpan={3} className="px-4 py-2.5 text-[12px] font-bold text-slate-700">Total neto planilla</td>
-              <td className="px-4 py-2.5 text-[13px] font-extrabold text-indigo-700">{fmtCurrency(d?.totalNetPay ?? 0)}</td>
+              <td className="px-4 py-2.5 text-[13px] font-extrabold text-brand-700">{fmtCurrency(d?.totalNetPay ?? 0)}</td>
             </tr></tfoot>
           )}
         </table>
@@ -913,7 +913,7 @@ function PreviewSection({ reportId, year, month,
           {rows.length > 0 && (
             <tfoot><tr className="border-t-2 border-slate-200 bg-slate-50">
               <td className="px-4 py-2.5 text-[12px] font-bold text-slate-700">Tasa de rotación</td>
-              <td colSpan={2} className="px-4 py-2.5 text-[13px] font-extrabold text-indigo-700">{fmtPct((d?.turnoverRate ?? 0) * 100)}</td>
+              <td colSpan={2} className="px-4 py-2.5 text-[13px] font-extrabold text-brand-700">{fmtPct((d?.turnoverRate ?? 0) * 100)}</td>
             </tr></tfoot>
           )}
         </table>
@@ -952,7 +952,7 @@ function PreviewSection({ reportId, year, month,
               <td className="px-4 py-2.5 text-[12px] font-bold text-slate-700">Global</td>
               <td className="px-4 py-2.5 text-[12px] font-bold text-slate-700">{d?.totalEmployees ?? 0}</td>
               <td className="px-4 py-2.5 text-[12px] font-bold text-rose-700">{d?.totalAbsenceDays ?? 0} días</td>
-              <td className="px-4 py-2.5 text-[13px] font-extrabold text-indigo-700">{fmtPct((d?.absenteeismRate ?? 0) * 100)}</td>
+              <td className="px-4 py-2.5 text-[13px] font-extrabold text-brand-700">{fmtPct((d?.absenteeismRate ?? 0) * 100)}</td>
             </tr></tfoot>
           )}
         </table>
@@ -979,7 +979,7 @@ function PreviewSection({ reportId, year, month,
                 <td className="px-4 py-2 text-[12px] text-slate-600">{fmtCurrency(r.totalBaseSalary)}</td>
                 <td className="px-4 py-2 text-[12px] text-emerald-600">{fmtCurrency(r.totalBonuses)}</td>
                 <td className="px-4 py-2 text-[12px] text-rose-600">{fmtCurrency(r.totalDeductions)}</td>
-                <td className="px-4 py-2 text-[12px] font-bold text-indigo-700">{fmtCurrency(r.totalNetPay)}</td>
+                <td className="px-4 py-2 text-[12px] font-bold text-brand-700">{fmtCurrency(r.totalNetPay)}</td>
               </tr>
             ))}
             {rows.length === 0 && <EmptyTableRow cols={6} />}
@@ -990,7 +990,7 @@ function PreviewSection({ reportId, year, month,
               <td className="px-4 py-2.5 text-[12px] font-bold text-slate-700">{fmtCurrency(d?.totalBaseSalary ?? 0)}</td>
               <td className="px-4 py-2.5 text-[12px] font-bold text-emerald-700">{fmtCurrency(d?.totalBonuses ?? 0)}</td>
               <td className="px-4 py-2.5 text-[12px] font-bold text-rose-700">{fmtCurrency(d?.totalDeductions ?? 0)}</td>
-              <td className="px-4 py-2.5 text-[13px] font-extrabold text-indigo-700">{fmtCurrency(d?.totalNetPay ?? 0)}</td>
+              <td className="px-4 py-2.5 text-[13px] font-extrabold text-brand-700">{fmtCurrency(d?.totalNetPay ?? 0)}</td>
             </tr></tfoot>
           )}
         </table>
@@ -1313,7 +1313,7 @@ export function PaginaReportes(): JSX.Element {
       {/* Encabezado */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3.5">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 shadow-sm shadow-indigo-600/30">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 shadow-sm shadow-brand-600/30">
             <BarChart2 className="size-5 text-white" />
           </div>
           <div>
@@ -1336,20 +1336,20 @@ export function PaginaReportes(): JSX.Element {
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Año</label>
             <select value={year} onChange={(e) => setYear(Number(e.target.value))}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-700 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100">
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Mes</label>
             <select value={month} onChange={(e) => setMonth(Number(e.target.value))}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-700 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100">
               {MONTHS.map((m) => <option key={m.v} value={m.v}>{m.l}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={applyFilters}
-              className="inline-flex h-9 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-[13px] font-semibold text-white shadow-sm hover:bg-indigo-700 transition">
+              className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-4 text-[13px] font-semibold text-white shadow-sm hover:bg-brand-700 transition">
               Aplicar
             </button>
             <button onClick={clearFilters}
@@ -1365,7 +1365,7 @@ export function PaginaReportes(): JSX.Element {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
-        <KpiCard label="Empleados activos" value={kpiEmp}        loading={empQ.isLoading} iconBg="bg-indigo-50 shadow-indigo-100" icon={<Users className="size-5 text-indigo-600" />}        sub="en el sistema" />
+        <KpiCard label="Empleados activos" value={kpiEmp}        loading={empQ.isLoading} iconBg="bg-brand-50 shadow-brand-100" icon={<Users className="size-5 text-brand-600" />}        sub="en el sistema" />
         <KpiCard label="Asistencias"       value={kpiAtt}        loading={attQ.isLoading} iconBg="bg-teal-50 shadow-teal-100"     icon={<Clock className="size-5 text-teal-600" />}           sub={monthLabel(appliedMonth)} />
         <KpiCard label="Puntualidad"       value={`${kpiPct}%`} loading={attQ.isLoading} iconBg="bg-emerald-50 shadow-emerald-100" icon={<CheckCircle2 className="size-5 text-emerald-600" />} sub="del mes" />
         <KpiCard label="Vacaciones"        value={kpiVac}        loading={vacQ.isLoading} iconBg="bg-sky-50 shadow-sky-100"        icon={<CalendarDays className="size-5 text-sky-600" />}     sub={`año ${appliedYear}`} />
@@ -1423,7 +1423,7 @@ export function PaginaReportes(): JSX.Element {
                     <XAxis type="number" tick={{ fontSize: 10, fill: "#94a3b8" }} tickFormatter={(v: number) => `S/ ${(v / 1000).toFixed(0)}k`} />
                     <YAxis type="category" dataKey="area" tick={{ fontSize: 10, fill: "#64748b" }} width={80} />
                     <Tooltip content={<ChartTooltip currency />} />
-                    <Bar dataKey="Neto" fill="#6366f1" radius={[0, 3, 3, 0]} />
+                    <Bar dataKey="Neto" fill="#0f766e" radius={[0, 3, 3, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )
@@ -1458,7 +1458,7 @@ export function PaginaReportes(): JSX.Element {
           <div className="flex flex-wrap gap-1">
             {CATEGORIES.map((c) => (
               <button key={c.id} onClick={() => setCatTab(c.id)}
-                className={`rounded-xl px-3 py-1.5 text-[12px] font-semibold transition ${catTab === c.id ? "bg-indigo-600 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
+                className={`rounded-xl px-3 py-1.5 text-[12px] font-semibold transition ${catTab === c.id ? "bg-brand-600 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
                 {c.label}
               </button>
             ))}
@@ -1467,7 +1467,7 @@ export function PaginaReportes(): JSX.Element {
             <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
             <input type="text" value={catSearch} onChange={(e) => setCatSearch(e.target.value)}
               placeholder="Buscar reporte..."
-              className="h-8 w-52 rounded-xl border border-slate-200 pl-9 pr-3 text-[12px] text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" />
+              className="h-8 w-52 rounded-xl border border-slate-200 pl-9 pr-3 text-[12px] text-slate-700 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100" />
           </div>
         </div>
 
