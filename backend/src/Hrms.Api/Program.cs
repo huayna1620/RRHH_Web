@@ -348,6 +348,12 @@ static bool IsOriginAllowed(string origin, string[] allowedOrigins)
     if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
         return false;
 
+    if ((uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+        (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+         uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+         uri.Host.Equals("[::1]", StringComparison.OrdinalIgnoreCase)))
+        return true;
+
     return uri.Scheme == Uri.UriSchemeHttps &&
            uri.Host.EndsWith(".trycloudflare.com", StringComparison.OrdinalIgnoreCase);
 }
