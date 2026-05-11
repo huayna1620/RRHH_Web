@@ -8,9 +8,11 @@ import {
   createPayrollLoan,
   getPayrollLoanById,
   getPayrollLoans,
+  registerInstallmentPayment,
+  updatePayrollLoan,
 } from "@/modules/payroll/services/payrollLoansApi";
 import { getPayrollCatalogs } from "@/modules/payroll/services/payrollApi";
-import type { PayrollLoan } from "@/modules/payroll/types/payroll.types";
+import type { LoanType, PayrollLoan } from "@/modules/payroll/types/payroll.types";
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -413,12 +415,14 @@ function NuevoPrestamoModal({ open, employees, isPending, errors, form, onChange
 // ─── DetalleModal ─────────────────────────────────────────────────────────────
 
 function DetalleModal({
-  loanId, onClose, onCancel, cancelPending,
+  loanId, onClose, onCancel, cancelPending, onPayInstallment, payPending,
 }: {
   loanId: string | null;
   onClose: () => void;
   onCancel: (id: string) => void;
   cancelPending: boolean;
+  onPayInstallment: (loanId: string, installmentId: string) => void;
+  payPending: boolean;
 }): JSX.Element | null {
   const detailQuery = useQuery({
     queryKey: ["payroll-loan-detail", loanId],
@@ -502,32 +506,42 @@ function DetalleModal({
                 <div>
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Cronograma de cuotas</h3>
                   <div className="rounded-xl border border-slate-100 overflow-hidden">
-                    <div className="grid grid-cols-4 bg-slate-50 border-b border-slate-100 px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wide">
-                      <span>Cuota</span>
+                    <div className="grid bg-slate-50 border-b border-slate-100 px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wide" style={{ gridTemplateColumns: "auto 1fr auto auto" }}>
+                      <span className="pr-3">Cuota</span>
                       <span>Período</span>
-                      <span className="text-right">Monto</span>
-                      <span className="text-center">Estado</span>
+                      <span className="text-right pr-3">Monto</span>
+                      <span className="text-center">Estado / Acción</span>
                     </div>
                     <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
                       {installments.map((inst) => (
-                        <div key={inst.id} className={`grid grid-cols-4 px-4 py-2.5 text-sm items-center ${inst.isPaid ? "bg-emerald-50/40" : ""}`}>
-                          <span className="font-mono text-xs text-slate-600 font-bold">#{inst.installmentNumber}</span>
+                        <div key={inst.id} className={`grid px-4 py-2.5 text-sm items-center gap-2 ${inst.isPaid ? "bg-emerald-50/40" : ""}`} style={{ gridTemplateColumns: "auto 1fr auto auto" }}>
+                          <span className="font-mono text-xs text-slate-600 font-bold pr-3">#{inst.installmentNumber}</span>
                           <span className="text-slate-700">{fmtMonthYear(inst.year, inst.month)}</span>
-                          <span className="text-right font-semibold text-slate-900 tabular-nums">{fmtMoney(inst.amount)}</span>
-                          <div className="flex justify-center">
+                          <span className="text-right font-semibold text-slate-900 tabular-nums pr-3">{fmtMoney(inst.amount)}</span>
+                          <div className="flex flex-col items-center gap-0.5">
                             {inst.isPaid ? (
-                              <div className="text-center">
+                              <>
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
                                   ✓ Pagada
                                 </span>
                                 {inst.paidAtUtc && (
-                                  <p className="text-xs text-slate-400 mt-0.5">{fmtDate(inst.paidAtUtc)}</p>
+                                  <p className="text-xs text-slate-400">{fmtDate(inst.paidAtUtc)}</p>
                                 )}
-                              </div>
+                              </>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">
-                                Pendiente
-                              </span>
+                              loan?.isActive ? (
+                                <button
+                                  disabled={payPending}
+                                  onClick={() => onPayInstallment(loan.id, inst.id)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50 transition-colors whitespace-nowrap"
+                                >
+                                  💵 Pagar
+                                </button>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">
+                                  Pendiente
+                                </span>
+                              )
                             )}
                           </div>
                         </div>
@@ -535,7 +549,7 @@ function DetalleModal({
                     </div>
                   </div>
                   <p className="text-xs text-slate-400 mt-2 italic">
-                    💡 Los pagos se registran automáticamente al procesar la planilla mensual.
+                    💡 Los pagos se registran automáticamente al procesar la planilla. También puedes marcar cuotas manualmente con el botón "Pagar".
                   </p>
                 </div>
               )}
@@ -567,9 +581,170 @@ function DetalleModal({
   );
 }
 
+// ─── EditPrestamoModal ────────────────────────────────────────────────────────
+
+type EditForm = { loanType: LoanType; notes: string };
+
+function EditPrestamoModal({
+  loan, isPending, onClose, onSave,
+}: {
+  loan: PayrollLoan | null;
+  isPending: boolean;
+  onClose: () => void;
+  onSave: (id: string, patch: EditForm) => void;
+}): JSX.Element | null {
+  const [form, setForm] = useState<EditForm>({ loanType: "loan", notes: "" });
+
+  useEffect(() => {
+    if (loan) setForm({ loanType: loan.loanType as LoanType, notes: loan.notes ?? "" });
+  }, [loan]);
+
+  if (!loan) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 text-white flex-shrink-0">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl flex-shrink-0">✏️</div>
+              <div>
+                <h2 className="text-lg font-bold">Editar préstamo</h2>
+                <p className="text-sm text-blue-100 mt-0.5">{loan.employeeName} · {loan.employeeCode}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors flex-shrink-0">×</button>
+          </div>
+        </div>
+
+        {/* Body 2 cols */}
+        <div className="flex flex-1 overflow-hidden">
+
+          {/* Left: form */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
+
+            {/* Info — campos no editables */}
+            <div className="bg-slate-50 rounded-xl border border-slate-100 p-4">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Datos del contrato (solo lectura)</p>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-slate-400">Monto total</p>
+                  <p className="font-bold text-slate-900">{fmtMoney(loan.totalAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400">N.° de cuotas</p>
+                  <p className="font-bold text-slate-900">{loan.totalInstallments} cuotas</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400">Cuota mensual</p>
+                  <p className="font-bold text-emerald-700">{fmtMoney(loan.monthlyInstallment)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400">Saldo pendiente</p>
+                  <p className="font-bold text-amber-700">{fmtMoney(loan.remainingAmount)}</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mt-3 italic">El monto y las cuotas no se pueden modificar. Para cambiarlo, cancela y crea un nuevo préstamo.</p>
+            </div>
+
+            {/* Campos editables */}
+            <div>
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded bg-blue-100 text-blue-700 text-xs flex items-center justify-center font-bold">1</span>
+                Campos editables
+              </h3>
+              <div className="space-y-4">
+
+                {/* Tipo */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 block mb-2">Tipo de producto</label>
+                  <div className="flex gap-2">
+                    {([["loan", "💳", "Préstamo"], ["advance", "⚡", "Adelanto"]] as const).map(([val, icon, label]) => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, loanType: val }))}
+                        className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                          form.loanType === val
+                            ? val === "loan"
+                              ? "border-blue-500 bg-blue-50 text-blue-700"
+                              : "border-purple-500 bg-purple-50 text-purple-700"
+                            : "border-slate-200 text-slate-600 hover:border-slate-300"
+                        }`}
+                      >
+                        {icon} {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Notas */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 block mb-1">Notas / observaciones</label>
+                  <textarea
+                    value={form.notes}
+                    onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                    rows={4}
+                    placeholder="Motivo del préstamo, condiciones especiales..."
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: preview */}
+          <div className="w-52 flex-shrink-0 bg-slate-50 border-l border-slate-100 p-5 flex flex-col overflow-y-auto hidden sm:flex">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Vista previa</p>
+            <div className="space-y-2.5">
+              <div className="bg-white rounded-xl border border-slate-200 p-3">
+                <p className="text-xs text-slate-400">Colaborador</p>
+                <p className="font-semibold text-slate-900 text-sm mt-0.5 leading-tight">{loan.employeeName}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 p-3">
+                <p className="text-xs text-slate-400 mb-1">Tipo</p>
+                {loanTypeBadge(form.loanType)}
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 p-3">
+                <p className="text-xs text-slate-400">Monto total</p>
+                <p className="font-bold text-slate-900 text-sm mt-0.5">{fmtMoney(loan.totalAmount)}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 p-3">
+                <p className="text-xs text-slate-400">Cuotas</p>
+                <p className="font-bold text-slate-900 text-sm mt-0.5">{loan.paidInstallments}/{loan.totalInstallments} pagadas</p>
+              </div>
+              {form.notes && (
+                <div className="bg-white rounded-xl border border-slate-200 p-3">
+                  <p className="text-xs text-slate-400">Notas</p>
+                  <p className="text-xs text-slate-700 mt-0.5 italic leading-snug">{form.notes}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3 flex-shrink-0">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">Cancelar</button>
+          <button
+            disabled={isPending}
+            onClick={() => onSave(loan.id, form)}
+            className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors flex items-center gap-2"
+          >
+            {isPending && <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+            {isPending ? "Guardando..." : "Guardar cambios"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── RowMenu ──────────────────────────────────────────────────────────────────
 
-function RowMenu({ onDetail, onCancel, canCancel }: { onDetail: () => void; onCancel: () => void; canCancel: boolean }): JSX.Element {
+function RowMenu({ onDetail, onEdit, onCancel, canEdit, canCancel }: { onDetail: () => void; onEdit: () => void; onCancel: () => void; canEdit: boolean; canCancel: boolean }): JSX.Element {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -583,10 +758,15 @@ function RowMenu({ onDetail, onCancel, canCancel }: { onDetail: () => void; onCa
         •••
       </button>
       {open && (
-        <div className="absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-xl border border-slate-100 z-20 overflow-hidden">
+        <div className="absolute right-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-20 overflow-hidden">
           <button onClick={() => { onDetail(); setOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
             📋 Ver cronograma
           </button>
+          {canEdit && (
+            <button onClick={() => { onEdit(); setOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50">
+              ✏️ Editar préstamo
+            </button>
+          )}
           {canCancel && (
             <button onClick={() => { onCancel(); setOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">
               ✕ Cancelar préstamo
@@ -631,6 +811,7 @@ export function PaginaPrestamos(): JSX.Element {
   // Modals
   const [createOpen,   setCreateOpen]   = useState(false);
   const [detailLoanId, setDetailLoanId] = useState<string | null>(null);
+  const [editLoan,     setEditLoan]     = useState<PayrollLoan | null>(null);
 
   // Create form
   const [form,   setForm]   = useState<FormState>(blankForm());
@@ -709,6 +890,28 @@ export function PaginaPrestamos(): JSX.Element {
       setDetailLoanId(null);
     },
     onError: () => fail("No se pudo cancelar el préstamo."),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: EditForm }) =>
+      updatePayrollLoan(id, { loanType: patch.loanType, notes: patch.notes || null }),
+    onSuccess: async () => {
+      await invalidate();
+      ok("✓ Préstamo actualizado correctamente.");
+      setEditLoan(null);
+    },
+    onError: () => fail("No se pudo actualizar el préstamo."),
+  });
+
+  const payMutation = useMutation({
+    mutationFn: ({ loanId, installmentId }: { loanId: string; installmentId: string }) =>
+      registerInstallmentPayment(loanId, installmentId),
+    onSuccess: async () => {
+      await invalidate();
+      await queryClient.invalidateQueries({ queryKey: ["payroll-loan-detail", detailLoanId] });
+      ok("✓ Cuota marcada como pagada.");
+    },
+    onError: () => fail("No se pudo registrar el pago. Verifica que la cuota no esté ya pagada."),
   });
 
   function handleSave(): void {
@@ -967,6 +1170,8 @@ export function PaginaPrestamos(): JSX.Element {
                           <td className="px-4 py-3 text-right">
                             <RowMenu
                               onDetail={() => setDetailLoanId(r.id)}
+                              canEdit={r.isActive}
+                              onEdit={() => setEditLoan(r)}
                               canCancel={r.isActive}
                               onCancel={() =>
                                 setConfirm({
@@ -1119,6 +1324,15 @@ export function PaginaPrestamos(): JSX.Element {
         loanId={detailLoanId}
         onClose={() => setDetailLoanId(null)}
         cancelPending={cancelMutation.isPending}
+        payPending={payMutation.isPending}
+        onPayInstallment={(loanId, installmentId) =>
+          setConfirm({
+            title:   "Registrar pago manual",
+            message: "¿Marcar esta cuota como pagada? Esta acción no se puede deshacer.",
+            danger:  false,
+            onConfirm: () => payMutation.mutate({ loanId, installmentId }),
+          })
+        }
         onCancel={(id) =>
           setConfirm({
             title:   "Cancelar préstamo",
@@ -1127,6 +1341,13 @@ export function PaginaPrestamos(): JSX.Element {
             onConfirm: () => cancelMutation.mutate(id),
           })
         }
+      />
+
+      <EditPrestamoModal
+        loan={editLoan}
+        isPending={editMutation.isPending}
+        onClose={() => setEditLoan(null)}
+        onSave={(id, patch) => editMutation.mutate({ id, patch })}
       />
     </div>
   );

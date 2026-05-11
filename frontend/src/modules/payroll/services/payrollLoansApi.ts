@@ -1,5 +1,5 @@
 import { httpClient } from "@/services/api/httpClient";
-import type { CreatePayrollLoanRequest, PagedResult, PayrollLoan } from "@/modules/payroll/types/payroll.types";
+import type { CreatePayrollLoanRequest, UpdatePayrollLoanRequest, PagedResult, PayrollLoan } from "@/modules/payroll/types/payroll.types";
 
 export async function getPayrollLoans(params: {
   employeeId: string;
@@ -23,6 +23,16 @@ export async function getPayrollLoanById(id: string): Promise<PayrollLoan> {
 
 export async function createPayrollLoan(payload: CreatePayrollLoanRequest): Promise<PayrollLoan> {
   const { data } = await httpClient.post<PayrollLoan>("/api/v1/payroll/loans", payload);
+  return data;
+}
+
+export async function updatePayrollLoan(id: string, payload: UpdatePayrollLoanRequest): Promise<PayrollLoan> {
+  const { data } = await httpClient.put<PayrollLoan>(`/api/v1/payroll/loans/${id}`, payload);
+  return data;
+}
+
+export async function registerInstallmentPayment(loanId: string, installmentId: string): Promise<PayrollLoan> {
+  const { data } = await httpClient.post<PayrollLoan>(`/api/v1/payroll/loans/${loanId}/installments/${installmentId}/pay`);
   return data;
 }
 

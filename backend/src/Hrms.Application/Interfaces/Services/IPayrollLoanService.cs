@@ -9,4 +9,6 @@ public interface IPayrollLoanService
     Task<PayrollLoanDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<PayrollLoanDto> CreateAsync(CreatePayrollLoanRequestDto request, string createdBy, CancellationToken cancellationToken = default);
     Task<bool> CancelAsync(Guid id, string cancelledBy, CancellationToken cancellationToken = default);
+    Task<PayrollLoanDto> UpdateAsync(Guid id, UpdatePayrollLoanRequestDto request, string updatedBy, CancellationToken cancellationToken = default);
+    Task<PayrollLoanDto> RegisterPaymentAsync(Guid loanId, Guid installmentId, string registeredBy, CancellationToken cancellationToken = default);
 }

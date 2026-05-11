@@ -142,3 +142,8 @@ export type CreatePayrollLoanRequest = {
   startDate: string;
   notes: string;
 };
+
+export type UpdatePayrollLoanRequest = {
+  loanType: LoanType | null;
+  notes: string | null;
+};

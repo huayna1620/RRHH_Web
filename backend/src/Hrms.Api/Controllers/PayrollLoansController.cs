@@ -65,6 +65,40 @@ public sealed class PayrollLoansController(IPayrollLoanService payrollLoanServic
     }
 
     [Authorize(Policy = AppPermissions.PayrollLoansEdit)]
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePayrollLoanRequestDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var (userId, userName) = GetCurrentUser();
+            var result = await payrollLoanService.UpdateAsync(id, request, userName, cancellationToken);
+            await auditService.LogAsync(userId, userName, "update", "payroll.loans", id.ToString(), nameof(Domain.Entities.PayrollLoan), $"LoanType={result.LoanType}, Notes={result.Notes}", HttpContext.Connection.RemoteIpAddress?.ToString(), cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = AppPermissions.PayrollLoansEdit)]
+    [HttpPost("{id:guid}/installments/{installmentId:guid}/pay")]
+    public async Task<IActionResult> RegisterPayment(Guid id, Guid installmentId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var (userId, userName) = GetCurrentUser();
+            var result = await payrollLoanService.RegisterPaymentAsync(id, installmentId, userName, cancellationToken);
+            await auditService.LogAsync(userId, userName, "payment", "payroll.loans", id.ToString(), nameof(Domain.Entities.PayrollLoan), $"Cuota {installmentId} marcada como pagada manualmente", HttpContext.Connection.RemoteIpAddress?.ToString(), cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = AppPermissions.PayrollLoansEdit)]
     [HttpPost("{id:guid}/cancel")]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {

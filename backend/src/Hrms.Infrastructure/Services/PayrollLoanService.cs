@@ -130,6 +130,74 @@ public sealed class PayrollLoanService(HrmsDbContext dbContext) : IPayrollLoanSe
         return ToDto(result);
     }
 
+    public async Task<PayrollLoanDto> UpdateAsync(
+        Guid id,
+        UpdatePayrollLoanRequestDto request,
+        string updatedBy,
+        CancellationToken cancellationToken = default)
+    {
+        var loan = await dbContext.PayrollLoans
+            .Include(x => x.Employee)
+            .Include(x => x.Installments)
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken)
+            ?? throw new InvalidOperationException("Préstamo no encontrado.");
+
+        if (!loan.IsActive)
+            throw new InvalidOperationException("No se puede editar un préstamo cancelado o completado.");
+
+        // LoanType is just a label — safe to change at any time.
+        if (request.LoanType is not null)
+        {
+            var normalised = request.LoanType.ToLowerInvariant();
+            if (!new[] { "loan", "advance" }.Contains(normalised))
+                throw new InvalidOperationException("Tipo inválido. Use 'loan' o 'advance'.");
+            loan.LoanType = normalised;
+        }
+
+        loan.Notes = request.Notes?.Trim();
+        loan.UpdatedAtUtc = DateTime.UtcNow;
+        loan.UpdatedBy = updatedBy;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(loan);
+    }
+
+    public async Task<PayrollLoanDto> RegisterPaymentAsync(
+        Guid loanId,
+        Guid installmentId,
+        string registeredBy,
+        CancellationToken cancellationToken = default)
+    {
+        var loan = await dbContext.PayrollLoans
+            .Include(x => x.Employee)
+            .Include(x => x.Installments)
+            .FirstOrDefaultAsync(x => x.Id == loanId && !x.IsDeleted, cancellationToken)
+            ?? throw new InvalidOperationException("Préstamo no encontrado.");
+
+        var installment = loan.Installments.FirstOrDefault(i => i.Id == installmentId && !i.IsDeleted)
+            ?? throw new InvalidOperationException("Cuota no encontrada.");
+
+        if (installment.IsPaid)
+            throw new InvalidOperationException("La cuota ya se encuentra pagada.");
+
+        var now = DateTime.UtcNow;
+        installment.IsPaid = true;
+        installment.PaidAtUtc = now;
+        installment.UpdatedAtUtc = now;
+        installment.UpdatedBy = registeredBy;
+
+        loan.PaidInstallments += 1;
+        loan.UpdatedAtUtc = now;
+        loan.UpdatedBy = registeredBy;
+
+        // Auto-close loan when all installments are paid.
+        if (loan.PaidInstallments >= loan.TotalInstallments)
+            loan.IsActive = false;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(loan);
+    }
+
     public async Task<bool> CancelAsync(Guid id, string cancelledBy, CancellationToken cancellationToken = default)
     {
         var loan = await dbContext.PayrollLoans
