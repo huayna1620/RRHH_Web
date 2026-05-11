@@ -26,6 +26,16 @@ import {
   getRotationReport,
   getVacationsReport,
 } from "@/modules/reports/services/reportsApi";
+import { exportRows, type ExportRow } from "@/components/export/exportUtils";
+import { getHolidays } from "@/modules/holidays/services/holidaysApi";
+import { getIncidents, getIncidentStats } from "@/modules/incidents/services/incidentsApi";
+import { getPayrollConcepts } from "@/modules/payroll/services/payrollConceptsApi";
+import { getPayrollLoans } from "@/modules/payroll/services/payrollLoansApi";
+import { getRecruitmentCandidates } from "@/modules/recruitment/services/recruitmentApi";
+import { getCycles } from "@/modules/evaluations/services/evaluationsApi";
+import { getOnboardingProcesses } from "@/modules/onboarding/services/onboardingApi";
+import { getAreas, getPositions } from "@/modules/org-structure/services/orgStructureApi";
+import { getDocuments } from "@/modules/documents/services/documentsApi";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -53,6 +63,17 @@ function fmtCurrency(n: number): string {
 function fmtPct(n: number): string { return `${n.toFixed(1)}%`; }
 function padMonth(m: number): string { return String(m).padStart(2, "0"); }
 function monthLabel(m: number): string { return MONTHS.find((x) => x.v === m)?.l ?? String(m); }
+function fmtDate(value: string | null | undefined): string {
+  if (!value) return "";
+  return new Date(value).toLocaleDateString("es-PE");
+}
+function daysUntil(value: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(value);
+  target.setHours(0, 0, 0, 0);
+  return Math.ceil((target.getTime() - today.getTime()) / 86_400_000);
+}
 
 // ─── Export helpers ────────────────────────────────────────────────────────────
 
@@ -62,15 +83,51 @@ interface ExportData {
   headers: string[];
   rows: string[][];
   footerRow?: string[];
+  summary?: string;
+  metrics?: Array<{ label: string; value: string | number; helper?: string }>;
 }
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pendiente", approved: "Aprobado", rejected: "Rechazado", cancelled: "Cancelado",
+  open: "Abierto", justified: "Justificado", expired: "Vencido",
+  draft: "Borrador", pending_signature: "Pendiente de firma", signed: "Firmado",
+  new: "Nuevo", screening: "Preselección", interview: "Entrevista", offered: "Oferta", hired: "Contratado",
+  active: "Activo", closed: "Cerrado", paid: "Pagado",
 };
 const TYPE_LABEL: Record<string, string> = {
   personal: "Personal", medical: "Médico", study: "Estudio",
-  maternity_paternity: "Maternidad/Paternidad", other: "Otro",
+  maternity_paternity: "Maternidad / paternidad", other: "Otro",
+  tardanza: "Tardanza", falta: "Falta", salida_anticipada: "Salida anticipada", no_marcacion: "No marcación",
+  earning: "Ingreso", deduction: "Descuento", loan: "Préstamo", advance: "Adelanto",
 };
+
+const REPORT_FILE_BASE: Record<string, string> = {
+  attendance: "Asistencia_Mensual",
+  vacations: "Reporte_de_Vacaciones",
+  leaves: "Reporte_de_Permisos",
+  absenteeism: "Reporte_de_Ausentismo",
+  holidays: "Feriados",
+  incidents: "Incidencias_de_Asistencia",
+  payroll: "Planilla",
+  "labor-cost": "Costo_Laboral_por_Area",
+  concepts: "Conceptos_de_Planilla",
+  loans: "Prestamos_Activos",
+  employees: "Reporte_de_Empleados",
+  rotation: "Rotacion_de_Personal",
+  candidates: "Candidatos",
+  evaluations: "Evaluaciones",
+  onboarding: "Onboarding",
+  areas: "Areas_Organizacionales",
+  "org-chart": "Estructura_Organizacional",
+  "docs-active": "Documentos_Vigentes",
+  "docs-expiring": "Documentos_por_Vencer",
+};
+
+function reportFileName(reportId: string, year: number, month: number, extension: string): string {
+  const base = REPORT_FILE_BASE[reportId] ?? "Reporte";
+  const needsMonth = ["attendance", "payroll", "labor-cost", "absenteeism"].includes(reportId);
+  return `${base}_${needsMonth ? `${monthLabel(month)}_` : ""}${year}.${extension}`;
+}
 
 function getExportData(
   reportId: string, year: number, month: number,
@@ -227,12 +284,12 @@ function openPrintWindow(data: ExportData): void {
 
 // ─── Catálogo de reportes ─────────────────────────────────────────────────────
 
-type ReportStatus = "available" | "coming-soon";
+type ReportStatus = "available" | "requires-backend";
 
 interface CatalogReport {
   id: string; name: string; desc: string;
   icon: typeof BarChart2; status: ReportStatus;
-  excelPath?: string; category: string;
+  excelPath?: string; category: string; unavailableReason?: string;
 }
 
 const CATALOG: CatalogReport[] = [
@@ -240,21 +297,21 @@ const CATALOG: CatalogReport[] = [
   { id: "vacations",   name: "Vacaciones",                desc: "Solicitudes de vacaciones por estado y días aprobados.",           icon: CalendarDays,  status: "available",   excelPath: "/api/v1/reports/vacations/excel",   category: "operativos" },
   { id: "leaves",      name: "Permisos",                  desc: "Permisos por tipo, pagados y no pagados.",                        icon: BookOpen,      status: "available",   excelPath: "/api/v1/reports/leaves/excel",      category: "operativos" },
   { id: "absenteeism", name: "Ausentismo",                desc: "Tasa de ausentismo y días perdidos por área.",                    icon: TrendingUp,    status: "available",   excelPath: "/api/v1/reports/absenteeism/excel", category: "operativos" },
-  { id: "holidays",    name: "Feriados",                  desc: "Calendario de feriados activos del año.",                         icon: Star,          status: "coming-soon",                                                  category: "operativos" },
-  { id: "incidents",   name: "Incidencias de asistencia", desc: "Tardanzas, faltas y salidas anticipadas.",                        icon: AlertCircle,   status: "coming-soon",                                                  category: "operativos" },
+  { id: "holidays",    name: "Feriados",                  desc: "Calendario de feriados activos del año.",                         icon: Star,          status: "available",                                                    category: "operativos" },
+  { id: "incidents",   name: "Incidencias de asistencia", desc: "Tardanzas, faltas y salidas anticipadas.",                        icon: AlertCircle,   status: "available",                                                    category: "operativos" },
   { id: "payroll",     name: "Planilla mensual",          desc: "Totales de haberes, beneficios y deducciones.",                   icon: Wallet,        status: "available",   excelPath: "/api/v1/reports/payroll/excel",     category: "nomina"     },
   { id: "labor-cost",  name: "Costo laboral por área",   desc: "Distribución del costo salarial y neto por área.",                icon: BarChart3,     status: "available",   excelPath: "/api/v1/reports/labor-cost/excel",  category: "nomina"     },
-  { id: "concepts",    name: "Conceptos de planilla",     desc: "Detalle de conceptos, categorías y montos.",                      icon: FileText,      status: "coming-soon",                                                  category: "nomina"     },
-  { id: "loans",       name: "Préstamos activos",         desc: "Estado y saldo de préstamos por colaborador.",                    icon: Briefcase,     status: "coming-soon",                                                  category: "nomina"     },
+  { id: "concepts",    name: "Conceptos de planilla",     desc: "Detalle de conceptos, categorías y montos.",                      icon: FileText,      status: "available",                                                    category: "nomina"     },
+  { id: "loans",       name: "Préstamos activos",         desc: "Estado y saldo de préstamos por colaborador.",                    icon: Briefcase,     status: "available",                                                    category: "nomina"     },
   { id: "employees",   name: "Empleados",                 desc: "Distribución de empleados activos e inactivos por área.",         icon: Users,         status: "available",   excelPath: "/api/v1/reports/employees/excel",   category: "talento"    },
   { id: "rotation",    name: "Rotación de personal",      desc: "Tasa de rotación, ingresos y bajas por área.",                   icon: RefreshCw,     status: "available",   excelPath: "/api/v1/reports/rotation/excel",    category: "talento"    },
-  { id: "candidates",  name: "Candidatos",                desc: "Postulantes por convocatoria y estado.",                         icon: Users,         status: "coming-soon",                                                  category: "talento"    },
-  { id: "evaluations", name: "Evaluaciones",              desc: "Resultados de evaluaciones de desempeño.",                       icon: CheckCircle2,  status: "coming-soon",                                                  category: "talento"    },
-  { id: "onboarding",  name: "Onboarding",                desc: "Avance de incorporación de nuevos colaboradores.",               icon: Zap,           status: "coming-soon",                                                  category: "talento"    },
-  { id: "areas",       name: "Áreas organizacionales",   desc: "Estructura de áreas y dotación por unidad.",                     icon: Building2,     status: "coming-soon",                                                  category: "maestros"   },
-  { id: "org-chart",   name: "Estructura organizacional", desc: "Organigrama y jerarquía de la empresa.",                         icon: Shield,        status: "coming-soon",                                                  category: "maestros"   },
-  { id: "docs-active", name: "Documentos vigentes",       desc: "Documentos en vigencia por colaborador.",                        icon: FileText,      status: "coming-soon",                                                  category: "documentos" },
-  { id: "docs-expiring",name: "Por vencer",               desc: "Documentos próximos a vencer en los próximos 30 días.",         icon: AlertCircle,   status: "coming-soon",                                                  category: "documentos" },
+  { id: "candidates",  name: "Candidatos",                desc: "Postulantes por convocatoria y estado.",                         icon: Users,         status: "available",                                                    category: "talento"    },
+  { id: "evaluations", name: "Evaluaciones",              desc: "Resultados de evaluaciones de desempeño.",                       icon: CheckCircle2,  status: "available",                                                    category: "talento"    },
+  { id: "onboarding",  name: "Onboarding",                desc: "Avance de incorporación de nuevos colaboradores.",               icon: Zap,           status: "available",                                                    category: "talento"    },
+  { id: "areas",       name: "Áreas organizacionales",   desc: "Estructura de áreas y dotación por unidad.",                     icon: Building2,     status: "available",                                                    category: "maestros"   },
+  { id: "org-chart",   name: "Estructura organizacional", desc: "Organigrama y jerarquía de la empresa.",                         icon: Shield,        status: "available",                                                    category: "maestros"   },
+  { id: "docs-active", name: "Documentos vigentes",       desc: "Documentos en vigencia por colaborador.",                        icon: FileText,      status: "available",                                                    category: "documentos" },
+  { id: "docs-expiring",name: "Por vencer",               desc: "Documentos próximos a vencer en los próximos 30 días.",         icon: AlertCircle,   status: "available",                                                    category: "documentos" },
 ];
 
 const CATEGORIES = [
@@ -452,7 +509,7 @@ function DownloadHistoryPanel({ items, onClear }: { items: HistoryItem[]; onClea
 
 // ─── PowerBIPanel ─────────────────────────────────────────────────────────────
 
-function PowerBIPanel(): JSX.Element {
+function PowerBIConfigurationReference(): JSX.Element {
   return (
     <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white shadow-sm">
       <div className="px-5 py-5">
@@ -463,7 +520,7 @@ function PowerBIPanel(): JSX.Element {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-[14px] font-bold text-slate-900">Power BI</h3>
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-700">Próximamente</span>
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-700">Requiere configuración</span>
             </div>
             <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
               Conecta Power BI para visualizar dashboards interactivos, tendencias y análisis avanzados del RRHH.
@@ -492,6 +549,62 @@ function PowerBIPanel(): JSX.Element {
 
 // ─── ReportCard ───────────────────────────────────────────────────────────────
 
+function PowerBIPanel(): JSX.Element {
+  const powerBiUrl = (import.meta.env.VITE_POWER_BI_REPORT_URL as string | undefined)?.trim();
+  const isConfigured = Boolean(powerBiUrl);
+
+  return (
+    <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white shadow-sm">
+      <div className="px-5 py-5">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 shadow-sm">
+            <BarChart2 className="size-5 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-[14px] font-bold text-slate-900">Power BI</h3>
+              <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${isConfigured ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                {isConfigured ? "Configurado" : "Requiere configuración"}
+              </span>
+            </div>
+            <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
+              {isConfigured
+                ? "Abre el dashboard corporativo configurado para analisis avanzado de RRHH."
+                : "Para habilitar dashboards reales se necesita un enlace o embed seguro de Power BI configurado en el entorno."}
+            </p>
+          </div>
+        </div>
+        <ul className="mt-4 space-y-1.5">
+          {[
+            "VITE_POWER_BI_REPORT_URL con el enlace publicado o embebido",
+            "Workspace, report id, dataset y permisos definidos en Power BI Service",
+            "Backend con token embebido si el reporte no es publico",
+            "Usuarios autorizados antes de abrir informacion sensible",
+          ].map((item) => (
+            <li key={item} className="flex items-center gap-2 text-[11px] text-slate-500">
+              <CheckCircle2 className="size-3 shrink-0 text-indigo-400" />{item}
+            </li>
+          ))}
+        </ul>
+        <button
+          disabled={!isConfigured}
+          onClick={() => { if (powerBiUrl) window.open(powerBiUrl, "_blank", "noopener,noreferrer"); }}
+          className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-[12px] font-semibold shadow-sm transition ${
+            isConfigured
+              ? "border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
+              : "border-indigo-200 bg-white text-indigo-400 cursor-not-allowed"
+          }`}
+        >
+          <ExternalLink className="size-3.5" />{isConfigured ? "Abrir dashboard Power BI" : "Power BI pendiente de configuracion"}
+        </button>
+        <p className="mt-2 text-center text-[10px] text-slate-400">
+          No se muestran dashboards simulados ni datos inventados.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function ReportCard({ report, selected, onSelect, onExcel, onCsv, onPdf }: {
   report: CatalogReport; selected: boolean;
   onSelect: (id: string) => void;
@@ -501,28 +614,31 @@ function ReportCard({ report, selected, onSelect, onExcel, onCsv, onPdf }: {
   const isAvailable = report.status === "available";
 
   return (
-    <div className={`group relative flex flex-col rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md ${selected ? "border-indigo-300 ring-2 ring-indigo-100" : "border-slate-200"} ${!isAvailable ? "opacity-70" : ""}`}>
-      {report.status === "coming-soon" && (
-        <span className="absolute right-3 top-3 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase text-slate-500">Próximamente</span>
-      )}
+    <div className={`group relative flex min-h-[208px] flex-col rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? "border-indigo-300 ring-2 ring-indigo-100" : "border-slate-200"} ${!isAvailable ? "opacity-80" : ""}`}>
       {isAvailable && (
         <span className="absolute right-3 top-3 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase text-emerald-600">Disponible</span>
       )}
+      {!isAvailable && (
+        <span className="absolute right-3 top-3 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-700">Requiere backend</span>
+      )}
 
       <div className="flex items-center gap-3 pr-20">
-        <div className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${isAvailable ? "bg-indigo-50" : "bg-slate-100"}`}>
+        <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl shadow-sm ${isAvailable ? "bg-indigo-50 shadow-indigo-100" : "bg-slate-100"}`}>
           <Icon className={`size-4 ${isAvailable ? "text-indigo-600" : "text-slate-400"}`} />
         </div>
         <p className="text-[13px] font-bold text-slate-800 leading-tight">{report.name}</p>
       </div>
 
-      <p className="mt-2 text-[11px] leading-relaxed text-slate-400">{report.desc}</p>
+      <p className="mt-3 min-h-[38px] text-[11px] leading-relaxed text-slate-500">{report.desc}</p>
+      {!isAvailable && report.unavailableReason && (
+        <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[10px] font-medium leading-relaxed text-amber-700">{report.unavailableReason}</p>
+      )}
 
       {isAvailable && (
-        <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+        <div className="mt-auto space-y-2 border-t border-slate-100 pt-3">
           <button
             onClick={() => onSelect(report.id)}
-            className={`inline-flex w-full items-center justify-center gap-1 rounded-lg border py-1.5 text-[11px] font-semibold transition ${selected ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+            className={`inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg border text-[11px] font-semibold transition ${selected ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
           >
             <ChevronRight className="size-3" />Vista previa
           </button>
@@ -537,8 +653,10 @@ function ReportCard({ report, selected, onSelect, onExcel, onCsv, onPdf }: {
 
 // ─── PreviewWrapper ───────────────────────────────────────────────────────────
 
-function PreviewWrapper({ title, period, count, onExcel, onCsv, onPdf, children }: {
+function PreviewWrapper({ title, period, count, summary, metrics, onExcel, onCsv, onPdf, children }: {
   title: string; period: string; count: number;
+  summary?: string;
+  metrics?: Array<{ label: string; value: string | number; helper?: string }>;
   onExcel?: () => void; onCsv?: () => void; onPdf?: () => void;
   children: JSX.Element;
 }): JSX.Element {
@@ -551,6 +669,22 @@ function PreviewWrapper({ title, period, count, onExcel, onCsv, onPdf, children 
         </div>
         <ExportFormatButtons onExcel={onExcel} onCsv={onCsv} onPdf={onPdf} />
       </div>
+      {(summary || metrics?.length) && (
+        <div className="border-b border-slate-100 px-5 py-4">
+          {summary && <p className="text-[12px] leading-relaxed text-slate-500">{summary}</p>}
+          {metrics?.length ? (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {metrics.map((metric) => (
+                <div key={metric.label} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{metric.label}</p>
+                  <p className="mt-1 text-[18px] font-extrabold leading-none text-slate-900">{metric.value}</p>
+                  {metric.helper && <p className="mt-1 text-[10px] text-slate-400">{metric.helper}</p>}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
       <div className="overflow-x-auto">{children}</div>
     </div>
   );
@@ -567,13 +701,14 @@ function EmptyTableRow({ cols }: { cols: number }): JSX.Element {
 function PreviewSection({ reportId, year, month,
   attendanceData, vacationsData, leavesData, payrollData,
   employeesData, rotationData, absenteeismData, laborCostData,
-  onExcel, onCsv, onPdf,
+  genericData, onExcel, onCsv, onPdf,
 }: {
   reportId: string; year: number; month: number;
   attendanceData?: AttendanceReport; vacationsData?: VacationsReport;
   leavesData?: LeavesReport; payrollData?: PayrollReport;
   employeesData?: EmployeesReport; rotationData?: RotationReport;
   absenteeismData?: AbsenteeismReport; laborCostData?: LaborCostReport;
+  genericData?: ExportData | null;
   onExcel: () => void; onCsv: () => void; onPdf: () => void;
 }): JSX.Element | null {
 
@@ -863,6 +998,37 @@ function PreviewSection({ reportId, year, month,
     );
   }
 
+  if (genericData) {
+    return (
+      <PreviewWrapper title={genericData.title} period={genericData.period} count={genericData.rows.length} summary={genericData.summary} metrics={genericData.metrics} onExcel={onExcel} onCsv={onCsv} onPdf={onPdf}>
+        <table className="min-w-full">
+          <thead><tr className="border-b border-slate-100 bg-slate-50/80">
+            {genericData.headers.map((h) => (
+              <th key={h} className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400">{h}</th>
+            ))}
+          </tr></thead>
+          <tbody className="divide-y divide-slate-100">
+            {genericData.rows.map((row, index) => (
+              <tr key={index} className="hover:bg-slate-50/60 transition">
+                {row.map((cell, cellIndex) => (
+                  <td key={`${index}-${cellIndex}`} className="px-4 py-2 text-[12px] text-slate-600">{cell || "-"}</td>
+                ))}
+              </tr>
+            ))}
+            {genericData.rows.length === 0 && <EmptyTableRow cols={genericData.headers.length} />}
+          </tbody>
+          {genericData.footerRow && genericData.rows.length > 0 && (
+            <tfoot><tr className="border-t-2 border-slate-200 bg-slate-50">
+              {genericData.footerRow.map((cell, index) => (
+                <td key={index} className="px-4 py-2.5 text-[12px] font-bold text-slate-700">{cell || ""}</td>
+              ))}
+            </tr></tfoot>
+          )}
+        </table>
+      </PreviewWrapper>
+    );
+  }
+
   return null;
 }
 
@@ -915,8 +1081,28 @@ export function PaginaReportes(): JSX.Element {
   const rotQ = useQuery({ queryKey: ["report-rotation", appliedYear], queryFn: () => getRotationReport(appliedYear) });
   const absQ = useQuery({ queryKey: ["report-absenteeism", appliedYear, appliedMonth], queryFn: () => getAbsenteeismReport(appliedYear, appliedMonth) });
   const labQ = useQuery({ queryKey: ["report-labor-cost", appliedYear, appliedMonth], queryFn: () => getLaborCostReport(appliedYear, appliedMonth) });
+  const holQ = useQuery({ queryKey: ["report-holidays"], queryFn: getHolidays });
+  const incQ = useQuery({
+    queryKey: ["report-incidents", appliedYear],
+    queryFn: () => getIncidents({ employeeId: "", incidentType: "", status: "", fromDate: `${appliedYear}-01-01`, toDate: `${appliedYear}-12-31`, search: "", pageNumber: 1, pageSize: 5000 }),
+  });
+  const incStatsQ = useQuery({
+    queryKey: ["report-incidents-stats", appliedYear],
+    queryFn: () => getIncidentStats({ employeeId: "", incidentType: "", status: "", fromDate: `${appliedYear}-01-01`, toDate: `${appliedYear}-12-31`, search: "", pageNumber: 1, pageSize: 1 }),
+  });
+  const conceptsQ = useQuery({ queryKey: ["report-concepts"], queryFn: getPayrollConcepts });
+  const loansQ = useQuery({ queryKey: ["report-loans"], queryFn: () => getPayrollLoans({ employeeId: "", activeOnly: true, pageNumber: 1, pageSize: 5000 }) });
+  const candidatesQ = useQuery({ queryKey: ["report-candidates"], queryFn: () => getRecruitmentCandidates({ search: "", status: "" as never, isPotentialHire: undefined as unknown as boolean, isActive: undefined as unknown as boolean, jobPostingId: "", pageNumber: 1, pageSize: 5000 }) });
+  const evalQ = useQuery({ queryKey: ["report-evaluations"], queryFn: getCycles });
+  const onboardingQ = useQuery({ queryKey: ["report-onboarding"], queryFn: () => getOnboardingProcesses() });
+  const areasQ = useQuery({ queryKey: ["report-areas"], queryFn: () => getAreas({ search: "", pageNumber: 1, pageSize: 5000, sortBy: "name", sortDirection: "asc" }) });
+  const positionsQ = useQuery({ queryKey: ["report-positions"], queryFn: () => getPositions({ search: "", pageNumber: 1, pageSize: 5000, sortBy: "name", sortDirection: "asc" }) });
+  const docsQ = useQuery({ queryKey: ["report-documents"], queryFn: () => getDocuments("", "") });
 
-  const anyLoading = empQ.isLoading || attQ.isLoading || vacQ.isLoading || leaQ.isLoading || payQ.isLoading;
+  const anyLoading = empQ.isLoading || attQ.isLoading || vacQ.isLoading || leaQ.isLoading || payQ.isLoading
+    || rotQ.isLoading || absQ.isLoading || labQ.isLoading || holQ.isLoading || incQ.isLoading
+    || conceptsQ.isLoading || loansQ.isLoading || candidatesQ.isLoading || evalQ.isLoading
+    || onboardingQ.isLoading || areasQ.isLoading || positionsQ.isLoading || docsQ.isLoading;
 
   // ── KPI values ──────────────────────────────────────────────────────────────
 
@@ -970,14 +1156,95 @@ export function PaginaReportes(): JSX.Element {
     setPreviewId((p) => (p === id ? null : id));
   }
 
+  function getReportData(reportId: string): ExportData | null {
+    const baseData = getExportData(reportId, appliedYear, appliedMonth, attQ.data, vacQ.data, leaQ.data, payQ.data, empQ.data, rotQ.data, absQ.data, labQ.data);
+    if (baseData) return baseData;
+    if (reportId === "holidays") {
+      const rows = (holQ.data ?? []).filter((item) => item.date.startsWith(String(appliedYear)));
+      const recurring = rows.filter((item) => item.isRecurring).length;
+      return { title: "Feriados", period: `Año ${appliedYear}`, headers: ["Fecha", "Nombre", "Tipo"], rows: rows.map((item) => [item.date, item.name, item.isRecurring ? "Recurrente" : "Único"]), footerRow: ["TOTAL", String(rows.length), ""], summary: "Calendario anual de feriados registrados para planificación operativa y control de asistencia.", metrics: [{ label: "Feriados", value: rows.length }, { label: "Recurrentes", value: recurring }, { label: "Únicos", value: rows.length - recurring }] };
+    }
+    if (reportId === "incidents") {
+      const rows = incQ.data?.items ?? [];
+      const totalMinutes = rows.reduce((sum, item) => sum + item.minutesImpacted, 0);
+      return { title: "Incidencias de Asistencia", period: `Año ${appliedYear}`, headers: ["Fecha", "Empleado", "Código", "Área", "Tipo", "Minutos", "Estado", "Responsable"], rows: rows.map((item) => [item.incidentDate, item.employeeName, item.employeeCode, item.area, TYPE_LABEL[item.incidentType] ?? item.incidentType, String(item.minutesImpacted), STATUS_LABEL[item.status] ?? item.status, item.reviewedByUserName ?? "Pendiente"]), footerRow: ["TOTAL", String(incStatsQ.data?.total ?? rows.length), "", "", "", String(totalMinutes), "", ""], summary: "Incidencias registradas, impacto en minutos y estado de revisión para seguimiento de asistencia.", metrics: [{ label: "Incidencias", value: incStatsQ.data?.total ?? rows.length }, { label: "Minutos", value: totalMinutes.toLocaleString("es-PE") }, { label: "Abiertas", value: rows.filter((item) => item.status === "open").length }, { label: "Justificadas", value: rows.filter((item) => item.status === "justified").length }] };
+    }
+    if (reportId === "concepts") {
+      const rows = conceptsQ.data ?? [];
+      return { title: "Conceptos de Planilla", period: "Configuración vigente", headers: ["Código", "Nombre", "Tipo", "Monto fijo", "Porcentaje", "Automático", "Activo"], rows: rows.map((item) => [item.code, item.name, TYPE_LABEL[item.type] ?? item.type, item.fixedAmount != null ? fmtCurrency(item.fixedAmount) : "", item.percentage != null ? `${item.percentage}%` : "", item.isAutomatic ? "Sí" : "No", item.isActive ? "Sí" : "No"]), footerRow: ["TOTAL", String(rows.length), "", "", "", "", ""], summary: "Catálogo vigente de conceptos que alimentan el cálculo de planilla.", metrics: [{ label: "Conceptos", value: rows.length }, { label: "Activos", value: rows.filter((item) => item.isActive).length }, { label: "Automáticos", value: rows.filter((item) => item.isAutomatic).length }] };
+    }
+    if (reportId === "loans") {
+      const rows = loansQ.data?.items ?? [];
+      const balance = rows.reduce((sum, item) => sum + item.remainingAmount, 0);
+      return { title: "Préstamos Activos", period: "Cartera vigente", headers: ["Empleado", "Código", "Tipo", "Monto total", "Cuota mensual", "Cuotas pagadas", "Cuotas pendientes", "Saldo"], rows: rows.map((item) => [item.employeeName, item.employeeCode, TYPE_LABEL[item.loanType] ?? item.loanType, fmtCurrency(item.totalAmount), fmtCurrency(item.monthlyInstallment), String(item.paidInstallments), String(item.remainingInstallments), fmtCurrency(item.remainingAmount)]), footerRow: ["TOTAL", String(rows.length), "", "", "", "", "", fmtCurrency(balance)], summary: "Cartera activa de préstamos y adelantos con saldo pendiente por colaborador.", metrics: [{ label: "Préstamos", value: rows.length }, { label: "Saldo total", value: fmtCurrency(balance) }, { label: "Cuotas pendientes", value: rows.reduce((sum, item) => sum + item.remainingInstallments, 0) }] };
+    }
+    if (reportId === "candidates") {
+      const rows = candidatesQ.data?.items ?? [];
+      return { title: "Candidatos", period: "Proceso de reclutamiento vigente", headers: ["Candidato", "Correo", "Teléfono", "Puesto", "Fecha", "Estado"], rows: rows.map((item) => [item.fullName, item.email, item.phoneNumber, item.positionApplied, item.applicationDate, STATUS_LABEL[item.currentStatus] ?? item.currentStatus]), footerRow: ["TOTAL", String(rows.length), "", "", "", ""], summary: "Pipeline de postulantes por puesto y estado actual del proceso.", metrics: [{ label: "Candidatos", value: rows.length }, { label: "Entrevista", value: rows.filter((item) => item.currentStatus === "interview").length }, { label: "Contratados", value: rows.filter((item) => item.currentStatus === "hired").length }] };
+    }
+    if (reportId === "evaluations") {
+      const rows = evalQ.data ?? [];
+      const totalAssignments = rows.reduce((sum, item) => sum + item.totalAssignments, 0);
+      const finalizedAssignments = rows.reduce((sum, item) => sum + item.finalizedAssignments, 0);
+      return { title: "Evaluaciones", period: "Ciclos registrados", headers: ["Nombre", "Periodo", "Inicio", "Fin", "Asignaciones", "Estado"], rows: rows.map((item) => [item.name, item.period, item.startDate, item.endDate, `${item.finalizedAssignments}/${item.totalAssignments}`, STATUS_LABEL[item.status] ?? item.status]), footerRow: ["TOTAL", String(rows.length), "", "", `${finalizedAssignments}/${totalAssignments}`, ""], summary: "Ciclos de evaluación con avance de asignaciones y estado operativo.", metrics: [{ label: "Ciclos", value: rows.length }, { label: "Asignaciones", value: totalAssignments }, { label: "Finalizadas", value: finalizedAssignments }] };
+    }
+    if (reportId === "onboarding") {
+      const rows = onboardingQ.data ?? [];
+      return { title: "Onboarding", period: "Procesos registrados", headers: ["Empleado", "Código", "Plantilla", "Inicio", "Avance", "Estado"], rows: rows.map((item) => [item.employeeName, item.employeeCode, item.templateName, fmtDate(item.startedAtUtc), `${item.completedTasks}/${item.totalTasks} (${item.progressPercent}%)`, item.isActive ? "Activo" : "Cerrado"]), footerRow: ["TOTAL", String(rows.length), "", "", "", ""], summary: "Procesos de incorporación y avance de tareas por colaborador.", metrics: [{ label: "Procesos", value: rows.length }, { label: "Activos", value: rows.filter((item) => item.isActive).length }, { label: "Progreso promedio", value: `${Math.round(rows.reduce((sum, item) => sum + item.progressPercent, 0) / Math.max(rows.length, 1))}%` }] };
+    }
+    if (reportId === "areas") {
+      const rows = areasQ.data?.items ?? [];
+      const employees = rows.reduce((sum, item) => sum + item.employeesCount, 0);
+      return { title: "Áreas Organizacionales", period: "Estructura vigente", headers: ["Código", "Área", "Responsable", "Cargo responsable", "Empleados", "Estado"], rows: rows.map((item) => [item.code, item.name, item.responsibleName ?? "", item.responsiblePosition ?? "", String(item.employeesCount), item.isActive ? "Activo" : "Inactivo"]), footerRow: ["TOTAL", String(rows.length), "", "", String(employees), ""], summary: "Mapa de áreas activas, responsables y dotación registrada por unidad.", metrics: [{ label: "Áreas", value: rows.length }, { label: "Activas", value: rows.filter((item) => item.isActive).length }, { label: "Empleados", value: employees }] };
+    }
+    if (reportId === "org-chart") {
+      const rows = positionsQ.data?.items ?? [];
+      return { title: "Estructura Organizacional", period: "Organigrama vigente", headers: ["Código", "Puesto", "Área", "Nivel", "Reporta a", "Empleados", "Estado"], rows: rows.map((item) => [item.code, item.name, item.areaName ?? "", item.level ?? "", item.reportsToName ?? "", String(item.employeesCount), item.isActive ? "Activo" : "Inactivo"]), footerRow: ["TOTAL", String(rows.length), "", "", "", "", ""], summary: "Puestos, niveles jerárquicos y relación de reporte dentro de la organización.", metrics: [{ label: "Puestos", value: rows.length }, { label: "Activos", value: rows.filter((item) => item.isActive).length }, { label: "Con jefe asignado", value: rows.filter((item) => Boolean(item.reportsToName)).length }] };
+    }
+    if (reportId === "docs-active") {
+      const rows = (docsQ.data ?? []).filter((item) => item.status === "signed" || item.status === "pending_signature");
+      return { title: "Documentos Vigentes", period: "Repositorio documental", headers: ["Empleado", "Código", "Título", "Tipo", "Estado", "Fecha", "Vencimiento"], rows: rows.map((item) => [item.employeeName, item.employeeCode, item.title, item.type, STATUS_LABEL[item.status] ?? item.status, fmtDate(item.createdAtUtc), item.expiresAtUtc ? fmtDate(item.expiresAtUtc) : "Sin vencimiento"]), footerRow: ["TOTAL", String(rows.length), "", "", "", "", ""], summary: "Documentos laborales vigentes o pendientes de firma, con trazabilidad de vencimiento cuando aplica.", metrics: [{ label: "Documentos", value: rows.length }, { label: "Firmados", value: rows.filter((item) => item.status === "signed").length }, { label: "Pendientes", value: rows.filter((item) => item.status === "pending_signature").length }, { label: "Con vencimiento", value: rows.filter((item) => Boolean(item.expiresAtUtc)).length }] };
+    }
+    if (reportId === "docs-expiring") {
+      const rows = (docsQ.data ?? [])
+        .filter((item) => Boolean(item.expiresAtUtc))
+        .filter((item) => item.status === "signed" || item.status === "pending_signature")
+        .map((item) => ({ ...item, remainingDays: daysUntil(item.expiresAtUtc!) }))
+        .filter((item) => item.remainingDays >= 0 && item.remainingDays <= 30)
+        .sort((a, b) => a.remainingDays - b.remainingDays);
+      return { title: "Documentos por Vencer", period: "Próximos 30 días", headers: ["Empleado", "Código", "Título", "Tipo", "Estado", "Vencimiento", "Días restantes"], rows: rows.map((item) => [item.employeeName, item.employeeCode, item.title, item.type, STATUS_LABEL[item.status] ?? item.status, fmtDate(item.expiresAtUtc), String(item.remainingDays)]), footerRow: ["TOTAL", String(rows.length), "", "", "", "", ""], summary: "Documentos con fecha de vencimiento dentro de los próximos 30 días para gestión preventiva.", metrics: [{ label: "Por vencer", value: rows.length }, { label: "Vencen hoy", value: rows.filter((item) => item.remainingDays === 0).length }, { label: "7 días", value: rows.filter((item) => item.remainingDays <= 7).length }, { label: "30 días", value: rows.filter((item) => item.remainingDays <= 30).length }] };
+    }
+    return null;
+  }
+
+  function exportDataRows(data: ExportData): ExportRow[] {
+    const rows = data.rows.map((row) => Object.fromEntries(data.headers.map((header, index) => [header, row[index] ?? ""]))) as ExportRow[];
+    if (data.footerRow) rows.push(Object.fromEntries(data.headers.map((header, index) => [header, data.footerRow?.[index] ?? ""])) as ExportRow);
+    return rows;
+  }
+
   // ── Export handlers (usable from card AND preview) ───────────────────────────
 
   function handleExcelExport(reportId: string): void {
     const report = CATALOG.find((r) => r.id === reportId);
-    if (!report?.excelPath) { handleFail("Excel no disponible para este reporte."); return; }
+    if (!report || report.status !== "available") { handleFail(report?.unavailableReason ?? "Reporte no disponible."); return; }
+    const filename = reportFileName(reportId, appliedYear, appliedMonth, "xlsx");
+
+    if (!report.excelPath) {
+      const data = getReportData(reportId);
+      if (!data) { handleFail("Datos aun no cargados. Espera un momento."); return; }
+      if (data.rows.length === 0) { handleFail("Sin datos para el periodo seleccionado."); return; }
+      exportRows("excel", exportDataRows(data), filename.replace(/\.xlsx$/i, ""), data.title, {
+        title: data.title,
+        period: data.period,
+        subtitle: data.summary,
+        metrics: data.metrics ?? [{ label: "Filas", value: data.rows.length }],
+      });
+      addHistory({ id: crypto.randomUUID(), name: filename, format: "excel", date: new Date(), module: data.title });
+      return;
+    }
     const params = new URLSearchParams({ year: String(appliedYear), month: String(appliedMonth) });
     const path = `${report.excelPath}?${params.toString()}`;
-    const filename = `${reportId}_${appliedYear}_${mm}.xlsx`;
     try {
       downloadExcel(path, filename);
       addHistory({ id: crypto.randomUUID(), name: filename, format: "excel", date: new Date(), module: report.name });
@@ -987,6 +1254,19 @@ export function PaginaReportes(): JSX.Element {
   }
 
   function handleCsvExport(reportId: string): void {
+    {
+      const report = CATALOG.find((r) => r.id === reportId);
+      if (!report || report.status !== "available") { handleFail(report?.unavailableReason ?? "Reporte no disponible."); return; }
+      const data = getReportData(reportId);
+      if (!data) { handleFail("Datos aun no cargados. Espera un momento."); return; }
+      if (data.rows.length === 0) { handleFail("Sin datos para el periodo seleccionado."); return; }
+      const csv = buildCsv(data);
+      const filename = reportFileName(reportId, appliedYear, appliedMonth, "csv");
+      downloadText(csv, filename);
+      addHistory({ id: crypto.randomUUID(), name: filename, format: "csv", date: new Date(), module: data.title });
+      setToast({ variant: "success", message: `CSV generado: ${filename}` });
+      return;
+    }
     const data = getExportData(reportId, appliedYear, appliedMonth,
       attQ.data, vacQ.data, leaQ.data, payQ.data, empQ.data, rotQ.data, absQ.data, labQ.data);
     if (!data) { handleFail("Datos aún no cargados. Espera un momento."); return; }
@@ -999,6 +1279,22 @@ export function PaginaReportes(): JSX.Element {
   }
 
   function handlePdfExport(reportId: string): void {
+    {
+      const report = CATALOG.find((r) => r.id === reportId);
+      if (!report || report.status !== "available") { handleFail(report?.unavailableReason ?? "Reporte no disponible."); return; }
+      const data = getReportData(reportId);
+      if (!data) { handleFail("Datos aun no cargados. Espera un momento."); return; }
+      if (data.rows.length === 0) { handleFail("Sin datos para el periodo seleccionado."); return; }
+      const filename = reportFileName(reportId, appliedYear, appliedMonth, "pdf");
+      exportRows("pdf", exportDataRows(data), filename.replace(/\.pdf$/i, ""), data.title, {
+        title: data.title,
+        period: data.period,
+        subtitle: data.summary,
+        metrics: data.metrics ?? [{ label: "Filas", value: data.rows.length }],
+      });
+      addHistory({ id: crypto.randomUUID(), name: filename, format: "pdf", date: new Date(), module: data.title });
+      return;
+    }
     const data = getExportData(reportId, appliedYear, appliedMonth,
       attQ.data, vacQ.data, leaQ.data, payQ.data, empQ.data, rotQ.data, absQ.data, labQ.data);
     if (!data) { handleFail("Datos aún no cargados. Espera un momento."); return; }
@@ -1207,7 +1503,7 @@ export function PaginaReportes(): JSX.Element {
                 report={r}
                 selected={previewId === r.id}
                 onSelect={togglePreview}
-                onExcel={r.excelPath ? () => handleExcelExport(r.id) : undefined}
+                onExcel={r.status === "available" ? () => handleExcelExport(r.id) : undefined}
                 onCsv={r.status === "available" ? () => handleCsvExport(r.id) : undefined}
                 onPdf={r.status === "available" ? () => handlePdfExport(r.id) : undefined}
               />
@@ -1243,6 +1539,7 @@ export function PaginaReportes(): JSX.Element {
                 rotationData={rotQ.data}
                 absenteeismData={absQ.data}
                 laborCostData={labQ.data}
+                genericData={getReportData(previewId)}
                 onExcel={() => handleExcelExport(previewId)}
                 onCsv={() => handleCsvExport(previewId)}
                 onPdf={() => handlePdfExport(previewId)}

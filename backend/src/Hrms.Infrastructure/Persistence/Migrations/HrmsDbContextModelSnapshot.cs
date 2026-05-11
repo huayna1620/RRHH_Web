@@ -717,6 +717,9 @@ namespace Hrms.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("ExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -1010,6 +1013,8 @@ namespace Hrms.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("TemplateId");
+
+                    b.HasIndex("ExpiresAtUtc");
 
                     b.HasIndex("EmployeeId", "Status");
 

@@ -30,6 +30,7 @@ public sealed record EmployeeDocumentDto(
     string Status,
     DateTime? SentForSignatureAtUtc,
     DateTime? SignedAtUtc,
+    DateTime? ExpiresAtUtc,
     string? SignedByUserName,
     string? SignatureHash,
     string? RejectionReason,
@@ -40,7 +41,8 @@ public sealed record CreateDocumentRequestDto(
     Guid? TemplateId,
     string Title,
     string Type,
-    string HtmlContent);
+    string HtmlContent,
+    DateTime? ExpiresAtUtc);
 
 public sealed record SendForSignatureRequestDto(
     Guid DocumentId);

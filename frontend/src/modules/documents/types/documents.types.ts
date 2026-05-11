@@ -26,6 +26,7 @@ export interface EmployeeDocument {
   status: "draft" | "pending_signature" | "signed" | "rejected";
   sentForSignatureAtUtc: string | null;
   signedAtUtc: string | null;
+  expiresAtUtc: string | null;
   signedByUserName: string | null;
   signatureHash: string | null;
   rejectionReason: string | null;
@@ -38,4 +39,5 @@ export interface CreateDocumentPayload {
   title: string;
   type: string;
   htmlContent: string;
+  expiresAtUtc: string | null;
 }

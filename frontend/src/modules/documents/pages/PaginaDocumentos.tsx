@@ -41,7 +41,7 @@ export function PaginaDocumentos(): JSX.Element {
   const [selectedDoc, setSelectedDoc] = useState<EmployeeDocument | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  const [docForm, setDocForm] = useState({ employeeId: "", templateId: "", title: "", type: "", htmlContent: "" });
+  const [docForm, setDocForm] = useState({ employeeId: "", templateId: "", title: "", type: "", htmlContent: "", expiresAtUtc: "" });
   const [tplForm, setTplForm] = useState({ name: "", type: "", htmlContent: "", description: "" });
 
   const docsQuery = useQuery({ queryKey: ["documents", statusFilter], queryFn: () => getDocuments("", statusFilter) });
@@ -57,7 +57,7 @@ export function PaginaDocumentos(): JSX.Element {
 
   const createDocMutation = useMutation({
     mutationFn: createDocument,
-    onSuccess: async () => { await refresh(); ok("Documento creado."); setCreateDocOpen(false); setDocForm({ employeeId: "", templateId: "", title: "", type: "", htmlContent: "" }); },
+    onSuccess: async () => { await refresh(); ok("Documento creado."); setCreateDocOpen(false); setDocForm({ employeeId: "", templateId: "", title: "", type: "", htmlContent: "", expiresAtUtc: "" }); },
     onError: () => fail("No se pudo crear el documento."),
   });
 
@@ -105,6 +105,7 @@ export function PaginaDocumentos(): JSX.Element {
           Tipo: d.type,
           Estado: statusLabels[d.status] ?? d.status,
           Fecha: new Date(d.createdAtUtc).toLocaleDateString("es-PE"),
+          Vencimiento: d.expiresAtUtc ? new Date(d.expiresAtUtc).toLocaleDateString("es-PE") : "Sin vencimiento",
         }))
       : tpls.map((t) => ({
           Nombre: t.name,
@@ -167,6 +168,7 @@ export function PaginaDocumentos(): JSX.Element {
                   <th className="px-3 py-2">Tipo</th>
                   <th className="px-3 py-2">Estado</th>
                   <th className="px-3 py-2">Fecha</th>
+                  <th className="px-3 py-2">Vencimiento</th>
                   <th className="px-3 py-2">Acciones</th>
                 </tr>
               </thead>
@@ -182,6 +184,7 @@ export function PaginaDocumentos(): JSX.Element {
                       </Badge>
                     </td>
                     <td className="px-3 py-2 text-xs text-slate-500">{new Date(d.createdAtUtc).toLocaleDateString("es-PE")}</td>
+                    <td className="px-3 py-2 text-xs text-slate-500">{d.expiresAtUtc ? new Date(d.expiresAtUtc).toLocaleDateString("es-PE") : "Sin vencimiento"}</td>
                     <td className="px-3 py-2 flex gap-1 flex-wrap">
                       {d.status === "draft" && <Button size="sm" onClick={() => sendMutation.mutate(d.id)}>Enviar</Button>}
                       {d.status === "pending_signature" && (
@@ -193,7 +196,7 @@ export function PaginaDocumentos(): JSX.Element {
                     </td>
                   </tr>
                 ))}
-                {docs.length === 0 && <tr><td className="px-3 py-6 text-center text-slate-500" colSpan={6}>Sin documentos</td></tr>}
+                {docs.length === 0 && <tr><td className="px-3 py-6 text-center text-slate-500" colSpan={7}>Sin documentos</td></tr>}
               </tbody>
             </table>
           </div>
@@ -235,10 +238,11 @@ export function PaginaDocumentos(): JSX.Element {
           <div><label className="text-xs text-slate-500">ID de empleado</label><Input value={docForm.employeeId} onChange={(e) => setDocForm((f) => ({ ...f, employeeId: e.target.value }))} /></div>
           <div><label className="text-xs text-slate-500">Título</label><Input value={docForm.title} onChange={(e) => setDocForm((f) => ({ ...f, title: e.target.value }))} /></div>
           <div><label className="text-xs text-slate-500">Tipo</label><Input value={docForm.type} onChange={(e) => setDocForm((f) => ({ ...f, type: e.target.value }))} placeholder="ej. contrato, carta" /></div>
+          <div><label className="text-xs text-slate-500">Fecha de vencimiento</label><Input type="date" value={docForm.expiresAtUtc} onChange={(e) => setDocForm((f) => ({ ...f, expiresAtUtc: e.target.value }))} /></div>
           <Textarea value={docForm.htmlContent} onChange={(e) => setDocForm((f) => ({ ...f, htmlContent: e.target.value }))} placeholder="Contenido HTML del documento" rows={4} />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setCreateDocOpen(false)}>Cancelar</Button>
-            <Button disabled={!docForm.employeeId || !docForm.title || createDocMutation.isPending} onClick={() => createDocMutation.mutate({ ...docForm, templateId: docForm.templateId || null })}>Crear</Button>
+            <Button disabled={!docForm.employeeId || !docForm.title || createDocMutation.isPending} onClick={() => createDocMutation.mutate({ ...docForm, templateId: docForm.templateId || null, expiresAtUtc: docForm.expiresAtUtc || null })}>Crear</Button>
           </div>
         </div>
       </Modal>

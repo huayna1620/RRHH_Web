@@ -12,6 +12,7 @@ public sealed class EmployeeDocument : AuditableEntity
     public string Status { get; set; } = "draft"; // draft, pending_signature, signed, rejected
     public DateTime? SentForSignatureAtUtc { get; set; }
     public DateTime? SignedAtUtc { get; set; }
+    public DateTime? ExpiresAtUtc { get; set; }
     public string? SignedByUserName { get; set; }
     public string? SignatureHash { get; set; }
     public string? RejectionReason { get; set; }

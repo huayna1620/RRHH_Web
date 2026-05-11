@@ -31,5 +31,6 @@ public sealed class EmployeeDocumentConfiguration : IEntityTypeConfiguration<Emp
         builder.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.Template).WithMany().HasForeignKey(x => x.TemplateId).OnDelete(DeleteBehavior.SetNull);
         builder.HasIndex(x => new { x.EmployeeId, x.Status });
+        builder.HasIndex(x => x.ExpiresAtUtc);
     }
 }
