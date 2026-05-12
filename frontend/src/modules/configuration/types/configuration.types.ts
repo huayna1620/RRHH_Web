@@ -11,11 +11,32 @@ export type ConfigurationCatalogItem = {
   name: string;
   isActive: boolean;
   employeesCount: number;
+  branchType?: string | null;
+  description?: string | null;
+  country?: string | null;
+  region?: string | null;
+  city?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  responsibleName?: string | null;
+  responsibleTitle?: string | null;
+  capacity?: number | null;
+  businessHours?: string | null;
+  costCenter?: string | null;
+  openedAtUtc?: string | null;
+  visibleForAssignments?: boolean;
+  requiresApprovalForChanges?: boolean;
+  createdAtUtc?: string | null;
+  updatedAtUtc?: string | null;
+  createdBy?: string | null;
+  updatedBy?: string | null;
 };
 
 export type ConfigurationQuery = {
   search: string;
   isActive: boolean;
+  location?: string;
   pageNumber: number;
   pageSize: number;
   sortBy: string;
@@ -25,6 +46,23 @@ export type ConfigurationQuery = {
 export type ConfigurationCatalogPayload = {
   code: string;
   name: string;
+  branchType?: string;
+  description?: string;
+  country?: string;
+  region?: string;
+  city?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  responsibleName?: string;
+  responsibleTitle?: string;
+  capacity?: number | null;
+  businessHours?: string;
+  costCenter?: string;
+  openedAtUtc?: string | null;
+  isActive?: boolean;
+  visibleForAssignments?: boolean;
+  requiresApprovalForChanges?: boolean;
 };
 
 export type GeneralSettingItem = {

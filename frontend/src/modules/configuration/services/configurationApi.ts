@@ -12,6 +12,7 @@ function queryToString(query: ConfigurationQuery): string {
   const params = new URLSearchParams();
   if (query.search) params.set("search", query.search);
   if (typeof query.isActive === "boolean") params.set("isActive", String(query.isActive));
+  if (query.location) params.set("location", query.location);
   params.set("pageNumber", String(query.pageNumber));
   params.set("pageSize", String(query.pageSize));
   if (query.sortBy) params.set("sortBy", query.sortBy);

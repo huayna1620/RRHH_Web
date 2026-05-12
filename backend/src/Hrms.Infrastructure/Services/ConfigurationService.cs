@@ -12,13 +12,50 @@ public sealed class ConfigurationService(HrmsDbContext dbContext) : IConfigurati
     public async Task<PagedResultDto<ConfigurationItemDto>> GetBranchesAsync(ConfigurationQueryDto query, CancellationToken cancellationToken = default)
     {
         var branchQuery = dbContext.Branches.AsNoTracking().Where(x => !x.IsDeleted);
-        var result = await GetPagedAsync(
-            branchQuery,
-            query,
-            item => dbContext.Employees.Count(x => x.BranchId == item.Id && !x.IsDeleted),
-            cancellationToken);
 
-        return result;
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim().ToLowerInvariant();
+            branchQuery = branchQuery.Where(x =>
+                x.Name.ToLower().Contains(search) ||
+                x.Code.ToLower().Contains(search) ||
+                x.City.ToLower().Contains(search) ||
+                x.Region.ToLower().Contains(search));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Location))
+        {
+            var location = query.Location.Trim().ToLowerInvariant();
+            branchQuery = branchQuery.Where(x =>
+                x.City.ToLower().Contains(location) ||
+                x.Region.ToLower().Contains(location) ||
+                x.Country.ToLower().Contains(location));
+        }
+
+        if (query.IsActive.HasValue)
+        {
+            branchQuery = branchQuery.Where(x => x.IsActive == query.IsActive.Value);
+        }
+
+        var ordered = ApplySort(branchQuery, query.SortBy, query.SortDirection);
+        var pageNumber = query.PageNumber <= 0 ? 1 : query.PageNumber;
+        var pageSize = query.PageSize <= 0 ? 10 : Math.Min(query.PageSize, 100);
+        var totalCount = await ordered.CountAsync(cancellationToken);
+
+        var records = await ordered
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var ids = records.Select(x => x.Id).ToList();
+        var employeeCounts = await dbContext.Employees.AsNoTracking()
+            .Where(x => ids.Contains(x.BranchId) && !x.IsDeleted)
+            .GroupBy(x => x.BranchId)
+            .Select(x => new { BranchId = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.BranchId, x => x.Count, cancellationToken);
+
+        var items = records.Select(branch => ToBranchDto(branch, employeeCounts.GetValueOrDefault(branch.Id))).ToList();
+        return new PagedResultDto<ConfigurationItemDto>(items, pageNumber, pageSize, totalCount);
     }
 
     public async Task<ConfigurationItemDto?> GetBranchByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -32,18 +69,36 @@ public sealed class ConfigurationService(HrmsDbContext dbContext) : IConfigurati
         }
 
         var employeesCount = await dbContext.Employees.CountAsync(x => x.BranchId == id && !x.IsDeleted, cancellationToken);
-        return new ConfigurationItemDto(branch.Id, branch.Code, branch.Name, branch.IsActive, employeesCount);
+        return ToBranchDto(branch, employeesCount);
     }
 
     public async Task<ConfigurationItemDto> CreateBranchAsync(CreateConfigurationItemRequestDto request, CancellationToken cancellationToken = default)
     {
         ValidateItemPayload(request.Code, request.Name);
+        ValidateBranchPayload(request.BranchType, request.Region, request.City, request.Address, request.Email, request.Phone, request.Capacity);
         await EnsureBranchUniquenessAsync(request.Code, request.Name, null, cancellationToken);
 
         var branch = new Branch
         {
             Code = request.Code.Trim().ToUpperInvariant(),
             Name = request.Name.Trim(),
+            BranchType = NormalizeOptional(request.BranchType) ?? "Administrativa",
+            Description = NormalizeOptional(request.Description),
+            Country = NormalizeOptional(request.Country) ?? "Perú",
+            Region = NormalizeOptional(request.Region) ?? string.Empty,
+            City = NormalizeOptional(request.City) ?? string.Empty,
+            Address = NormalizeOptional(request.Address) ?? string.Empty,
+            Phone = NormalizeOptional(request.Phone),
+            Email = NormalizeOptional(request.Email),
+            ResponsibleName = NormalizeOptional(request.ResponsibleName),
+            ResponsibleTitle = NormalizeOptional(request.ResponsibleTitle),
+            Capacity = NormalizeCapacity(request.Capacity),
+            BusinessHours = NormalizeOptional(request.BusinessHours),
+            CostCenter = NormalizeOptional(request.CostCenter),
+            OpenedAtUtc = request.OpenedAtUtc,
+            IsActive = request.IsActive ?? true,
+            VisibleForAssignments = request.VisibleForAssignments ?? true,
+            RequiresApprovalForChanges = request.RequiresApprovalForChanges ?? false,
             CreatedBy = "system",
             UpdatedBy = "system"
         };
@@ -51,12 +106,13 @@ public sealed class ConfigurationService(HrmsDbContext dbContext) : IConfigurati
         await dbContext.Branches.AddAsync(branch, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return new ConfigurationItemDto(branch.Id, branch.Code, branch.Name, branch.IsActive, 0);
+        return ToBranchDto(branch, 0);
     }
 
     public async Task<ConfigurationItemDto?> UpdateBranchAsync(Guid id, UpdateConfigurationItemRequestDto request, CancellationToken cancellationToken = default)
     {
         ValidateItemPayload(request.Code, request.Name);
+        ValidateBranchPayload(request.BranchType, request.Region, request.City, request.Address, request.Email, request.Phone, request.Capacity);
 
         var branch = await dbContext.Branches.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
         if (branch is null)
@@ -68,13 +124,30 @@ public sealed class ConfigurationService(HrmsDbContext dbContext) : IConfigurati
 
         branch.Code = request.Code.Trim().ToUpperInvariant();
         branch.Name = request.Name.Trim();
+        branch.BranchType = NormalizeOptional(request.BranchType) ?? "Administrativa";
+        branch.Description = NormalizeOptional(request.Description);
+        branch.Country = NormalizeOptional(request.Country) ?? "Perú";
+        branch.Region = NormalizeOptional(request.Region) ?? string.Empty;
+        branch.City = NormalizeOptional(request.City) ?? string.Empty;
+        branch.Address = NormalizeOptional(request.Address) ?? string.Empty;
+        branch.Phone = NormalizeOptional(request.Phone);
+        branch.Email = NormalizeOptional(request.Email);
+        branch.ResponsibleName = NormalizeOptional(request.ResponsibleName);
+        branch.ResponsibleTitle = NormalizeOptional(request.ResponsibleTitle);
+        branch.Capacity = NormalizeCapacity(request.Capacity);
+        branch.BusinessHours = NormalizeOptional(request.BusinessHours);
+        branch.CostCenter = NormalizeOptional(request.CostCenter);
+        branch.OpenedAtUtc = request.OpenedAtUtc;
+        branch.IsActive = request.IsActive ?? branch.IsActive;
+        branch.VisibleForAssignments = request.VisibleForAssignments ?? branch.VisibleForAssignments;
+        branch.RequiresApprovalForChanges = request.RequiresApprovalForChanges ?? branch.RequiresApprovalForChanges;
         branch.UpdatedAtUtc = DateTime.UtcNow;
         branch.UpdatedBy = "system";
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var employeesCount = await dbContext.Employees.CountAsync(x => x.BranchId == id && !x.IsDeleted, cancellationToken);
-        return new ConfigurationItemDto(branch.Id, branch.Code, branch.Name, branch.IsActive, employeesCount);
+        return ToBranchDto(branch, employeesCount);
     }
 
     public async Task<bool> UpdateBranchStatusAsync(Guid id, bool isActive, CancellationToken cancellationToken = default)
@@ -329,6 +402,46 @@ public sealed class ConfigurationService(HrmsDbContext dbContext) : IConfigurati
         return true;
     }
 
+    private static ConfigurationItemDto ToBranchDto(Branch branch, int employeesCount)
+    {
+        return new ConfigurationItemDto(
+            branch.Id,
+            branch.Code,
+            branch.Name,
+            branch.IsActive,
+            employeesCount,
+            branch.BranchType,
+            branch.Description,
+            branch.Country,
+            branch.Region,
+            branch.City,
+            branch.Address,
+            branch.Phone,
+            branch.Email,
+            branch.ResponsibleName,
+            branch.ResponsibleTitle,
+            branch.Capacity,
+            branch.BusinessHours,
+            branch.CostCenter,
+            branch.OpenedAtUtc,
+            branch.VisibleForAssignments,
+            branch.RequiresApprovalForChanges,
+            branch.CreatedAtUtc,
+            branch.UpdatedAtUtc,
+            branch.CreatedBy,
+            branch.UpdatedBy);
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static int? NormalizeCapacity(int? capacity)
+    {
+        return capacity is > 0 ? capacity : null;
+    }
+
     private static void ValidateItemPayload(string code, string name)
     {
         if (string.IsNullOrWhiteSpace(code) || code.Trim().Length < 2)
@@ -339,6 +452,44 @@ public sealed class ConfigurationService(HrmsDbContext dbContext) : IConfigurati
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 2)
         {
             throw new InvalidOperationException("El nombre es obligatorio.");
+        }
+    }
+
+    private static void ValidateBranchPayload(string? branchType, string? region, string? city, string? address, string? email, string? phone, int? capacity)
+    {
+        if (string.IsNullOrWhiteSpace(branchType))
+        {
+            throw new InvalidOperationException("El tipo de sede es obligatorio.");
+        }
+
+        if (string.IsNullOrWhiteSpace(region))
+        {
+            throw new InvalidOperationException("La region o departamento es obligatorio.");
+        }
+
+        if (string.IsNullOrWhiteSpace(city))
+        {
+            throw new InvalidOperationException("La ciudad o provincia es obligatoria.");
+        }
+
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            throw new InvalidOperationException("La direccion es obligatoria.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(email) && !email.Contains('@', StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("El correo de sede no tiene un formato valido.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(phone) && phone.Trim().Length < 6)
+        {
+            throw new InvalidOperationException("El telefono debe tener al menos 6 caracteres.");
+        }
+
+        if (capacity.HasValue && capacity.Value < 0)
+        {
+            throw new InvalidOperationException("La capacidad estimada no puede ser negativa.");
         }
     }
 
