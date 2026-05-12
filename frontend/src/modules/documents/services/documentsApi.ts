@@ -3,7 +3,8 @@ import type {
   DocumentTemplate,
   CreateTemplatePayload,
   EmployeeDocument,
-  CreateDocumentPayload
+  CreateDocumentPayload,
+  SendDocumentEmailPayload
 } from "@/modules/documents/types/documents.types";
 
 const BASE = "/api/v1/documents";
@@ -44,6 +45,10 @@ export async function createDocument(payload: CreateDocumentPayload): Promise<Em
 
 export async function sendForSignature(id: string): Promise<void> {
   await httpClient.post(`${BASE}/${id}/send`);
+}
+
+export async function sendDocumentByEmail(id: string, payload: SendDocumentEmailPayload): Promise<void> {
+  await httpClient.post(`${BASE}/${id}/email`, payload);
 }
 
 export async function signDocument(id: string): Promise<void> {

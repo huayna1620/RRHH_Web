@@ -6,7 +6,12 @@ public sealed record DocumentTemplateDto(
     Guid Id,
     string Name,
     string Type,
+    string Category,
     string HtmlContent,
+    IReadOnlyList<string> Variables,
+    bool RequiresEmployeeSignature,
+    bool RequiresHrSignature,
+    string Format,
     string? Description,
     bool IsActive);
 
@@ -14,7 +19,11 @@ public sealed record CreateDocumentTemplateRequestDto(
     string Name,
     string Type,
     string HtmlContent,
-    string? Description);
+    string? Description,
+    string? Category = null,
+    bool RequiresEmployeeSignature = false,
+    bool RequiresHrSignature = false,
+    string? Format = null);
 
 // ── Employee Documents ───────────────────────────────────────────────
 
@@ -52,3 +61,8 @@ public sealed record SignDocumentRequestDto(
 
 public sealed record RejectDocumentRequestDto(
     string Reason);
+
+public sealed record SendDocumentEmailRequestDto(
+    string? To,
+    string? Subject,
+    string? Message);

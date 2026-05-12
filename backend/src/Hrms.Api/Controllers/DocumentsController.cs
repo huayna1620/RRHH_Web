@@ -74,6 +74,25 @@ public sealed class DocumentsController(IDocumentService documentService) : Cont
         return sent ? NoContent() : NotFound();
     }
 
+    [Authorize(Policy = AppPermissions.DocumentsEdit)]
+    [HttpPost("{id:guid}/email")]
+    public async Task<IActionResult> SendByEmail(Guid id, [FromBody] SendDocumentEmailRequestDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var sent = await documentService.SendDocumentByEmailAsync(id, request, GetUserName(), cancellationToken);
+            return sent ? NoContent() : NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = $"No se pudo enviar el correo: {ex.Message}" });
+        }
+    }
+
     [HttpPost("{id:guid}/sign")]
     public async Task<IActionResult> SignDocument(Guid id, CancellationToken cancellationToken)
     {

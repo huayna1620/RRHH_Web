@@ -16,6 +16,7 @@ public static class DatabaseSeeder
         await SeedCatalogsAsync(dbContext, cancellationToken);
         await SeedGeneralSettingsAsync(dbContext, cancellationToken);
         await SeedHolidaysAsync(dbContext, cancellationToken);
+        await SeedDocumentTemplatesAsync(dbContext, cancellationToken);
         await SeedSampleEmployeesAsync(dbContext, cancellationToken);
         await LinkAdminToFirstEmployeeAsync(dbContext, cancellationToken);
     }
@@ -377,6 +378,280 @@ public static class DatabaseSeeder
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    private static async Task SeedDocumentTemplatesAsync(HrmsDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+
+        var templates = new[]
+        {
+            new
+            {
+                Name = "Contrato de trabajo indefinido",
+                Type = "Contrato",
+                Category = "Contratos",
+                Description = "Contrato a tiempo indefinido para personal en planilla.",
+                RequiresEmployeeSignature = true,
+                RequiresHrSignature = true,
+                Html = """
+                <h2 style="text-align:center">CONTRATO DE TRABAJO INDEFINIDO</h2>
+                <p>En Lima, a {{FECHA_ACTUAL}}, la empresa <strong>{{EMPRESA}}</strong> celebra el presente contrato con:</p>
+                <p><strong>Colaborador:</strong> {{NOMBRE_COMPLETO}}<br>
+                <strong>DNI / CE:</strong> {{DNI}}<br>
+                <strong>Código:</strong> {{CODIGO_EMPLEADO}}<br>
+                <strong>Cargo:</strong> {{CARGO}}<br>
+                <strong>Área:</strong> {{AREA}}<br>
+                <strong>Sede:</strong> {{SEDE}}<br>
+                <strong>Fecha de ingreso:</strong> {{FECHA_INGRESO}}<br>
+                <strong>Remuneración:</strong> S/ {{SUELDO}}</p>
+                <p>El colaborador prestará servicios conforme a las políticas internas, reglamento y lineamientos de la empresa.</p>
+                <br>
+                <table style="width:100%;margin-top:32px"><tr>
+                <td style="text-align:center;width:50%">___________________________<br><strong>{{NOMBRE_COMPLETO}}</strong><br>DNI: {{DNI}}</td>
+                <td style="text-align:center;width:50%">___________________________<br><strong>Recursos Humanos</strong><br>{{EMPRESA}}</td>
+                </tr></table>
+                """
+            },
+            new
+            {
+                Name = "Constancia de trabajo",
+                Type = "Constancia",
+                Category = "Documentos laborales",
+                Description = "Certificación de la relación laboral activa del colaborador.",
+                RequiresEmployeeSignature = false,
+                RequiresHrSignature = true,
+                Html = """
+                <h2 style="text-align:center">CONSTANCIA DE TRABAJO</h2>
+                <p>Por medio de la presente, <strong>{{EMPRESA}}</strong> deja constancia que:</p>
+                <p><strong>{{NOMBRE_COMPLETO}}</strong>, identificado(a) con DNI / CE <strong>{{DNI}}</strong>, labora en la empresa desde el <strong>{{FECHA_INGRESO}}</strong>, desempeñando el cargo de <strong>{{CARGO}}</strong> en el área de <strong>{{AREA}}</strong>, sede <strong>{{SEDE}}</strong>.</p>
+                <p>Se expide la presente a solicitud del interesado para los fines que estime convenientes.</p>
+                <p>Lima, {{FECHA_ACTUAL}}</p>
+                <br><p style="text-align:center">___________________________<br><strong>Recursos Humanos</strong><br>{{EMPRESA}}</p>
+                """
+            },
+            new
+            {
+                Name = "Política de confidencialidad",
+                Type = "Política",
+                Category = "Políticas y cumplimiento",
+                Description = "Compromiso de no divulgar información sensible de la empresa.",
+                RequiresEmployeeSignature = true,
+                RequiresHrSignature = false,
+                Html = """
+                <h2 style="text-align:center">ACUERDO DE CONFIDENCIALIDAD</h2>
+                <p>Yo, <strong>{{NOMBRE_COMPLETO}}</strong>, identificado(a) con DNI / CE <strong>{{DNI}}</strong>, en mi calidad de <strong>{{CARGO}}</strong> del área <strong>{{AREA}}</strong>, declaro conocer y aceptar la política de confidencialidad de <strong>{{EMPRESA}}</strong>.</p>
+                <p>Me comprometo a proteger la información sensible, técnica, comercial, laboral y administrativa a la que tenga acceso durante mi relación con la empresa.</p>
+                <p>Fecha de aceptación: {{FECHA_ACTUAL}}</p>
+                <br><p style="text-align:center">___________________________<br><strong>{{NOMBRE_COMPLETO}}</strong><br>DNI: {{DNI}}</p>
+                """
+            },
+            new
+            {
+                Name = "Entrega y recepción de equipos",
+                Type = "Acta",
+                Category = "Anexos y autorizaciones",
+                Description = "Registro de equipos, credenciales y activos asignados al colaborador.",
+                RequiresEmployeeSignature = true,
+                RequiresHrSignature = true,
+                Html = """
+                <h2 style="text-align:center">ACTA DE ENTREGA Y RECEPCIÓN DE EQUIPOS</h2>
+                <p>En la fecha {{FECHA_ACTUAL}}, <strong>{{EMPRESA}}</strong> entrega al colaborador <strong>{{NOMBRE_COMPLETO}}</strong>, DNI / CE <strong>{{DNI}}</strong>, del cargo <strong>{{CARGO}}</strong>, los siguientes activos:</p>
+                <p><strong>Equipo asignado:</strong> {{EQUIPO_ASIGNADO}}<br>
+                <strong>Número de serie:</strong> {{NUMERO_SERIE}}<br>
+                <strong>Observaciones:</strong> {{OBSERVACIONES}}</p>
+                <p>El colaborador declara recibir los bienes en buen estado y se compromete a su uso responsable.</p>
+                <br><table style="width:100%;margin-top:32px"><tr>
+                <td style="text-align:center;width:50%">___________________________<br><strong>{{NOMBRE_COMPLETO}}</strong></td>
+                <td style="text-align:center;width:50%">___________________________<br><strong>Recursos Humanos</strong></td>
+                </tr></table>
+                """
+            }
+        };
+
+        var existingTemplates = await dbContext.DocumentTemplates
+            .Where(x => !x.IsDeleted)
+            .ToListAsync(cancellationToken);
+        var existingNames = existingTemplates
+            .Select(x => x.Name)
+            .ToList();
+        var existing = existingNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in templates)
+        {
+            var current = existingTemplates.FirstOrDefault(x => string.Equals(x.Name, item.Name, StringComparison.OrdinalIgnoreCase));
+            if (current is null || !string.Equals(current.CreatedBy, "seed", StringComparison.OrdinalIgnoreCase)) continue;
+
+            var html = BuildGenericDocumentTemplateHtml(item.Name, item.Category, item.Description);
+            current.Type = item.Type;
+            current.Category = item.Category;
+            current.Description = item.Description;
+            current.HtmlContent = html;
+            current.VariablesJson = System.Text.Json.JsonSerializer.Serialize(DetectTemplateVariables(html));
+            current.RequiresEmployeeSignature = item.RequiresEmployeeSignature;
+            current.RequiresHrSignature = item.RequiresHrSignature;
+            current.Format = "html";
+            current.UpdatedAtUtc = now;
+            current.UpdatedBy = "seed";
+        }
+
+        var pending = templates
+            .Where(x => !existing.Contains(x.Name))
+            .Select(x =>
+            {
+                var html = BuildGenericDocumentTemplateHtml(x.Name, x.Category, x.Description);
+                return new DocumentTemplate
+                {
+                    Name = x.Name,
+                    Type = x.Type,
+                    Category = x.Category,
+                    Description = x.Description,
+                    HtmlContent = html,
+                    VariablesJson = System.Text.Json.JsonSerializer.Serialize(DetectTemplateVariables(html)),
+                    RequiresEmployeeSignature = x.RequiresEmployeeSignature,
+                    RequiresHrSignature = x.RequiresHrSignature,
+                    Format = "html",
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now,
+                    CreatedBy = "seed",
+                    UpdatedBy = "seed"
+                };
+            })
+            .ToList();
+
+        var extraTemplates = new[]
+        {
+            ("Contrato de trabajo temporal", "Contrato", "Contratos", "Contrato laboral con fecha de término definida.", true, true),
+            ("Contrato por locación de servicios", "Contrato", "Contratos", "Para prestadores de servicios independientes y consultores.", true, true),
+            ("Contrato de prácticas preprofesionales", "Contrato", "Contratos", "Para practicantes en proceso de formación universitaria.", true, true),
+            ("Contrato de prácticas profesionales", "Contrato", "Contratos", "Para practicantes con carrera técnica o universitaria concluida.", true, true),
+            ("Adenda de contrato", "Contrato", "Contratos", "Modificación formal a las condiciones de un contrato vigente.", true, true),
+            ("Renovación de contrato", "Contrato", "Contratos", "Prórroga o renovación de un contrato con nuevas condiciones.", true, true),
+            ("Compromiso de protección de datos", "Política", "Políticas y cumplimiento", "Consentimiento de tratamiento de datos personales del colaborador.", true, false),
+            ("Política de uso de equipos", "Política", "Políticas y cumplimiento", "Normas para el uso correcto de equipos asignados por la empresa.", true, false),
+            ("Política de seguridad de la información", "Política", "Políticas y cumplimiento", "Lineamientos de ciberseguridad y manejo de información digital.", true, false),
+            ("Declaración de conflicto de interés", "Declaración", "Políticas y cumplimiento", "Declaración jurada sobre ausencia de conflictos de interés.", true, false),
+            ("Recepción de reglamento interno", "Acuse", "Políticas y cumplimiento", "Constancia de recepción del reglamento interno de trabajo.", true, false),
+            ("Código de ética y conducta", "Política", "Políticas y cumplimiento", "Compromisos de conducta ética y profesional del trabajador.", true, false),
+            ("Carta de nombramiento", "Carta", "Documentos laborales", "Comunicación oficial de designación a un nuevo cargo o función.", false, true),
+            ("Carta de ascenso", "Carta", "Documentos laborales", "Comunicación formal de promoción de cargo con nuevo nivel salarial.", false, true),
+            ("Carta de cambio de sede", "Carta", "Documentos laborales", "Notificación formal de cambio de lugar de trabajo del colaborador.", false, true),
+            ("Carta de cambio de cargo", "Carta", "Documentos laborales", "Comunicación de reasignación de funciones dentro de la empresa.", false, true),
+            ("Carta de vacaciones aprobadas", "Carta", "Documentos laborales", "Autorización formal del periodo vacacional del colaborador.", false, true),
+            ("Carta de amonestación", "Carta", "Documentos laborales", "Comunicación formal de sanción disciplinaria con detalle de la falta.", true, true),
+            ("Carta de felicitación", "Carta", "Documentos laborales", "Reconocimiento formal al colaborador por logros destacados.", false, true),
+            ("Certificado laboral", "Certificado", "Documentos laborales", "Certificación detallada del cargo, funciones y periodo laborado.", false, true),
+            ("Anexo de beneficios", "Anexo", "Anexos y autorizaciones", "Detalle de los beneficios contractuales y extralegales del colaborador.", true, true),
+            ("Anexo salarial", "Anexo", "Anexos y autorizaciones", "Estructura detallada de la remuneración mensual acordada.", true, true),
+            ("Acuerdo de teletrabajo", "Acuerdo", "Anexos y autorizaciones", "Términos y condiciones para el trabajo remoto o modalidad híbrida.", true, true),
+            ("Permiso de uso de imagen", "Autorización", "Anexos y autorizaciones", "Autorización del colaborador para uso de su imagen en comunicaciones.", true, false),
+            ("Autorización de descuento por planilla", "Autorización", "Anexos y autorizaciones", "Consentimiento para aplicar descuentos o retenciones en planilla.", true, false),
+            ("Consentimiento de firma digital", "Autorización", "Anexos y autorizaciones", "Aceptación del uso de firma electrónica en documentos laborales.", true, false),
+            ("Evaluación de desempeño", "Evaluación", "Evaluación y talento", "Formulario de evaluación de resultados y competencias del periodo.", true, true),
+            ("Acta de retroalimentación", "Evaluación", "Evaluación y talento", "Registro del proceso de feedback entre líder y colaborador.", true, false),
+            ("Carta de objetivos del periodo", "Carta", "Evaluación y talento", "Compromisos de desempeño y metas acordadas para el nuevo periodo.", true, true),
+            ("Plan de mejora individual", "Plan", "Evaluación y talento", "Acompañamiento para colaboradores en proceso de mejora continua.", true, true),
+            ("Registro de capacitación", "Registro", "Salud y seguridad", "Constancia de participación en programa de formación o capacitación.", true, false),
+            ("Compromiso de seguridad y salud", "Compromiso", "Salud y seguridad", "Declaración de compromisos en seguridad y salud en el trabajo.", true, false),
+            ("Declaración médica ocupacional", "Declaración", "Salud y seguridad", "Declaración del estado de salud general para aptitud al puesto.", true, false),
+            ("Constancia de inducción", "Constancia", "Salud y seguridad", "Acreditación de la inducción corporativa al nuevo colaborador.", true, false)
+        };
+
+        foreach (var item in extraTemplates)
+        {
+            var html = BuildGenericDocumentTemplateHtml(item.Item1, item.Item3, item.Item4);
+            var current = existingTemplates.FirstOrDefault(x => string.Equals(x.Name, item.Item1, StringComparison.OrdinalIgnoreCase));
+            if (current is not null)
+            {
+                if (!string.Equals(current.CreatedBy, "seed", StringComparison.OrdinalIgnoreCase)) continue;
+
+                current.Type = item.Item2;
+                current.Category = item.Item3;
+                current.Description = item.Item4;
+                current.HtmlContent = html;
+                current.VariablesJson = System.Text.Json.JsonSerializer.Serialize(DetectTemplateVariables(html));
+                current.RequiresEmployeeSignature = item.Item5;
+                current.RequiresHrSignature = item.Item6;
+                current.Format = "html";
+                current.UpdatedAtUtc = now;
+                current.UpdatedBy = "seed";
+                continue;
+            }
+
+            pending.Add(new DocumentTemplate
+            {
+                Name = item.Item1,
+                Type = item.Item2,
+                Category = item.Item3,
+                Description = item.Item4,
+                HtmlContent = html,
+                VariablesJson = System.Text.Json.JsonSerializer.Serialize(DetectTemplateVariables(html)),
+                RequiresEmployeeSignature = item.Item5,
+                RequiresHrSignature = item.Item6,
+                Format = "html",
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now,
+                CreatedBy = "seed",
+                UpdatedBy = "seed"
+            });
+        }
+
+        if (pending.Count > 0)
+        {
+            await dbContext.DocumentTemplates.AddRangeAsync(pending, cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static IReadOnlyList<string> DetectTemplateVariables(string html)
+    {
+        return System.Text.RegularExpressions.Regex.Matches(html, @"\{\{\s*([^{}]+?)\s*\}\}")
+            .Select(match => match.Groups[1].Value.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value)
+            .ToList();
+    }
+
+    private static string BuildGenericDocumentTemplateHtml(string name, string category, string description)
+    {
+        return $@"
+        <h2>{name.ToUpperInvariant()}</h2>
+        <p class=""letter-date"">Lima, {{{{FECHA_ACTUAL}}}}</p>
+        <p>Señor(a):<br>
+        <strong>{{{{NOMBRE_COMPLETO}}}}</strong><br>
+        {{{{CARGO}}}} - {{{{AREA}}}}</p>
+        <p>De nuestra consideración:</p>
+        <p>Por medio del presente, <strong>{{{{EMPRESA}}}}</strong>, a través del área de Recursos Humanos, emite el documento <strong>{name}</strong> de la categoría <strong>{category}</strong>, conforme a la información registrada en el sistema SAE - RRHH.</p>
+        <section class=""employee-data"">
+          <dl>
+            <dt>Colaborador</dt><dd>{{{{NOMBRE_COMPLETO}}}}</dd>
+            <dt>DNI / CE</dt><dd>{{{{DNI}}}}</dd>
+            <dt>Codigo</dt><dd>{{{{CODIGO_EMPLEADO}}}}</dd>
+            <dt>Cargo</dt><dd>{{{{CARGO}}}}</dd>
+            <dt>Area</dt><dd>{{{{AREA}}}}</dd>
+            <dt>Sede</dt><dd>{{{{SEDE}}}}</dd>
+            <dt>Ingreso</dt><dd>{{{{FECHA_INGRESO}}}}</dd>
+          </dl>
+        </section>
+        <p>{description}</p>
+        <p>{{{{DETALLE_DOCUMENTO}}}}</p>
+        <p>El presente documento queda registrado en SAE - RRHH para los fines administrativos, laborales y de trazabilidad que correspondan.</p>
+        <p>Atentamente,</p>
+        <section class=""signature-grid"">
+          <div class=""signature-box"">
+            <strong>{{{{NOMBRE_COMPLETO}}}}</strong>
+            <small>DNI: {{{{DNI}}}}</small>
+            <small>Colaborador</small>
+          </div>
+          <div class=""signature-box"">
+            <strong>Recursos Humanos</strong>
+            <small>{{{{EMPRESA}}}}</small>
+            <small>Representante autorizado</small>
+          </div>
+        </section>
+        ";
+    }
+
     private static async Task SeedSampleEmployeesAsync(HrmsDbContext dbContext, CancellationToken cancellationToken)
     {
         if (await dbContext.Employees.AnyAsync(x => !x.IsDeleted, cancellationToken))
@@ -546,5 +821,3 @@ public static class DatabaseSeeder
         }, cancellationToken);
     }
 }
-
-

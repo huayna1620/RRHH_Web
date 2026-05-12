@@ -27,6 +27,22 @@ public sealed class RolesController(IRoleService roleService) : ControllerBase
         return Ok(role);
     }
 
+    [Authorize(Policy = AppPermissions.RolesEdit)]
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateRoleRequestDto request, CancellationToken cancellationToken)
+    {
+        var role = await roleService.UpdateAsync(id, request, cancellationToken);
+        return role is null ? NotFound() : Ok(role);
+    }
+
+    [Authorize(Policy = AppPermissions.RolesEdit)]
+    [HttpPatch("{id:guid}/status")]
+    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateRoleStatusRequestDto request, CancellationToken cancellationToken)
+    {
+        var updated = await roleService.UpdateStatusAsync(id, request.IsActive, cancellationToken);
+        return updated ? NoContent() : NotFound();
+    }
+
     [Authorize(Policy = AppPermissions.RolesView)]
     [HttpGet("{id:guid}/permissions")]
     public async Task<IActionResult> GetPermissions(Guid id, CancellationToken cancellationToken)

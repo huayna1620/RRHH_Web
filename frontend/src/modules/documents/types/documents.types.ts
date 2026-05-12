@@ -2,7 +2,12 @@ export interface DocumentTemplate {
   id: string;
   name: string;
   type: string;
+  category: string;
   htmlContent: string;
+  variables: string[];
+  requiresEmployeeSignature: boolean;
+  requiresHrSignature: boolean;
+  format: string;
   description: string | null;
   isActive: boolean;
 }
@@ -12,6 +17,10 @@ export interface CreateTemplatePayload {
   type: string;
   htmlContent: string;
   description: string;
+  category?: string;
+  requiresEmployeeSignature?: boolean;
+  requiresHrSignature?: boolean;
+  format?: string;
 }
 
 export interface EmployeeDocument {
@@ -40,4 +49,10 @@ export interface CreateDocumentPayload {
   type: string;
   htmlContent: string;
   expiresAtUtc: string | null;
+}
+
+export interface SendDocumentEmailPayload {
+  to?: string | null;
+  subject?: string | null;
+  message?: string | null;
 }

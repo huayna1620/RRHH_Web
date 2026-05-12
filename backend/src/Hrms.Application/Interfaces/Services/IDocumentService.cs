@@ -14,6 +14,7 @@ public interface IDocumentService
     Task<EmployeeDocumentDto?> GetDocumentAsync(Guid id, CancellationToken cancellationToken = default);
     Task<EmployeeDocumentDto> CreateDocumentAsync(CreateDocumentRequestDto request, string userName, CancellationToken cancellationToken = default);
     Task<bool> SendForSignatureAsync(Guid documentId, string userName, CancellationToken cancellationToken = default);
+    Task<bool> SendDocumentByEmailAsync(Guid documentId, SendDocumentEmailRequestDto request, string userName, CancellationToken cancellationToken = default);
     Task<bool> SignDocumentAsync(Guid documentId, string userName, CancellationToken cancellationToken = default);
     Task<bool> RejectDocumentAsync(Guid documentId, string reason, string userName, CancellationToken cancellationToken = default);
 

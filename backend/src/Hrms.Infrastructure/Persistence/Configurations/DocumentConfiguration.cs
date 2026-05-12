@@ -12,7 +12,11 @@ public sealed class DocumentTemplateConfiguration : IEntityTypeConfiguration<Doc
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Name).HasMaxLength(300).IsRequired();
         builder.Property(x => x.Type).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.Category).HasMaxLength(100).HasDefaultValue("");
+        builder.Property(x => x.VariablesJson).HasColumnType("nvarchar(max)").HasDefaultValue("[]");
+        builder.Property(x => x.Format).HasMaxLength(30).HasDefaultValue("html");
         builder.Property(x => x.Description).HasMaxLength(500);
+        builder.HasIndex(x => new { x.Type, x.Category });
     }
 }
 

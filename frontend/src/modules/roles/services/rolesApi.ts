@@ -1,5 +1,5 @@
 import { httpClient } from "@/services/api/httpClient";
-import type { CreateRolePayload, PermissionItem, RoleItem } from "@/modules/roles/types/role.types";
+import type { CreateRolePayload, PermissionItem, RoleItem, UpdateRolePayload } from "@/modules/roles/types/role.types";
 
 export async function getRoles(): Promise<RoleItem[]> {
   const { data } = await httpClient.get<RoleItem[]>("/api/v1/roles");
@@ -9,6 +9,15 @@ export async function getRoles(): Promise<RoleItem[]> {
 export async function createRole(payload: CreateRolePayload): Promise<RoleItem> {
   const { data } = await httpClient.post<RoleItem>("/api/v1/roles", payload);
   return data;
+}
+
+export async function updateRole(id: string, payload: UpdateRolePayload): Promise<RoleItem> {
+  const { data } = await httpClient.put<RoleItem>(`/api/v1/roles/${id}`, payload);
+  return data;
+}
+
+export async function updateRoleStatus(id: string, isActive: boolean): Promise<void> {
+  await httpClient.patch(`/api/v1/roles/${id}/status`, { isActive });
 }
 
 export async function getRolePermissionIds(roleId: string): Promise<string[]> {

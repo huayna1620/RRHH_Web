@@ -1,6 +1,7 @@
 using Hrms.Application.Interfaces.Services;
 using Hrms.Infrastructure.Options;
 using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
@@ -28,7 +29,8 @@ public sealed class EmailService(IOptions<SmtpOptions> options, ILogger<EmailSer
         using var client = new SmtpClient();
         try
         {
-            await client.ConnectAsync(_smtp.Host, _smtp.Port, _smtp.UseSsl, cancellationToken);
+            var socketOptions = ResolveSocketOptions(_smtp);
+            await client.ConnectAsync(_smtp.Host, _smtp.Port, socketOptions, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(_smtp.UserName))
             {
@@ -47,5 +49,17 @@ public sealed class EmailService(IOptions<SmtpOptions> options, ILogger<EmailSer
         {
             await client.DisconnectAsync(true, cancellationToken);
         }
+    }
+
+    private static SecureSocketOptions ResolveSocketOptions(SmtpOptions smtp)
+    {
+        if (!smtp.UseSsl)
+        {
+            return SecureSocketOptions.StartTlsWhenAvailable;
+        }
+
+        return smtp.Port == 465
+            ? SecureSocketOptions.SslOnConnect
+            : SecureSocketOptions.StartTls;
     }
 }
