@@ -53,9 +53,9 @@ export interface CreateWebhookPayload {
 }
 
 export const WEBHOOK_PAYLOAD_FORMATS: { value: WebhookPayloadFormat; label: string; hint: string }[] = [
-  { value: "raw",   label: "Genérico (JSON HRMS)", hint: "JSON estándar con firma HMAC. Úsalo para sistemas propios o integraciones custom." },
-  { value: "slack", label: "Slack (Block Kit)",    hint: "Transforma el payload a Slack Block Kit con emoji, título y campos." },
-  { value: "teams", label: "Microsoft Teams",       hint: "Transforma el payload a MessageCard de Teams con sección y facts." },
+  { value: "raw", label: "Genérico (JSON HRMS)", hint: "JSON estándar con firma HMAC. Úsalo para sistemas propios o integraciones custom." },
+  { value: "slack", label: "Slack (Block Kit)", hint: "Transforma el payload a Slack Block Kit con emoji, título y campos." },
+  { value: "teams", label: "Microsoft Teams", hint: "Transforma el payload a MessageCard de Teams con sección y facts." },
 ];
 
 export interface WebhookDelivery {
@@ -77,7 +77,7 @@ export interface WebhookEvent {
   payloadExample: string;
 }
 
-// ── Calendar Feeds (iCal) ──────────────────────────────────────────
+// Calendar Feeds (iCal)
 export interface CalendarFeed {
   id: string;
   name: string;
@@ -109,7 +109,7 @@ export interface CalendarFeedScope {
   requiresAdminRole: boolean;
 }
 
-// ── Calendar OAuth Connections (Google push) ───────────────────────
+// Calendar OAuth Connections (Google push)
 export interface CalendarConnection {
   id: string;
   provider: string;
@@ -132,10 +132,10 @@ export interface CalendarProviderInfo {
 }
 
 export const AVAILABLE_SCOPES = [
-  { value: "employees:read",   label: "Empleados — Lectura" },
-  { value: "employees:write",  label: "Empleados — Escritura" },
-  { value: "payroll:read",     label: "Planilla — Lectura" },
-  { value: "attendance:read",  label: "Asistencia — Lectura" },
-  { value: "reports:read",     label: "Reportes — Lectura" },
-  { value: "analytics:read",   label: "Analytics — Lectura" },
+  { value: "employees:read", label: "Empleados - Lectura" },
+  { value: "employees:write", label: "Empleados - Escritura" },
+  { value: "payroll:read", label: "Planilla - Lectura" },
+  { value: "attendance:read", label: "Asistencia - Lectura" },
+  { value: "reports:read", label: "Reportes - Lectura" },
+  { value: "analytics:read", label: "Analítica - Lectura" },
 ];
