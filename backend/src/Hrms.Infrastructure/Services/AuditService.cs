@@ -65,6 +65,12 @@ public sealed class AuditService(HrmsDbContext dbContext) : IAuditService
             auditQuery = auditQuery.Where(x => x.Action.ToLower() == action);
         }
 
+        if (!string.IsNullOrWhiteSpace(query.UserName))
+        {
+            var userName = query.UserName.Trim().ToLowerInvariant();
+            auditQuery = auditQuery.Where(x => x.UserName.ToLower().Contains(userName));
+        }
+
         if (query.UserId.HasValue)
         {
             auditQuery = auditQuery.Where(x => x.UserId == query.UserId.Value);

@@ -4,6 +4,7 @@ public sealed record AuditLogQueryDto(
     string? Search = null,
     string? Module = null,
     string? Action = null,
+    string? UserName = null,
     Guid? UserId = null,
     DateTime? From = null,
     DateTime? To = null,

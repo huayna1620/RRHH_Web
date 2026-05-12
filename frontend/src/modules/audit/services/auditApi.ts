@@ -7,6 +7,7 @@ function toQueryParams(query: AuditLogQuery): URLSearchParams {
   if (query.search) params.set("search", query.search);
   if (query.module) params.set("module", query.module);
   if (query.action) params.set("action", query.action);
+  if (query.userName) params.set("userName", query.userName);
   if (query.userId) params.set("userId", query.userId);
   if (query.from) params.set("from", query.from);
   if (query.to) params.set("to", query.to);

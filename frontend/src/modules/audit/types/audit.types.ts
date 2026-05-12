@@ -8,7 +8,7 @@ export type PagedResult<T> = {
 export type AuditLogItem = {
   id: string;
   userId: string | null;
-  userName: string;
+  userName?: string;
   action: string;
   module: string;
   entityId: string;
@@ -22,6 +22,7 @@ export type AuditLogQuery = {
   search: string;
   module: string;
   action: string;
+  userName?: string;
   userId: string;
   from: string;
   to: string;
